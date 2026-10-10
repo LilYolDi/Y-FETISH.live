@@ -1,0 +1,18 @@
+{
+  "name": "y-fetish-live",
+  "version": "1.0.0",
+  "description": "Y-FETISH LIVE streaming platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "livekit-server-sdk": "^2.13.3"
+  }
+}

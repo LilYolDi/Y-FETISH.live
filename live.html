@@ -1,0 +1,57 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Прямой эфир — Y-FETISH LIVE</title>
+  <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE и отправляй виртуальные подарки ведущим.">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="logo" href="/"><span>Y</span>-FETISH LIVE</a>
+    <a class="back-link" href="/">Все эфиры</a>
+  </header>
+
+  <main class="live-layout">
+    <section class="video-section">
+      <div id="videoContainer" class="video-container">
+        <div id="videoPlaceholder">
+          <div class="play-icon">▶</div>
+          <p>Подключение к эфиру</p>
+        </div>
+        <div class="live-label">LIVE</div>
+      </div>
+
+      <h1 id="streamTitle">Прямой эфир</h1>
+      <p id="hostName" class="muted">Ведущий</p>
+
+      <div class="gift-panel">
+        <h2>Подарки</h2>
+        <p>Баланс: <strong id="coinBalance">0</strong> монет</p>
+        <div id="giftList" class="gift-list">
+          <p>Загрузка подарков...</p>
+        </div>
+        <p id="giftMessage" class="muted"></p>
+      </div>
+    </section>
+
+    <aside class="chat-panel">
+      <h2>Чат эфира</h2>
+      <div id="chatMessages" class="chat-messages">
+        <p class="muted">Чат появится после подключения сервера.</p>
+      </div>
+      <form id="chatForm" class="chat-form">
+        <input id="chatInput" maxlength="300"
+          placeholder="Сообщение..." autocomplete="off" required>
+        <button type="submit">Отправить</button>
+      </form>
+      <p class="muted">Не указывай личные данные в сообщениях.</p>
+    </aside>
+  </main>
+
+  <script src="/app.js" defer></script>
+</body>
+</html>
