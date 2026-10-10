@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <title>Панель ведущего — Y-FETISH LIVE</title>
+  <meta name="description" content="Панель ведущего Y-FETISH LIVE для управления прямым эфиром.">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+
+    header {
+      padding: 18px 5%;
+      border-bottom: 1px solid #333;
+    }
+
+    .logo {
+      color: #fff;
+      font-size: 25px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .logo span { color: #f22; }
+
+    main {
+      width: min(720px, 94%);
+      margin: 30px auto;
+    }
+
+    .panel {
+      padding: 22px;
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 12px;
+      margin-bottom: 18px;
+    }
+
+    h1 { font-size: 25px; }
+    h2 { font-size: 20px; }
+
+    label {
+      display: block;
+      margin: 15px 0 7px;
+      color: #ccc;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: #101010;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 7px;
+      font-size: 16px;
+    }
+
+    button, .watch-link {
+      display: inline-block;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 7px;
+      background: #e21b2d;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      margin: 10px 6px 0 0;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .secondary { background: #333; }
+
+    #preview {
+      display: block;
+      width: 100%;
+      max-height: 420px;
+      background: #050505;
+      border-radius: 9px;
+      margin-top: 15px;
+    }
+
+    .muted {
+      color: #aaa;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    #status {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 480px) {
+      main { margin: 18px auto; }
+      .panel { padding: 16px; }
+      h1 { font-size: 22px; }
+      button, .watch-link { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="logo" href="/"><span>Y</span>-FETISH LIVE</a>
+  </header>
+
+  <main>
+    <section class="panel" id="loginPanel">
+      <h1>Вход ведущего</h1>
+      <p class="muted">Введи пароль, заданный в настройках Render.</p>
+
+      <form id="loginForm">
+        <label for="password">Пароль ведущего</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          maxlength="200"
+        >
+        <button id="loginButton" type="submit">Войти</button>
+      </form>
+    </section>
+
+    <section class="panel" id="studioPanel" hidden>
+      <h1>Панель ведущего</h1>
+
+      <form id="streamForm">
+        <label for="streamTitle">Название эфира</label>
+        <input
+          id="streamTitle"
+          type="text"
+          maxlength="100"
+          placeholder="Мой прямой эфир"
+          required
+        >
+
+        <label for="roomName">Комната эфира</label>
+        <input
+          id="roomName"
+          type="text"
+          maxlength="80"
+          value="live-main"
+          pattern="[A-Za-z0-9_-]+"
+          required
+        >
+
+        <button id="startButton" type="submit">
+          Включить камеру и начать эфир
+        </button>
+      </form>
+
+      <video id="preview" autoplay playsinline muted hidden></video>
+
+      <div>
+        <button id="stopButton" class="secondary" type="button" hidden>
+          Завершить эфир
+        </button>
+        <a id="watchLink" class="watch-link" href="/live.html" hidden>
+          Открыть эфир
+        </a>
+        <button id="logoutButton" class="secondary" type="button">
+          Выйти
+        </button>
+      </div>
+
+      <p id="status" class="muted" role="status" aria-live="polite">
+        Войди, чтобы начать.
+      </p>
+    </section>
+  </main>
+
+  <script src="/host.js" defer></script>
+</body>
+</html>
