@@ -6,6 +6,22 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
+app.get("/live.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "live.html"));
+});
+
+app.get("/style.css", (req, res) => {
+  res.sendFile(path.join(__dirname, "style.css"));
+});
+
+app.get("/app.js", (req, res) => {
+  res.sendFile(path.join(__dirname, "app.js"));
+});
+
 const PORT = process.env.PORT || 10000;
 
 let supabase = null;
