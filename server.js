@@ -1,26 +1,11 @@
 const express = require("express");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
+const { AccessToken } = require("livekit-server-sdk");
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.get("/live.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "live.html"));
-});
-
-app.get("/style.css", (req, res) => {
-  res.sendFile(path.join(__dirname, "style.css"));
-});
-
-app.get("/app.js", (req, res) => {
-  res.sendFile(path.join(__dirname, "app.js"));
-});
 
 const PORT = process.env.PORT || 10000;
 
@@ -71,6 +56,63 @@ app.get("/api/streams", async (req, res) => {
   }
 
   res.json(data);
+});
+
+app.post("/api/livekit/token", async (req, res) => {
+  try {
+    const { roomName, participantName, isHost } = req.body || {};
+
+    if (!roomName || !participantName) {
+      return res.status(400).json({
+        error: "roomName and participantName are required"
+      });
+    }
+
+    if (
+      typeof roomName !== "string" ||
+      typeof participantName !== "string" ||
+      roomName.length > 100 ||
+      participantName.length > 50
+    ) {
+      return res.status(400).json({ error: "Invalid room or participant name" });
+    }
+
+    if (
+      !process.env.LIVEKIT_API_KEY ||
+      !process.env.LIVEKIT_API_SECRET ||
+      !process.env.LIVEKIT_URL
+    ) {
+      return res.status(503).json({ error: "LiveKit is not configured" });
+    }
+
+    const token = new AccessToken(
+      process.env.LIVEKIT_API_KEY,
+      process.env.LIVEKIT_API_SECRET,
+      {
+        identity: `guest-${require("crypto").randomUUID()}`,
+        name: participantName.trim() || "Guest",
+        ttl: "1h"
+      }
+    );
+
+    token.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canSubscribe: true,
+      canPublish: Boolean(isHost),
+      canPublishData: true
+    });
+
+    const jwt = await token.toJwt();
+
+    res.json({
+      serverUrl: process.env.LIVEKIT_URL,
+      token: jwt
+    });
+  } catch (error) {
+    console.error("LiveKit token error:", error.message);
+    res.status(500).json({ error: "Could not create LiveKit token" });
+  }
 });
 
 app.get("*path", (req, res, next) => {
