@@ -1,17 +1,25 @@
+
+"use strict";
+
 const express = require("express");
 const path = require("path");
+const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 const { AccessToken } = require("livekit-server-sdk");
 
 const app = express();
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-
 const PORT = process.env.PORT || 10000;
+const ROOT = __dirname;
+
+app.use(express.json({ limit: "100kb" }));
+app.use(express.static(ROOT));
 
 let supabase = null;
 
-if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+if (
+  process.env.SUPABASE_URL &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+) {
   supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -19,62 +27,93 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
 }
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", site: "Y-FETISH LIVE" });
+  res.json({
+    status: "ok",
+    site: "Y-FETISH LIVE"
+  });
 });
 
 app.get("/api/gifts", async (req, res) => {
   if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
+    return res.status(503).json({
+      error: "Database not configured"
+    });
   }
 
-  const { data, error } = await supabase
-    .from("gifts")
-    .select("id,name,emoji,price")
-    .eq("active", true)
-    .order("price");
+  try {
+    const { data, error } = await supabase
+      .from("gifts")
+      .select("id,name,emoji,price")
+      .eq("active", true)
+      .order("price");
 
-  if (error) {
-    return res.status(500).json({ error: "Could not load gifts" });
+    if (error) {
+      console.error("Gifts error:", error.message);
+      return res.status(500).json({
+        error: "Could not load gifts"
+      });
+    }
+
+    res.json(data || []);
+  } catch (error) {
+    console.error("Gifts error:", error.message);
+    res.status(500).json({
+      error: "Could not load gifts"
+    });
   }
-
-  res.json(data);
 });
 
 app.get("/api/streams", async (req, res) => {
   if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
+    return res.status(503).json({
+      error: "Database not configured"
+    });
   }
 
-  const { data, error } = await supabase
-    .from("live_streams")
-    .select("id,title,host_id,room_name,started_at,profiles(username,avatar_url)")
-    .eq("status", "live")
-    .order("started_at", { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from("live_streams")
+      .select(
+        "id,title,host_id,room_name,started_at,profiles(username,avatar_url)"
+      )
+      .eq("status", "live")
+      .order("started_at", { ascending: false });
 
-  if (error) {
-    return res.status(500).json({ error: "Could not load streams" });
+    if (error) {
+      console.error("Streams error:", error.message);
+      return res.status(500).json({
+        error: "Could not load streams"
+      });
+    }
+
+    res.json(data || []);
+  } catch (error) {
+    console.error("Streams error:", error.message);
+    res.status(500).json({
+      error: "Could not load streams"
+    });
   }
-
-  res.json(data);
 });
 
 app.post("/api/livekit/token", async (req, res) => {
   try {
-    const { roomName, participantName, isHost } = req.body || {};
-
-    if (!roomName || !participantName) {
-      return res.status(400).json({
-        error: "roomName and participantName are required"
-      });
-    }
+    const {
+      roomName,
+      participantName,
+      isHost
+    } = req.body || {};
 
     if (
       typeof roomName !== "string" ||
       typeof participantName !== "string" ||
+      !roomName.trim() ||
+      !participantName.trim() ||
       roomName.length > 100 ||
       participantName.length > 50
     ) {
-      return res.status(400).json({ error: "Invalid room or participant name" });
+      return res.status(400).json({
+        error: "Invalid room or participant name"
+      });
     }
 
     if (
@@ -82,24 +121,27 @@ app.post("/api/livekit/token", async (req, res) => {
       !process.env.LIVEKIT_API_SECRET ||
       !process.env.LIVEKIT_URL
     ) {
-      return res.status(503).json({ error: "LiveKit is not configured" });
+      return res.status(503).json({
+        error: "LiveKit is not configured"
+      });
     }
 
+    // Публичные запросы не могут получить права ведущего.
     const token = new AccessToken(
       process.env.LIVEKIT_API_KEY,
       process.env.LIVEKIT_API_SECRET,
       {
-        identity: `guest-${require("crypto").randomUUID()}`,
-        name: participantName.trim() || "Guest",
+        identity: `guest-${crypto.randomUUID()}`,
+        name: participantName.trim(),
         ttl: "1h"
       }
     );
 
     token.addGrant({
       roomJoin: true,
-      room: roomName,
+      room: roomName.trim(),
       canSubscribe: true,
-      canPublish: Boolean(isHost),
+      canPublish: false,
       canPublishData: true
     });
 
@@ -111,14 +153,29 @@ app.post("/api/livekit/token", async (req, res) => {
     });
   } catch (error) {
     console.error("LiveKit token error:", error.message);
-    res.status(500).json({ error: "Could not create LiveKit token" });
+    res.status(500).json({
+      error: "Could not create LiveKit token"
+    });
   }
 });
 
-app.get("*path", (req, res, next) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"), (err) => {
+// Главная страница
+app.get("/", (req, res, next) => {
+  res.sendFile(path.join(ROOT, "index.html"), (err) => {
     if (err) next();
   });
+});
+
+// Страница эфира
+app.get("/live.html", (req, res, next) => {
+  res.sendFile(path.join(ROOT, "live.html"), (err) => {
+    if (err) next();
+  });
+});
+
+// Остальные файлы и страницы
+app.use((req, res, next) => {
+  res.status(404).send("Страница не найдена");
 });
 
 app.listen(PORT, () => {
