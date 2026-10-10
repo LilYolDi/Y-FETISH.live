@@ -5,13 +5,244 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111111">
+
   <title>Прямой эфир — Y-FETISH LIVE</title>
-  <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE и отправляй виртуальные подарки ведущим.">
+  <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE, общайся со зрителями и знакомься с ведущими.">
+
+  <link rel="canonical" href="https://y-fetish-live.onrender.com/live.html">
   <link rel="stylesheet" href="/style.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 5%;
+      border-bottom: 1px solid #333;
+    }
+
+    .logo {
+      color: #fff;
+      font-size: 25px;
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: #f22;
+    }
+
+    .back-link {
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .live-layout {
+      width: min(1200px, 94%);
+      margin: 24px auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .video-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      min-height: 220px;
+      background: #050505;
+      border: 1px solid #333;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #videoPlaceholder {
+      padding: 20px;
+      text-align: center;
+      color: #bbb;
+    }
+
+    .play-icon {
+      color: #f22;
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .live-label {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 6px 10px;
+      background: #e21b2d;
+      border-radius: 5px;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    #streamTitle {
+      margin: 18px 0 8px;
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .muted {
+      color: #aaa;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .gift-panel,
+    .chat-panel {
+      padding: 18px;
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 12px;
+    }
+
+    .gift-panel {
+      margin-top: 24px;
+    }
+
+    .gift-panel h2,
+    .chat-panel h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
+    .gift-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+    }
+
+    .gift-item {
+      padding: 12px 8px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #292929;
+      color: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .gift-item:hover {
+      border-color: #f22;
+    }
+
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+    }
+
+    .chat-messages {
+      min-height: 200px;
+      max-height: 400px;
+      overflow-y: auto;
+      overflow-wrap: anywhere;
+      padding: 10px;
+      background: #111;
+      border-radius: 8px;
+    }
+
+    .chat-form {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .chat-form input {
+      min-width: 0;
+      flex: 1;
+      padding: 11px;
+      border: 1px solid #444;
+      border-radius: 7px;
+      background: #252525;
+      color: #fff;
+    }
+
+    .chat-form button {
+      padding: 11px 13px;
+      border: 0;
+      border-radius: 7px;
+      background: #e21b2d;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 800px) {
+      .live-layout {
+        grid-template-columns: 1fr;
+        margin-top: 16px;
+      }
+
+      .chat-panel {
+        min-height: auto;
+      }
+
+      .chat-messages {
+        min-height: 140px;
+      }
+
+      #streamTitle {
+        font-size: 21px;
+      }
+
+      .logo {
+        font-size: 22px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .topbar {
+        padding: 14px 4%;
+      }
+
+      .gift-panel,
+      .chat-panel {
+        padding: 13px;
+      }
+
+      .gift-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .chat-form {
+        flex-wrap: wrap;
+      }
+
+      .chat-form button {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <header class="topbar">
-    <a class="logo" href="/"><span>Y</span>-FETISH LIVE</a>
+    <a class="logo" href="/">
+      <span>Y</span>-FETISH LIVE
+    </a>
     <a class="back-link" href="/">Все эфиры</a>
   </header>
 
@@ -20,35 +251,51 @@
       <div id="videoContainer" class="video-container">
         <div id="videoPlaceholder">
           <div class="play-icon">▶</div>
-          <p>Подключение к эфиру</p>
+          <p>Подключение к эфиру...</p>
         </div>
         <div class="live-label">LIVE</div>
       </div>
 
       <h1 id="streamTitle">Прямой эфир</h1>
-      <p id="hostName" class="muted">Ведущий</p>
+      <p id="hostName" class="muted">Y-FETISH LIVE</p>
 
-      <div class="gift-panel">
-        <h2>Подарки</h2>
+      <section class="gift-panel">
+        <h2>Виртуальные подарки</h2>
         <p>Баланс: <strong id="coinBalance">0</strong> монет</p>
+
         <div id="giftList" class="gift-list">
-          <p>Загрузка подарков...</p>
+          <p class="muted">Загрузка подарков...</p>
         </div>
-        <p id="giftMessage" class="muted"></p>
-      </div>
+
+        <p id="giftMessage" class="muted" aria-live="polite"></p>
+      </section>
     </section>
 
     <aside class="chat-panel">
       <h2>Чат эфира</h2>
-      <div id="chatMessages" class="chat-messages">
-        <p class="muted">Чат появится после подключения сервера.</p>
+
+      <div id="chatMessages" class="chat-messages" aria-live="polite">
+        <p class="muted">
+          Чат пока не подключён к серверу.
+        </p>
       </div>
+
       <form id="chatForm" class="chat-form">
-        <input id="chatInput" maxlength="300"
-          placeholder="Сообщение..." autocomplete="off" required>
+        <input
+          id="chatInput"
+          type="text"
+          maxlength="300"
+          placeholder="Сообщение..."
+          autocomplete="off"
+          aria-label="Сообщение в чат"
+          required
+        >
         <button type="submit">Отправить</button>
       </form>
-      <p class="muted">Не указывай личные данные в сообщениях.</p>
+
+      <p class="muted">
+        Не указывай личные данные в сообщениях.
+      </p>
     </aside>
   </main>
 
