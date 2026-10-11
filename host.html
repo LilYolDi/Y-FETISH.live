@@ -4,122 +4,127 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#080808">
-  <title>Запуск эфира — Y-FETISH LIVE</title>
-  <meta name="description" content="Запусти прямой эфир на Y-FETISH LIVE.">
-  <link rel="stylesheet" href="/style.css">
+
+  <title>Студия эфира — Y-FETISH LIVE</title>
+  <meta name="description" content="Студия прямых эфиров Y-FETISH LIVE.">
 
   <style>
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      min-height: 100%;
-      background: #080808;
-      color: #fff;
-      font-family: Arial, sans-serif;
+    * {
+      box-sizing: border-box;
     }
 
-    button, input { font: inherit; }
-    [hidden] { display: none !important; }
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: #080808;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-    header {
-      padding: 16px 5%;
-      background: #111;
-      border-bottom: 1px solid #333;
+    body {
+      padding: 20px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button,
+    .watch-link {
+      min-height: 44px;
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 10px;
+      background: #e21b2d;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
+    button.secondary {
+      background: #303030;
+      border: 1px solid #484848;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      min-height: 44px;
+      padding: 12px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background: #151515;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .page-header {
+      max-width: 900px;
+      margin: 0 auto 20px;
     }
 
     .logo {
       color: #fff;
-      font-size: 25px;
-      font-weight: 800;
+      font-size: 27px;
+      font-weight: 900;
       text-decoration: none;
     }
 
-    .logo span { color: #f22; }
-
-    main {
-      width: min(720px, 94%);
-      margin: 25px auto;
+    .logo-y {
+      color: #e21b2d;
     }
 
     .panel {
+      width: 100%;
+      max-width: 480px;
+      margin: 25px auto;
       padding: 22px;
-      background: #1b1b1b;
-      border: 1px solid #333;
-      border-radius: 12px;
+      border: 1px solid #303030;
+      border-radius: 16px;
+      background: #121212;
     }
 
-    h1 { font-size: 25px; }
-
-    label {
-      display: block;
-      margin: 15px 0 7px;
-      color: #ccc;
+    .panel h1 {
+      margin: 0 0 20px;
+      font-size: 23px;
     }
 
-    input {
-      display: block;
-      width: 100%;
-      min-width: 0;
-      padding: 13px;
-      background: #101010;
-      color: #fff;
-      border: 1px solid #444;
-      border-radius: 8px;
-      font-size: 16px;
-    }
-
-    button, .watch-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 44px;
-      padding: 12px 16px;
-      margin: 10px 6px 0 0;
-      border: 0;
-      border-radius: 9px;
-      background: #e21b2d;
-      color: #fff;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .secondary { background: #333; }
-
-    #preview {
-      display: block;
-      width: 100%;
-      max-height: 420px;
-      margin-top: 15px;
-      background: #000;
-      border-radius: 10px;
-      object-fit: cover;
-    }
-
-    .muted {
-      color: #aaa;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    #status {
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      color: #eee;
-      font-size: 14px;
-      line-height: 1.45;
-    }
-
-    .camera-controls {
+    #loginForm {
       display: flex;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .studio-stage {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .studio-top {
+      display: flex;
+      flex-direction: column;
       gap: 8px;
     }
 
-    .camera-controls button { margin-right: 0; }
+    .studio-top label {
+      font-size: 14px;
+      color: #ddd;
+    }
 
     #streamForm {
       display: flex;
@@ -127,203 +132,247 @@
       gap: 10px;
     }
 
-    .studio-stage { position: relative; }
-    .studio-top { margin-bottom: 12px; }
-    .studio-top label { margin-top: 0; }
-    #startButton { width: 100%; }
+    #preview {
+      display: block;
+      width: 100%;
+      max-height: 65vh;
+      aspect-ratio: 9 / 16;
+      object-fit: cover;
+      border-radius: 12px;
+      background: #000;
+    }
+
+    .camera-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+    }
+
+    .camera-controls button,
+    .camera-controls .watch-link {
+      flex: 1 1 130px;
+    }
+
+    #status {
+      min-height: 20px;
+      margin: 0;
+      color: #ccc;
+      font-size: 13px;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
 
     @media (max-width: 800px) {
-      html, body {
-        width: 100%;
-        min-height: 100%;
-        background: #000;
-      }
-
       body.studio-active {
-        height: 100vh;
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
         height: 100dvh;
+        padding: 0;
         overflow: hidden;
       }
 
-      body.studio-active > header { display: none; }
-
-      body.studio-active main {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100vh;
-        height: 100dvh;
-        margin: 0;
+      body.studio-active .page-header {
+        display: none;
       }
 
-      #loginPanel {
-        width: calc(100% - 28px);
-        margin: 20px auto;
-      }
-
-      #studioPanel {
+      body.studio-active #studioPanel {
         position: fixed;
         inset: 0;
-        z-index: 10;
+        z-index: 100;
         width: 100%;
-        height: 100vh;
+        height: 100%;
         height: 100dvh;
+        max-width: none;
         margin: 0;
         padding: 0;
         overflow: hidden;
-        background: #000;
         border: 0;
         border-radius: 0;
+        background: #080808;
       }
 
-      .studio-stage {
+      body.studio-active .studio-stage {
         position: absolute;
         inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        padding: 0;
         overflow: hidden;
-        background: #000;
       }
 
-      #preview {
+      body.studio-active #preview {
         position: absolute;
         inset: 0;
-        z-index: 0;
         width: 100%;
         height: 100%;
         max-height: none;
-        margin: 0;
+        aspect-ratio: auto;
         border-radius: 0;
-        background: #000;
         object-fit: cover;
+        background: #080808;
       }
 
-      .studio-top {
-        position: absolute;
-        top: calc(8px + env(safe-area-inset-top, 0px));
-        left: 12px;
-        right: 12px;
-        z-index: 5;
-        margin: 0;
-        padding: 9px;
-        border: 1px solid rgba(255,255,255,.14);
-        border-radius: 12px;
-        background: rgba(15,15,15,.76);
-        backdrop-filter: blur(10px);
-      }
-
-      .studio-top label {
-        margin: 0 0 5px;
-        color: #ddd;
-        font-size: 11px;
-      }
-
-      #streamForm {
-        display: block;
-        margin: 0;
-      }
-
-      #streamTitle {
-        padding: 9px 11px;
-        background: rgba(0,0,0,.65);
-        border-color: #444;
-        border-radius: 8px;
-        font-size: 14px;
-      }
-
-      /* Кнопка запуска эфира — внизу экрана */
-      #startButton {
-        position: fixed !important;
-        top: auto !important;
-        left: 50% !important;
-        right: auto !important;
-        bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
-        z-index: 20 !important;
-        transform: translateX(-50%);
-        display: inline-flex;
-        width: auto;
-        min-width: 155px;
-        min-height: 44px;
-        padding: 10px 22px;
-        margin: 0;
-        border: 0;
-        border-radius: 10px;
-        background: #e21b2d;
-        color: #fff;
-        box-shadow: 0 4px 18px rgba(226,27,45,.3);
-        font-size: 14px;
-        font-weight: 700;
-        white-space: nowrap;
-      }
-
-      #startButton[hidden] { display: none !important; }
-
-      .camera-controls {
+      body.studio-active .studio-top {
         position: fixed;
+        top: calc(12px + env(safe-area-inset-top, 0px));
         left: 12px;
         right: 12px;
-        bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-        z-index: 15;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
+        z-index: 110;
         gap: 7px;
       }
 
-      .camera-controls button,
-      .camera-controls .watch-link {
-        flex: 0 1 auto;
-        min-width: 0;
-        min-height: 36px;
-        padding: 8px 11px;
-        margin: 0;
-        border-radius: 9px;
-        font-size: 12px;
+      body.studio-active .studio-top label {
+        color: #fff;
+        font-size: 13px;
+        text-shadow: 0 1px 4px #000;
       }
 
-      #status {
+      body.studio-active #streamForm {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        width: 100%;
+      }
+
+      body.studio-active #streamTitle {
+        width: 100%;
+        min-height: 46px;
+        padding: 11px 12px;
+        border: 1px solid #555;
+        border-radius: 10px;
+        background: rgba(15, 15, 15, .9);
+        color: #fff;
+        font-size: 16px;
+      }
+
+      body.studio-active #startButton {
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+        z-index: 130;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: min(220px, calc(100vw - 32px));
+        min-height: 48px;
+        margin: 0;
+        padding: 12px 18px;
+        transform: translateX(-50%);
+        border: 0;
+        border-radius: 11px;
+        background: #e21b2d;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        white-space: nowrap;
+        box-shadow: 0 4px 18px rgba(226, 27, 45, .35);
+      }
+
+      body.studio-active .camera-controls {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        z-index: 120;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+      }
+
+      body.studio-active .camera-controls button,
+      body.studio-active .camera-controls .watch-link {
+        flex: 0 1 auto;
+        min-width: 0;
+        min-height: 40px;
+        max-width: 100%;
+        margin: 0;
+        padding: 9px 12px;
+        border-radius: 9px;
+        font-size: 12px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      body.studio-active #status {
         position: fixed;
         left: 12px;
         right: 12px;
-        bottom: calc(145px + env(safe-area-inset-bottom, 0px));
-        z-index: 12;
-        max-height: 14%;
+        bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+        z-index: 115;
         margin: 0;
-        padding: 7px 9px;
-        overflow: auto;
-        border-radius: 8px;
-        background: rgba(0,0,0,.58);
+        color: #fff;
+        font-size: 12px;
+        text-align: center;
+        text-shadow: 0 1px 4px #000;
+        pointer-events: none;
+      }
+    }
+
+    @media (max-width: 380px) {
+      body.studio-active .camera-controls {
+        left: 6px;
+        right: 6px;
+        gap: 5px;
+      }
+
+      body.studio-active .camera-controls button,
+      body.studio-active .camera-controls .watch-link {
+        padding: 8px 9px;
         font-size: 11px;
-        text-shadow: 0 1px 3px #000;
+      }
+    }
+
+    @media (max-height: 500px) and (max-width: 800px) {
+      body.studio-active #startButton {
+        bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+        min-height: 42px;
+      }
+
+      body.studio-active .studio-top {
+        top: calc(5px + env(safe-area-inset-top, 0px));
+      }
+
+      body.studio-active #status {
+        bottom: calc(108px + env(safe-area-inset-bottom, 0px));
       }
     }
   </style>
 </head>
 
 <body>
-  <header>
-    <a class="logo" href="/live.html">Y<span>-</span>FETISH LIVE</a>
+  <header class="page-header">
+    <a class="logo" href="/"><span class="logo-y">Y</span>-FETISH LIVE</a>
   </header>
 
   <main>
     <section id="loginPanel" class="panel">
-      <h1>Панель ведущего</h1>
-      <p class="muted">Войди, чтобы включить камеру и начать эфир.</p>
+      <h1>Вход ведущего</h1>
 
       <form id="loginForm">
-        <label for="password">Пароль ведущего</label>
+        <label for="hostPassword">Пароль ведущего</label>
         <input
-          id="password"
+          id="hostPassword"
           name="password"
           type="password"
           autocomplete="current-password"
+          placeholder="Введите пароль"
           required
         >
-        <button id="loginButton" type="submit">Войти</button>
+        <button type="submit">Войти</button>
       </form>
-
-      <p id="loginHelp" class="muted">
-        После входа разреши доступ к камере и микрофону.
-      </p>
     </section>
 
     <section id="studioPanel" class="panel" hidden>
@@ -336,23 +385,14 @@
           <form id="streamForm">
             <input
               id="streamTitle"
-              name="streamTitle"
+              name="title"
               type="text"
-              maxlength="100"
               placeholder="Например, Прямой эфир"
+              maxlength="100"
               required
             >
-
-            <input
-              id="roomName"
-              name="roomName"
-              type="hidden"
-              value="live-main"
-            >
-
-            <button id="startButton" type="submit">
-              Начать эфир
-            </button>
+            <input id="roomName" type="hidden" value="live-main">
+            <button id="startButton" type="submit">Начать эфир</button>
           </form>
         </div>
 
