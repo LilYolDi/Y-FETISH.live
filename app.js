@@ -1,10 +1,8 @@
-
 (() => {
   "use strict";
 
   const params = new URLSearchParams(window.location.search);
   const roomName = params.get("room");
-
   const $ = (selector) => document.querySelector(selector);
 
   const titleElement = $("#streamTitle");
@@ -24,6 +22,7 @@
   let hostTracks = [];
   let hostFacingMode = "user";
   let hostBusy = false;
+  let streamEnded = false;
 
   function showMessage(message) {
     if (giftMessage) {
@@ -59,14 +58,11 @@
 
     await new Promise((resolve, reject) => {
       const script = document.createElement("script");
-
       script.src =
         "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
-
       script.onload = resolve;
       script.onerror = () =>
         reject(new Error("Не удалось загрузить LiveKit"));
-
       document.head.appendChild(script);
     });
 
@@ -94,14 +90,13 @@
     if (!container || !track) return;
 
     const element = track.attach();
-
     element.autoplay = true;
     element.playsInline = true;
 
     if (track.kind === "video") {
       element.style.width = "100%";
       element.style.height = "100%";
-      element.style.objectFit = isHost ? "cover" : "contain";
+      element.style.objectFit = isHost ? "contain" : "contain";
 
       if (isHost) element.muted = true;
     }
@@ -136,11 +131,14 @@
   }
 
   function setupHostInterface() {
+    if ($("#hostLiveControls")) return;
+
     document.body.classList.add("host-broadcast-mode");
 
     const style = document.createElement("style");
     style.textContent = `
       body.host-broadcast-mode {
+        margin: 0;
         background: #080808;
       }
 
@@ -159,13 +157,10 @@
         z-index: 1;
       }
 
-      body.host-broadcast-mode #videoContainer video,
-      body.host-broadcast-mode #liveVideo video,
-      body.host-broadcast-mode #videoPlayer video,
-      body.host-broadcast-mode .video-container video {
+      body.host-broadcast-mode video {
         width: 100%;
         height: 100%;
-        object-fit: cover !important;
+        object-fit: contain !important;
       }
 
       #hostLiveControls {
@@ -176,6 +171,7 @@
         bottom: calc(14px + env(safe-area-inset-bottom, 0px));
         display: flex;
         justify-content: center;
+        flex-wrap: wrap;
         gap: 8px;
       }
 
@@ -203,26 +199,71 @@
     switchButton.type = "button";
     switchButton.className = "secondary";
     switchButton.textContent = "Переключить камеру";
+    switchButton.addEventListener("click", switchHostCamera);
 
     const stopButton = document.createElement("button");
     stopButton.type = "button";
     stopButton.textContent = "Завершить эфир";
-
-    switchButton.addEventListener("click", switchHostCamera);
     stopButton.addEventListener("click", stopHostStream);
 
     controls.append(switchButton, stopButton);
     document.body.appendChild(controls);
   }
 
+  async function createCameraTrack(sdk, facingMode) {
+    const tracks = await sdk.createLocalTracks({
+      audio: false,
+      video: {
+        facingMode,
+        resolution: { width: 1280, height: 720 }
+      }
+    });
+
+    const track = tracks.find((item) => item.kind === "video");
+
+    if (!track) {
+      tracks.forEach((item) => item.stop());
+      throw new Error("Не удалось включить камеру");
+    }
+
+    // Уменьшаем цифровое приближение, если камера позволяет.
+    const capabilities = track.mediaStreamTrack?.getCapabilities?.();
+
+    if (capabilities?.zoom) {
+      try {
+        await track.mediaStreamTrack.applyConstraints({
+          advanced: [{ zoom: capabilities.zoom.min ?? 1 }]
+        });
+      } catch (_) {}
+    }
+
+    return track;
+  }
+
   async function publishHostTracks(sdk) {
     const tracks = await sdk.createLocalTracks({
       audio: true,
-      video: { facingMode: hostFacingMode }
+      video: {
+        facingMode: hostFacingMode,
+        resolution: { width: 1280, height: 720 }
+      }
     });
 
     try {
       for (const track of tracks) {
+        if (track.kind === "video") {
+          const capabilities =
+            track.mediaStreamTrack?.getCapabilities?.();
+
+          if (capabilities?.zoom) {
+            try {
+              await track.mediaStreamTrack.applyConstraints({
+                advanced: [{ zoom: capabilities.zoom.min ?? 1 }]
+              });
+            } catch (_) {}
+          }
+        }
+
         await liveRoom.localParticipant.publishTrack(track);
         hostTracks.push(track);
 
@@ -241,28 +282,19 @@
   }
 
   async function switchHostCamera() {
-    if (!liveRoom || !isHost || hostBusy) return;
+    if (!liveRoom || !isHost || hostBusy || streamEnded) return;
 
     hostBusy = true;
 
     try {
       const sdk = await loadLiveKit();
-      const nextMode = hostFacingMode === "user" ? "environment" : "user";
+      const nextMode =
+        hostFacingMode === "user" ? "environment" : "user";
 
-      const newTracks = await sdk.createLocalTracks({
-        video: { facingMode: nextMode },
-        audio: false
-      });
+      const newTrack = await createCameraTrack(sdk, nextMode);
+      const oldTracks = hostTracks.filter((track) => track.kind === "video");
 
-      const newVideoTrack = newTracks.find((track) => track.kind === "video");
-
-      if (!newVideoTrack) {
-        throw new Error("Камера не найдена");
-      }
-
-      const oldVideoTracks = hostTracks.filter((track) => track.kind === "video");
-
-      for (const track of oldVideoTracks) {
+      for (const track of oldTracks) {
         try {
           await liveRoom.localParticipant.unpublishTrack(track);
           track.detach().forEach((element) => element.remove());
@@ -272,11 +304,11 @@
 
       hostTracks = hostTracks.filter((track) => track.kind !== "video");
 
-      await liveRoom.localParticipant.publishTrack(newVideoTrack);
-      hostTracks.push(newVideoTrack);
+      await liveRoom.localParticipant.publishTrack(newTrack);
+      hostTracks.push(newTrack);
       hostFacingMode = nextMode;
+      attachTrack(newTrack);
 
-      attachTrack(newVideoTrack);
       showMessage("Камера переключена.");
     } catch (error) {
       showMessage("Не удалось переключить камеру: " + error.message);
@@ -285,34 +317,23 @@
     }
   }
 
-  async function stopHostStream() {
-    if (!isHost || hostBusy) return;
-
-    hostBusy = true;
-
-    try {
-      await api("/api/streams/stop", {
-        method: "POST",
-        body: JSON.stringify({ roomName })
-      });
-
-      await disconnectLiveRoom();
-      window.location.href = "/";
-    } catch (error) {
-      showMessage("Ошибка завершения эфира: " + error.message);
-    } finally {
-      hostBusy = false;
-    }
-  }
-
   async function disconnectLiveRoom() {
-    if (liveRoom) {
+    const room = liveRoom;
+    liveRoom = null;
+
+    if (room) {
       try {
-        await liveRoom.disconnect();
+        await room.localParticipant.setCameraEnabled(false);
+      } catch (_) {}
+
+      try {
+        await room.localParticipant.setMicrophoneEnabled(false);
+      } catch (_) {}
+
+      try {
+        await room.disconnect();
       } catch (_) {}
     }
-
-    liveRoom = null;
 
     hostTracks.forEach((track) => {
       try {
@@ -322,6 +343,66 @@
     });
 
     hostTracks = [];
+  }
+
+  async function stopHostStream() {
+    if (!isHost || hostBusy || streamEnded) return;
+
+    if (!window.confirm("Завершить эфир и отключить камеру и микрофон?")) {
+      return;
+    }
+
+    hostBusy = true;
+
+    const controls = $("#hostLiveControls");
+    const buttons = controls?.querySelectorAll("button");
+    buttons?.forEach((button) => {
+      button.disabled = true;
+    });
+
+    showMessage("Завершение эфира...");
+
+    try {
+      // Сначала выключаем передачу видео и звука.
+      await disconnectLiveRoom();
+
+      // Затем меняем статус эфира на сервере.
+      await api("/api/streams/stop", {
+        method: "POST",
+        body: JSON.stringify({ roomName })
+      });
+
+      streamEnded = true;
+      clearInterval(chatTimer);
+      window.location.replace("/");
+    } catch (error) {
+      showMessage(
+        "Не удалось подтвердить завершение эфира: " + error.message
+      );
+
+      // Видео и микрофон уже отключены. Не возобновляем их автоматически.
+      window.setTimeout(() => {
+        window.location.replace("/");
+      }, 1800);
+    } finally {
+      hostBusy = false;
+    }
+  }
+
+  function setupViewerRoomEvents(sdk) {
+    liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track) => {
+      attachTrack(track);
+    });
+
+    liveRoom.on(sdk.RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach().forEach((element) => element.remove());
+    });
+
+    liveRoom.on(sdk.RoomEvent.Disconnected, () => {
+      if (!streamEnded) {
+        showMessage("Соединение с эфиром потеряно.");
+      }
+    });
   }
 
   async function connectLive() {
@@ -336,7 +417,6 @@
     if (!isActive) return;
 
     const sdk = await loadLiveKit();
-
     const tokenData = await api(
       "/api/livekit/token?roomName=" + encodeURIComponent(roomName)
     );
@@ -350,18 +430,7 @@
 
     isHost = tokenData.isHost === true;
     liveRoom = new sdk.Room();
-
-    liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track) => {
-      attachTrack(track);
-    });
-
-    liveRoom.on(sdk.RoomEvent.TrackUnsubscribed, (track) => {
-      track.detach().forEach((element) => element.remove());
-    });
-
-    liveRoom.on(sdk.RoomEvent.Disconnected, () => {
-      showMessage("Соединение с эфиром потеряно.");
-    });
+    setupViewerRoomEvents(sdk);
 
     await liveRoom.connect(liveKitUrl, tokenData.token);
 
@@ -400,7 +469,7 @@
   }
 
   async function loadChat() {
-    if (!roomName || !chatList) return;
+    if (!roomName || !chatList || streamEnded) return;
 
     try {
       const data = await api(
@@ -436,7 +505,7 @@
       event.preventDefault();
 
       const message = chatInput?.value.trim();
-      if (!message || !roomName) return;
+      if (!message || !roomName || streamEnded) return;
 
       try {
         await api("/api/chat", {
@@ -461,7 +530,7 @@
 
     try {
       const data = await api("/api/wallet");
-      coinBalance.textContent = data.balance;
+      coinBalance.textContent = data.balance ?? 0;
     } catch (error) {
       console.error("Ошибка загрузки баланса:", error);
     }
@@ -492,7 +561,7 @@
   }
 
   async function sendGift(giftId, button) {
-    if (!roomName) return;
+    if (!roomName || streamEnded) return;
     if (button) button.disabled = true;
 
     try {
@@ -524,6 +593,20 @@
       if (titleElement) {
         titleElement.textContent = "Ошибка подключения: " + error.message;
       }
+
+      // Если ведущий не смог включить камеру, завершаем пустой эфир.
+      if (isHost && liveRoom) {
+        await disconnectLiveRoom();
+
+        try {
+          await api("/api/streams/stop", {
+            method: "POST",
+            body: JSON.stringify({ roomName })
+          });
+        } catch (stopError) {
+          console.error("Не удалось закрыть эфир:", stopError);
+        }
+      }
     }
 
     await Promise.all([loadChat(), loadWallet(), loadGifts()]);
@@ -536,6 +619,12 @@
     if (liveRoom) {
       liveRoom.disconnect();
     }
+
+    hostTracks.forEach((track) => {
+      try {
+        track.stop();
+      } catch (_) {}
+    });
   });
 
   init();
