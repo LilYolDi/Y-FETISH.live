@@ -202,70 +202,7 @@ input {
 
 
 
-/* Навигация Y-FETISH LIVE */
-.site-nav {
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 16px 12px;
-  margin: 0 auto 20px;
-}
 
-.site-nav a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 42px;
-  box-sizing: border-box;
-  padding: 10px 18px;
-  border: 1px solid #343434;
-  border-radius: 10px;
-  background: #1c1c1c;
-  color: #f5f5f5;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background .2s, border-color .2s, transform .2s;
-}
-
-.site-nav a:hover {
-  background: #2b2b2b;
-  border-color: #e32636;
-  transform: translateY(-1px);
-}
-
-.site-nav a.nav-primary {
-  background: #d71932;
-  border-color: #d71932;
-  color: #fff;
-}
-
-.site-nav a.nav-primary:hover {
-  background: #b91228;
-  border-color: #b91228;
-}
-
-.site-nav a:focus-visible {
-  outline: 2px solid #ff5267;
-  outline-offset: 3px;
-}
-
-@media (max-width: 480px) {
-  .site-nav {
-    gap: 8px;
-    padding: 12px 8px;
-  }
-
-  .site-nav a {
-    flex: 1 1 140px;
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-}
 
 
 
