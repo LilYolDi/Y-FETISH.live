@@ -1,3 +1,4 @@
+```javascript
 (() => {
   "use strict";
 
@@ -16,6 +17,7 @@
 
   let liveRoom = null;
   let chatTimer = null;
+  let heartbeatTimer = null;
   let lastMessageId = null;
   let firstChatLoad = true;
   let isHost = false;
@@ -96,9 +98,14 @@
     if (track.kind === "video") {
       element.style.width = "100%";
       element.style.height = "100%";
-      element.style.objectFit = isHost ? "contain" : "contain";
+      element.style.objectFit = "cover";
+      element.style.display = "block";
 
       if (isHost) element.muted = true;
+    }
+
+    if (track.kind === "audio") {
+      element.style.display = "none";
     }
 
     container.appendChild(element);
@@ -128,6 +135,25 @@
     }
 
     return true;
+  }
+
+  async function sendHostHeartbeat() {
+    if (!isHost || !roomName || streamEnded) return;
+
+    try {
+      await api("/api/streams/heartbeat", {
+        method: "POST",
+        body: JSON.stringify({ roomName })
+      });
+    } catch (error) {
+      console.warn("Heartbeat:", error.message);
+    }
+  }
+
+  function startHostHeartbeat() {
+    clearInterval(heartbeatTimer);
+    sendHostHeartbeat();
+    heartbeatTimer = setInterval(sendHostHeartbeat, 15000);
   }
 
   function setupHostInterface() {
@@ -160,7 +186,7 @@
       body.host-broadcast-mode video {
         width: 100%;
         height: 100%;
-        object-fit: contain !important;
+        object-fit: cover !important;
       }
 
       #hostLiveControls {
@@ -226,7 +252,6 @@
       throw new Error("Не удалось включить камеру");
     }
 
-    // Уменьшаем цифровое приближение, если камера позволяет.
     const capabilities = track.mediaStreamTrack?.getCapabilities?.();
 
     if (capabilities?.zoom) {
@@ -363,10 +388,8 @@
     showMessage("Завершение эфира...");
 
     try {
-      // Сначала выключаем передачу видео и звука.
       await disconnectLiveRoom();
 
-      // Затем меняем статус эфира на сервере.
       await api("/api/streams/stop", {
         method: "POST",
         body: JSON.stringify({ roomName })
@@ -374,13 +397,13 @@
 
       streamEnded = true;
       clearInterval(chatTimer);
+      clearInterval(heartbeatTimer);
       window.location.replace("/");
     } catch (error) {
       showMessage(
         "Не удалось подтвердить завершение эфира: " + error.message
       );
 
-      // Видео и микрофон уже отключены. Не возобновляем их автоматически.
       window.setTimeout(() => {
         window.location.replace("/");
       }, 1800);
@@ -437,6 +460,7 @@
     if (isHost) {
       setupHostInterface();
       await publishHostTracks(sdk);
+      startHostHeartbeat();
     } else {
       for (const participant of liveRoom.remoteParticipants.values()) {
         for (const publication of participant.trackPublications.values()) {
@@ -594,7 +618,6 @@
         titleElement.textContent = "Ошибка подключения: " + error.message;
       }
 
-      // Если ведущий не смог включить камеру, завершаем пустой эфир.
       if (isHost && liveRoom) {
         await disconnectLiveRoom();
 
@@ -615,6 +638,7 @@
 
   window.addEventListener("beforeunload", () => {
     clearInterval(chatTimer);
+    clearInterval(heartbeatTimer);
 
     if (liveRoom) {
       liveRoom.disconnect();
@@ -629,3 +653,4 @@
 
   init();
 })();
+```
