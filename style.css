@@ -1,4 +1,3 @@
-
 * {
   box-sizing: border-box;
 }
@@ -10,9 +9,16 @@
   color: #fff;
 }
 
+html {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  background: #111;
+  color: #fff;
+  font-family: Arial, sans-serif;
 }
 
 a {
@@ -20,7 +26,47 @@ a {
   text-decoration: none;
 }
 
-.topbar {
+button,
+input {
+  font: inherit;
+}
+
+button {
+  padding: 11px 14px;
+  color: #fff;
+  font-weight: bold;
+  background: #e5222e;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #c91824;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px;
+  color: #fff;
+  background: #111;
+  border: 1px solid #444;
+  border-radius: 7px;
+}
+
+input:focus {
+  outline: 1px solid #e5222e;
+  border-color: #e5222e;
+}
+
+.topbar,
+header {
   min-height: 68px;
   padding: 14px 20px;
   display: flex;
@@ -34,6 +80,7 @@ a {
 .logo {
   font-size: 25px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .logo span {
@@ -44,16 +91,100 @@ a {
   color: #ddd;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-title {
+  color: #ddd;
+}
+
+.start-live {
+  display: inline-block;
+  padding: 12px 16px;
+  background: #e5222e;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 7px;
+  white-space: nowrap;
+}
+
+.start-live:hover {
+  background: #c91824;
+}
+
 main {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
 }
 
+h1 {
+  font-size: 27px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 19px;
+}
+
+.muted {
+  color: #aaa;
+  font-size: 14px;
+}
+
+/* Главная страница */
+
+.streams {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px;
+}
+
+.stream {
+  min-width: 0;
+  padding: 18px;
+  background: #202020;
+  border: 1px solid #333;
+  border-radius: 12px;
+}
+
+.preview {
+  min-height: 130px;
+  display: grid;
+  place-items: center;
+  background: #292929;
+  border-radius: 8px;
+  font-size: 40px;
+  overflow: hidden;
+}
+
+.live {
+  color: #ff4545;
+  font-weight: bold;
+}
+
+.empty {
+  padding: 24px;
+  background: #1b1b1b;
+  border-radius: 10px;
+  color: #bbb;
+}
+
+/* Просмотр эфира */
+
 .live-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 22px;
+}
+
+.video-section {
+  min-width: 0;
 }
 
 .video-container {
@@ -76,6 +207,9 @@ main {
 }
 
 #videoPlaceholder {
+  position: relative;
+  z-index: 2;
+  padding: 20px;
   text-align: center;
   color: #aaa;
 }
@@ -89,6 +223,7 @@ main {
   position: absolute;
   top: 12px;
   left: 12px;
+  z-index: 5;
   padding: 5px 9px;
   border-radius: 5px;
   background: #e5222e;
@@ -96,22 +231,23 @@ main {
   font-size: 12px;
 }
 
-h1 {
-  font-size: 25px;
+#status {
+  color: #ddd;
 }
 
-h2 {
-  margin-top: 0;
-  font-size: 19px;
+#streamTitle {
+  overflow-wrap: anywhere;
 }
 
-.muted {
-  color: #aaa;
-  font-size: 14px;
+#hostName {
+  color: #bbb;
 }
+
+/* Чат и подарки */
 
 .gift-panel,
 .chat-panel {
+  min-width: 0;
   margin-top: 20px;
   padding: 18px;
   background: #1b1b1b;
@@ -136,23 +272,8 @@ h2 {
 
 .gift-item .emoji {
   display: block;
-  font-size: 28px;
   margin-bottom: 8px;
-}
-
-button {
-  padding: 11px 14px;
-  color: #fff;
-  font-weight: bold;
-  background: #e5222e;
-  border: 0;
-  border-radius: 7px;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  font-size: 28px;
 }
 
 .chat-messages {
@@ -167,49 +288,19 @@ button:disabled {
   gap: 8px;
 }
 
-input {
-  width: 100%;
-  min-width: 0;
-  padding: 11px;
-  color: #fff;
-  background: #111;
-  border: 1px solid #444;
-  border-radius: 7px;
+.chat-form button {
+  flex-shrink: 0;
 }
 
-@media (max-width: 760px) {
-  .topbar {
-    padding: 14px;
-  }
-
-  .logo {
-    font-size: 21px;
-  }
-
-  .live-layout {
-    grid-template-columns: 1fr;
-  }
-
-  main {
-    padding: 16px 12px;
-  }
-
-  .chat-messages {
-    min-height: 160px;
-  }
-}
-
-
-
-/* ===== Y-FETISH LIVE: боковое меню ===== */
+/* Боковое меню */
 
 .menu-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 44px;
   height: 44px;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid #444;
   border-radius: 8px;
@@ -240,6 +331,7 @@ input {
   width: 300px;
   max-width: 85vw;
   height: 100vh;
+  height: 100dvh;
   padding: 24px 20px;
   overflow-y: auto;
   background: #181818;
@@ -304,128 +396,73 @@ body.menu-open {
   overflow: hidden;
 }
 
-@media (max-width: 600px) {
-  .menu-panel {
-    width: 280px;
-  }
-}
+/* Панель ведущего */
 
-
-
-
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: #111;
-  color: #fff;
-  font-family: Arial, sans-serif;
-}
-
-header {
-  padding: 14px 18px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.logo {
-  font-size: 25px;
-  font-weight: bold;
-}
-
-.logo span {
-  color: #f22;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-title {
-  color: #ddd;
-}
-
-.start-live {
-  display: inline-block;
-  padding: 12px 16px;
-  background: #e5222e;
-  color: #fff;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: bold;
-  border-radius: 7px;
-  white-space: nowrap;
-}
-
-.start-live:hover {
-  background: #c91824;
-}
-
-main {
-  max-width: 1100px;
-  margin: auto;
-  padding: 24px 16px;
-}
-
-h1 {
-  font-size: 27px;
-}
-
-.muted {
-  color: #aaa;
-}
-
-.streams {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
-}
-
-.stream {
-  background: #202020;
+#loginPanel,
+#studioPanel {
+  width: 100%;
+  max-width: 600px;
+  margin: 24px auto;
+  padding: 20px;
+  background: #1b1b1b;
   border: 1px solid #333;
   border-radius: 12px;
-  padding: 18px;
 }
 
-.preview {
-  background: #292929;
-  border-radius: 8px;
-  min-height: 130px;
-  display: grid;
-  place-items: center;
-  font-size: 40px;
-}
-
-.live {
-  color: #ff4545;
-  font-weight: bold;
-}
-
-.empty {
-  padding: 24px;
-  background: #1b1b1b;
+#preview {
+  width: 100%;
+  max-height: 65vh;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #000;
   border-radius: 10px;
-  color: #bbb;
 }
 
-@media (max-width: 600px) {
+#streamForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#cameraButton,
+#stopButton,
+#logoutButton {
+  margin: 6px 4px 6px 0;
+}
+
+#stopButton {
+  background: #a10f1a;
+}
+
+#watchLink {
+  display: inline-block;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  color: #ff555d;
+}
+
+/* Планшеты */
+
+@media (max-width: 760px) {
+  .topbar,
   header {
-    padding: 12px;
+    padding: 12px 14px;
   }
 
   .logo {
     font-size: 21px;
+  }
+
+  .live-layout {
+    grid-template-columns: 1fr;
+  }
+
+  main {
+    padding: 16px 12px;
+  }
+
+  .chat-messages {
+    min-height: 160px;
   }
 
   .header-right {
@@ -435,27 +472,13 @@ h1 {
   .header-title {
     display: none;
   }
-
-  .start-live {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
 }
 
+/* Телефон: полноэкранный эфир */
 
-
-
-
-
-
-
-
-
-
-```css
 @media (max-width: 800px) {
-  html,
-  body {
+  html:has(#videoContainer),
+  body:has(#videoContainer) {
     width: 100%;
     height: 100%;
     min-height: 100%;
@@ -463,25 +486,34 @@ h1 {
     background: #000;
   }
 
-  .topbar {
+  body:has(#videoContainer) main {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+    padding: 0;
   }
 
-  .live-layout,
-  .video-section {
+  body:has(#videoContainer) .topbar {
+    display: none;
+  }
+
+  body:has(#videoContainer) .live-layout,
+  body:has(#videoContainer) .video-section {
     position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
     height: 100dvh;
     margin: 0;
+    padding: 0;
+    display: block;
   }
 
-  .video-container {
+  body:has(#videoContainer) .video-container {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -493,29 +525,115 @@ h1 {
     border: 0;
     border-radius: 0;
     overflow: hidden;
+    background: #000;
   }
 
-  .video-container video,
-  #videoContainer video {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: none !important;
-    max-height: none !important;
-    object-fit: cover !important;
+  body:has(#videoContainer) #videoContainer video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    object-fit: cover;
   }
 
-  #videoPlaceholder {
+  body:has(#videoContainer) #videoPlaceholder {
     z-index: 2;
   }
 
-  #streamTitle,
-  #hostName {
+  body:has(#videoContainer) #streamTitle,
+  body:has(#videoContainer) #hostName {
     display: none;
   }
 
-  .chat-panel {
+  body:has(#videoContainer) .chat-panel {
+    position: fixed;
+    left: 10px;
+    right: 76px;
+    bottom: 16px;
     z-index: 10;
+    max-height: 34vh;
+    margin: 0;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 0;
+    border-radius: 10px;
+  }
+
+  body:has(#videoContainer) .chat-panel h2 {
+    display: none;
+  }
+
+  body:has(#videoContainer) .chat-messages {
+    min-height: 0;
+    max-height: 22vh;
+    overflow-y: auto;
+    font-size: 13px;
+  }
+
+  body:has(#videoContainer) .chat-form {
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  body:has(#videoContainer) .chat-form input {
+    padding: 9px;
+    background: rgba(20, 20, 20, 0.8);
+  }
+
+  body:has(#videoContainer) .chat-form button {
+    padding: 9px 10px;
+  }
+
+  body:has(#videoContainer) .gift-panel {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 12px;
+    z-index: 30;
+    max-height: 55vh;
+    overflow-y: auto;
+    margin: 0;
+    background: rgba(24, 24, 24, 0.97);
+  }
+
+  body:has(#videoContainer) #status {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 8;
+    max-width: 70%;
+    padding: 6px 9px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    font-size: 12px;
+  }
+}
+
+/* Маленькие экраны */
+
+@media (max-width: 600px) {
+  .menu-panel {
+    width: 280px;
+  }
+
+  header {
+    padding: 12px;
+  }
+
+  .start-live {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .streams {
+    grid-template-columns: 1fr;
+  }
+
+  #loginPanel,
+  #studioPanel {
+    margin: 14px auto;
+    padding: 14px;
   }
 }
