@@ -1,4 +1,3 @@
-
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -17,12 +16,16 @@ const logoutButton = $("logoutButton");
 const preview = $("preview");
 const statusText = $("status");
 const watchLink = $("watchLink");
+const cameraButton = $("cameraButton");
 
 let room = null;
 let localTracks = [];
 let activeRoomName = "";
 let sdk = null;
 let isStopping = false;
+let isStarting = false;
+let currentFacingMode = "user";
+let previewStarting = false;
 
 function status(message) {
   if (statusText) statusText.textContent = message;
@@ -35,9 +38,11 @@ async function loadSDK() {
     const script = document.createElement("script");
     script.src =
       "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
+
     script.onload = resolve;
     script.onerror = () =>
       reject(new Error("Не удалось загрузить LiveKit"));
+
     document.head.appendChild(script);
   });
 
@@ -46,6 +51,58 @@ async function loadSDK() {
   }
 
   return window.LivekitClient;
+}
+
+function setStudioVisible(authenticated) {
+  loginPanel.hidden = authenticated;
+  studioPanel.hidden = !authenticated;
+  document.body.classList.toggle("studio-active", authenticated);
+}
+
+function getCameraTrack() {
+  return localTracks.find((track) => track.kind === "video") || null;
+}
+
+async function prepareCamera() {
+  if (previewStarting || getCameraTrack()) return;
+
+  previewStarting = true;
+  status("Включаем камеру и микрофон...");
+
+  try {
+    sdk = await loadSDK();
+
+    const tracks = await sdk.createLocalTracks({
+      audio: true,
+      video: {
+        resolution: sdk.VideoPresets.h720.resolution,
+        facingMode: currentFacingMode
+      }
+    });
+
+    localTracks = tracks;
+
+    const cameraTrack = getCameraTrack();
+
+    if (cameraTrack && preview) {
+      preview.srcObject = new MediaStream([
+        cameraTrack.mediaStreamTrack
+      ]);
+
+      preview.hidden = false;
+      await preview.play().catch(() => {});
+    }
+
+    status("Камера включена. Введи название и начинай эфир.");
+  } catch (error) {
+    console.error("Camera preview error:", error);
+    status(
+      error.message ||
+      "Не удалось включить камеру. Проверь разрешения браузера."
+    );
+  } finally {
+    previewStarting = false;
+  }
 }
 
 async function checkLogin() {
@@ -61,11 +118,13 @@ async function checkLogin() {
       throw new Error(result.error || "Ошибка проверки входа");
     }
 
-    loginPanel.hidden = Boolean(result.authenticated);
-    studioPanel.hidden = !result.authenticated;
+    setStudioVisible(Boolean(result.authenticated));
 
     if (result.authenticated) {
-      status("Вход выполнен. Можно начинать эфир.");
+      status("Вход выполнен. Подготавливаем камеру...");
+      prepareCamera();
+    } else {
+      status("Войди, чтобы начать.");
     }
   } catch (error) {
     status(error.message || "Не удалось проверить вход. Обнови страницу.");
@@ -93,9 +152,9 @@ loginForm.addEventListener("submit", async (event) => {
     }
 
     passwordInput.value = "";
-    loginPanel.hidden = true;
-    studioPanel.hidden = false;
-    status("Вход выполнен. Можно начинать эфир.");
+    setStudioVisible(true);
+    status("Вход выполнен. Подготавливаем камеру...");
+    await prepareCamera();
   } catch (error) {
     status(error.message || "Ошибка входа");
   } finally {
@@ -103,8 +162,73 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
+async function switchCamera() {
+  try {
+    sdk = sdk || await loadSDK();
+
+    let cameraTrack = getCameraTrack();
+
+    // Если камера ещё не запущена, попробуем включить её.
+    if (!cameraTrack) {
+      await prepareCamera();
+      cameraTrack = getCameraTrack();
+
+      if (!cameraTrack) return;
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(
+      (device) => device.kind === "videoinput"
+    );
+
+    if (cameras.length < 2) {
+      status("Вторая камера на устройстве не найдена.");
+      return;
+    }
+
+    const currentDeviceId =
+      cameraTrack.mediaStreamTrack.getSettings().deviceId;
+
+    const currentIndex = cameras.findIndex(
+      (device) => device.deviceId === currentDeviceId
+    );
+
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCamera = cameras[nextIndex];
+
+    if (typeof cameraTrack.switchCamera === "function") {
+      await cameraTrack.switchCamera(nextCamera.deviceId);
+    } else if (typeof cameraTrack.restartTrack === "function") {
+      currentFacingMode =
+        currentFacingMode === "user" ? "environment" : "user";
+
+      await cameraTrack.restartTrack({
+        facingMode: currentFacingMode
+      });
+    } else {
+      status("Переключение камеры не поддерживается этим браузером.");
+      return;
+    }
+
+    if (preview) {
+      preview.srcObject = new MediaStream([
+        cameraTrack.mediaStreamTrack
+      ]);
+      await preview.play().catch(() => {});
+    }
+
+    status("Камера переключена.");
+  } catch (error) {
+    console.error("Camera switch error:", error);
+    status("Не удалось переключить камеру.");
+  }
+}
+
+cameraButton.addEventListener("click", switchCamera);
+
 async function stopStream(message = "Эфир завершён.") {
   if (isStopping) return;
+
   isStopping = true;
 
   const roomNameToStop = activeRoomName;
@@ -161,6 +285,7 @@ async function stopStream(message = "Эфир завершён.") {
   }
 
   if (stopButton) stopButton.hidden = true;
+  if (startButton) startButton.hidden = false;
   if (startButton) startButton.disabled = false;
   if (watchLink) watchLink.hidden = true;
 
@@ -171,7 +296,7 @@ async function stopStream(message = "Эфир завершён.") {
 streamForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  if (room || isStopping) return;
+  if (room || isStopping || isStarting) return;
 
   const title = titleInput.value.trim();
   const roomName = roomInput.value.trim();
@@ -181,11 +306,24 @@ streamForm.addEventListener("submit", async (event) => {
     return;
   }
 
+  isStarting = true;
   startButton.disabled = true;
-  status("Запрашиваем доступ к камере и микрофону...");
+  status("Подключаемся и запускаем эфир...");
 
   try {
-    // Получаем защищённый токен ведущего.
+    sdk = sdk || await loadSDK();
+
+    // Используем уже включённые для предпросмотра камеру и микрофон.
+    if (!localTracks.length) {
+      localTracks = await sdk.createLocalTracks({
+        audio: true,
+        video: {
+          resolution: sdk.VideoPresets.h720.resolution,
+          facingMode: currentFacingMode
+        }
+      });
+    }
+
     const tokenResponse = await fetch("/api/livekit/token", {
       method: "POST",
       credentials: "same-origin",
@@ -205,9 +343,6 @@ streamForm.addEventListener("submit", async (event) => {
       );
     }
 
-    sdk = await loadSDK();
-
-    // Подключаем ведущего к LiveKit.
     const newRoom = new sdk.Room({
       adaptiveStream: true,
       dynacast: true
@@ -220,24 +355,11 @@ streamForm.addEventListener("submit", async (event) => {
       credentials.token
     );
 
-    // Запускаем камеру и микрофон.
-    const tracks = await sdk.createLocalTracks({
-      audio: true,
-      video: {
-        resolution: sdk.VideoPresets.h720.resolution,
-        facingMode: "user"
-      }
-    });
-
-    localTracks = tracks;
-
-    for (const track of tracks) {
+    for (const track of localTracks) {
       await newRoom.localParticipant.publishTrack(track);
     }
 
-    const cameraTrack = tracks.find(
-      (track) => track.kind === "video"
-    );
+    const cameraTrack = getCameraTrack();
 
     if (cameraTrack && preview) {
       preview.srcObject = new MediaStream([
@@ -247,7 +369,6 @@ streamForm.addEventListener("submit", async (event) => {
       await preview.play().catch(() => {});
     }
 
-    // Сохраняем эфир в Supabase.
     const saveResponse = await fetch("/api/streams/start", {
       method: "POST",
       credentials: "same-origin",
@@ -275,6 +396,7 @@ streamForm.addEventListener("submit", async (event) => {
     }
 
     if (stopButton) stopButton.hidden = false;
+    startButton.hidden = true;
 
     status(
       `Эфир запущен: ${title}\n` +
@@ -282,13 +404,11 @@ streamForm.addEventListener("submit", async (event) => {
       `Ссылка для зрителей: ${location.origin}/live.html?room=${encodeURIComponent(roomName)}`
     );
 
-    // Если соединение потеряно, завершаем эфир.
     newRoom.on(sdk.RoomEvent.Disconnected, () => {
       if (room === newRoom && !isStopping) {
         stopStream("Соединение с эфиром потеряно.");
       }
     });
-
   } catch (error) {
     console.error("Host stream error:", error);
 
@@ -296,11 +416,14 @@ streamForm.addEventListener("submit", async (event) => {
       error.message ||
       "Не удалось начать эфир. Проверь разрешения камеры и микрофона."
     );
+  } finally {
+    isStarting = false;
   }
 });
 
 stopButton.addEventListener("click", async () => {
   await stopStream();
+  prepareCamera();
 });
 
 logoutButton.addEventListener("click", async () => {
@@ -314,8 +437,21 @@ logoutButton.addEventListener("click", async () => {
   } catch (error) {
     console.error("Logout:", error);
   } finally {
-    studioPanel.hidden = true;
-    loginPanel.hidden = false;
+    localTracks.forEach((track) => {
+      try {
+        track.stop();
+      } catch {}
+    });
+
+    localTracks = [];
+
+    if (preview) {
+      preview.srcObject = null;
+      preview.hidden = true;
+    }
+
+    setStudioVisible(false);
+    status("Ты вышел из панели ведущего.");
   }
 });
 
