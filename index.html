@@ -4,145 +4,99 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111111">
-
   <title>Y-FETISH LIVE — Прямые эфиры</title>
-  <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE и находи активные трансляции.">
-
-  <link rel="stylesheet" href="/style.css">
+  <meta name="description" content="Смотри прямые эфиры, общайся со зрителями и отправляй виртуальные подарки на Y-FETISH LIVE.">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      padding: 18px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .logo {
+      font-size: 25px;
+      font-weight: bold;
+    }
+    .logo span { color: #f22; }
+    main {
+      max-width: 1100px;
+      margin: auto;
+      padding: 24px 16px;
+    }
+    h1 { font-size: 27px; }
+    .muted { color: #aaa; }
+    .streams {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 18px;
+    }
+    .stream {
+      background: #202020;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .preview {
+      background: #292929;
+      border-radius: 8px;
+      min-height: 130px;
+      display: grid;
+      place-items: center;
+      font-size: 40px;
+    }
+    .live {
+      color: #ff4545;
+      font-weight: bold;
+    }
+    button {
+      background: #e51e2a;
+      border: 0;
+      border-radius: 7px;
+      padding: 12px 16px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .empty {
+      padding: 24px;
+      background: #1b1b1b;
+      border-radius: 10px;
+      color: #bbb;
+    }
+  </style>
 </head>
 <body>
-
-  <header class="site-header">
+  <header>
     <div class="logo"><span>Y</span>-FETISH LIVE</div>
-    <div class="header-label">Прямые эфиры</div>
+    <div>Прямые эфиры</div>
   </header>
-
-  <!-- Кнопка открытия меню -->
-  <button
-    id="yfl-menu-button"
-    class="menu-button"
-    type="button"
-    aria-label="Открыть меню"
-    aria-expanded="false"
-    aria-controls="yfl-menu-overlay"
-  >☰</button>
-
-  <!-- Затемнение и боковая панель -->
-  <div id="yfl-menu-overlay" class="menu-overlay" hidden>
-    <nav
-      id="yfl-menu-panel"
-      class="menu-panel"
-      aria-label="Главное меню"
-      aria-modal="true"
-    >
-      <div class="menu-header">
-        <h2 class="menu-title">МЕНЮ</h2>
-        <button
-          id="yfl-menu-close"
-          class="menu-close"
-          type="button"
-          aria-label="Закрыть меню"
-        >×</button>
-      </div>
-
-      <div class="menu-red-line"></div>
-
-      <a class="menu-link" href="/">
-        <span class="menu-icon">⌂</span>
-        Главная
-      </a>
-
-      <a class="menu-link" href="/live.html?room=live-main">
-        <span class="menu-icon">▶</span>
-        Смотреть эфир
-      </a>
-
-      <a class="menu-link" href="/host.html">
-        <span class="menu-icon">▣</span>
-        Студия ведущего
-      </a>
-    </nav>
-  </div>
 
   <main>
     <h1>Прямые эфиры</h1>
-    <p class="muted">
-      Смотри трансляции и отправляй подарки ведущим.
-    </p>
-
+    <p class="muted">Смотри трансляции и отправляй подарки ведущим.</p>
     <div id="streams" class="streams">
       <div class="empty">Загружаем эфиры...</div>
     </div>
   </main>
 
-  <!-- Работа бокового меню -->
-  <script>
-    (() => {
-      const button = document.getElementById("yfl-menu-button");
-      const overlay = document.getElementById("yfl-menu-overlay");
-      const panel = document.getElementById("yfl-menu-panel");
-      const close = document.getElementById("yfl-menu-close");
-
-      let previousFocus = null;
-
-      function openMenu() {
-        previousFocus = document.activeElement;
-        overlay.hidden = false;
-        button.setAttribute("aria-expanded", "true");
-        document.body.classList.add("menu-open");
-
-        requestAnimationFrame(() => {
-          overlay.classList.add("is-visible");
-          panel.classList.add("is-visible");
-          close.focus();
-        });
-      }
-
-      function closeMenu() {
-        if (overlay.hidden) return;
-
-        overlay.classList.remove("is-visible");
-        panel.classList.remove("is-visible");
-        button.setAttribute("aria-expanded", "false");
-        document.body.classList.remove("menu-open");
-
-        window.setTimeout(() => {
-          overlay.hidden = true;
-          button.focus();
-        }, 280);
-      }
-
-      button.addEventListener("click", () => {
-        if (overlay.hidden) {
-          openMenu();
-        } else {
-          closeMenu();
-        }
-      });
-
-      close.addEventListener("click", closeMenu);
-
-      overlay.addEventListener("click", (event) => {
-        if (event.target === overlay) closeMenu();
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") closeMenu();
-      });
-    })();
-  </script>
-
-  <!-- Загрузка активных эфиров -->
   <script>
     async function loadStreams() {
       const container = document.getElementById("streams");
 
       try {
         const response = await fetch("/api/streams");
-
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить эфиры");
-        }
+        if (!response.ok) throw new Error("Не удалось загрузить эфиры");
 
         const streams = await response.json();
 
@@ -171,7 +125,8 @@
 
           const host = document.createElement("p");
           host.className = "muted";
-          host.textContent = stream.profiles?.username || "Ведущий";
+          host.textContent =
+            stream.profiles?.username || "Ведущий";
 
           card.append(preview, status, title, host);
           container.appendChild(card);
@@ -185,6 +140,5 @@
     loadStreams();
     setInterval(loadStreams, 15000);
   </script>
-
 </body>
 </html>
