@@ -441,3 +441,81 @@ h1 {
     font-size: 13px;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+```css
+@media (max-width: 800px) {
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    min-height: 100%;
+    overflow: hidden;
+    background: #000;
+  }
+
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+  }
+
+  .live-layout,
+  .video-section {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    margin: 0;
+  }
+
+  .video-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    min-height: 0;
+    max-height: none;
+    aspect-ratio: auto;
+    border: 0;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .video-container video,
+  #videoContainer video {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+  }
+
+  #videoPlaceholder {
+    z-index: 2;
+  }
+
+  #streamTitle,
+  #hostName {
+    display: none;
+  }
+
+  .chat-panel {
+    z-index: 10;
+  }
+}
