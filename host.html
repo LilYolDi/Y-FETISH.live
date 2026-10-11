@@ -4,16 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#080808">
-
   <title>Запуск эфира — Y-FETISH LIVE</title>
   <meta name="description" content="Запусти прямой эфир на Y-FETISH LIVE.">
-
   <link rel="stylesheet" href="/style.css">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -23,13 +19,8 @@
       font-family: Arial, sans-serif;
     }
 
-    button, input {
-      font: inherit;
-    }
-
-    [hidden] {
-      display: none !important;
-    }
+    button, input { font: inherit; }
+    [hidden] { display: none !important; }
 
     header {
       padding: 16px 5%;
@@ -44,9 +35,7 @@
       text-decoration: none;
     }
 
-    .logo span {
-      color: #f22;
-    }
+    .logo span { color: #f22; }
 
     main {
       width: min(720px, 94%);
@@ -60,9 +49,7 @@
       border-radius: 12px;
     }
 
-    h1 {
-      font-size: 25px;
-    }
+    h1 { font-size: 25px; }
 
     label {
       display: block;
@@ -99,14 +86,8 @@
       text-decoration: none;
     }
 
-    button:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-    }
-
-    .secondary {
-      background: #333;
-    }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .secondary { background: #333; }
 
     #preview {
       display: block;
@@ -138,9 +119,7 @@
       gap: 8px;
     }
 
-    .camera-controls button {
-      margin-right: 0;
-    }
+    .camera-controls button { margin-right: 0; }
 
     #streamForm {
       display: flex;
@@ -148,21 +127,10 @@
       gap: 10px;
     }
 
-    .studio-stage {
-      position: relative;
-    }
-
-    .studio-top {
-      margin-bottom: 12px;
-    }
-
-    .studio-top label {
-      margin-top: 0;
-    }
-
-    #startButton {
-      width: 100%;
-    }
+    .studio-stage { position: relative; }
+    .studio-top { margin-bottom: 12px; }
+    .studio-top label { margin-top: 0; }
+    #startButton { width: 100%; }
 
     @media (max-width: 800px) {
       html, body {
@@ -177,15 +145,13 @@
         overflow: hidden;
       }
 
-      body.studio-active > header {
-        display: none;
-      }
+      body.studio-active > header { display: none; }
 
       body.studio-active main {
         position: fixed;
         inset: 0;
         width: 100%;
-        height: 100%;
+        height: 100vh;
         height: 100dvh;
         margin: 0;
       }
@@ -200,7 +166,7 @@
         inset: 0;
         z-index: 10;
         width: 100%;
-        height: 100%;
+        height: 100vh;
         height: 100dvh;
         margin: 0;
         padding: 0;
@@ -263,19 +229,19 @@
         font-size: 14px;
       }
 
-      /* Кнопка расположена независимо от верхней панели */
+      /* Кнопка запуска эфира — внизу экрана */
       #startButton {
-        position: fixed;
-        top: auto;
-        left: 50%;
-        right: auto;
-        bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-        z-index: 20;
+        position: fixed !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+        z-index: 20 !important;
         transform: translateX(-50%);
         display: inline-flex;
         width: auto;
         min-width: 155px;
-        min-height: 42px;
+        min-height: 44px;
         padding: 10px 22px;
         margin: 0;
         border: 0;
@@ -288,9 +254,7 @@
         white-space: nowrap;
       }
 
-      #startButton[hidden] {
-        display: none !important;
-      }
+      #startButton[hidden] { display: none !important; }
 
       .camera-controls {
         position: fixed;
