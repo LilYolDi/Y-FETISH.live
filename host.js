@@ -32,7 +32,7 @@ async function loadSDK() {
 
   await new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = "https://unpkg.com/livekit-client/dist/livekit-client.umd.min.js";
+    script.src = "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"
     script.onload = resolve;
     script.onerror = () => reject(new Error("Не удалось загрузить LiveKit"));
     document.head.appendChild(script);
