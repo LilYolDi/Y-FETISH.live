@@ -274,3 +274,52 @@ input {
     font-size: 13px;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+.page-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px auto;
+  padding: 0 12px;
+}
+
+.page-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 13px 20px;
+  border-radius: 10px;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.page-btn-red {
+  background: #d71932;
+  border-color: #d71932;
+}
+
+.page-btn:hover {
+  filter: brightness(1.2);
+}
+
+@media (max-width: 600px) {
+  .page-btn {
+    flex: 1 1 140px;
+  }
+}
