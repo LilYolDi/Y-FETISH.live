@@ -1,31 +1,39 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#111111">
-  <title>Панель ведущего — Y-FETISH LIVE</title>
-  <meta name="description" content="Панель ведущего Y-FETISH LIVE для управления прямым эфиром.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+
+  <title>Запуск эфира — Y-FETISH LIVE</title>
+  <meta name="description" content="Запусти прямой эфир на Y-FETISH LIVE.">
+
   <link rel="stylesheet" href="/style.css">
+
   <style>
     * { box-sizing: border-box; }
 
-    body {
+    html, body {
       margin: 0;
-      background: #111;
-      color: #f5f5f5;
+      min-height: 100%;
+      background: #080808;
+      color: #fff;
       font-family: Arial, sans-serif;
     }
 
+    body { min-height: 100vh; }
+    button, input { font: inherit; }
+    [hidden] { display: none !important; }
+
     header {
-      padding: 18px 5%;
+      padding: 16px 5%;
+      background: #111;
       border-bottom: 1px solid #333;
     }
 
     .logo {
       color: #fff;
-      font-size: 25px;
+      font-size: 24px;
       font-weight: 800;
       text-decoration: none;
     }
@@ -34,19 +42,18 @@
 
     main {
       width: min(720px, 94%);
-      margin: 30px auto;
+      margin: 25px auto;
     }
 
     .panel {
+      margin-bottom: 18px;
       padding: 22px;
       background: #1b1b1b;
       border: 1px solid #333;
       border-radius: 12px;
-      margin-bottom: 18px;
     }
 
     h1 { font-size: 25px; }
-    h2 { font-size: 20px; }
 
     label {
       display: block;
@@ -59,28 +66,30 @@
       width: 100%;
       padding: 13px;
       background: #101010;
-      color: white;
+      color: #fff;
       border: 1px solid #444;
-      border-radius: 7px;
+      border-radius: 8px;
       font-size: 16px;
     }
 
     button, .watch-link {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 12px 16px;
+      margin: 10px 6px 0 0;
       border: 0;
-      border-radius: 7px;
+      border-radius: 9px;
       background: #e21b2d;
       color: #fff;
       font-size: 15px;
       font-weight: 700;
       cursor: pointer;
       text-decoration: none;
-      margin: 10px 6px 0 0;
     }
 
     button:disabled {
-      opacity: .5;
+      opacity: .55;
       cursor: not-allowed;
     }
 
@@ -90,15 +99,16 @@
       display: block;
       width: 100%;
       max-height: 420px;
-      background: #050505;
-      border-radius: 9px;
       margin-top: 15px;
+      background: #000;
+      border-radius: 10px;
+      object-fit: cover;
     }
 
     .muted {
       color: #aaa;
-      line-height: 1.5;
       font-size: 14px;
+      line-height: 1.5;
     }
 
     #status {
@@ -106,87 +116,40 @@
       overflow-wrap: anywhere;
     }
 
-    [hidden] { display: none !important; }
-
-    @media (max-width: 480px) {
-      main { margin: 18px auto; }
-      .panel { padding: 16px; }
-      h1 { font-size: 22px; }
-      button, .watch-link { width: 100%; text-align: center; }
+    .camera-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
-  </style>
-</head>
-<body>
-  <header>
-    <a class="logo" href="/"><span>Y</span>-FETISH LIVE</a>
-  </header>
 
-  <main>
-    <section class="panel" id="loginPanel">
-      <h1>Вход ведущего</h1>
-      <p class="muted">Введи пароль, заданный в настройках Render.</p>
+    .camera-controls button { margin-right: 0; }
 
-      <form id="loginForm">
-        <label for="password">Пароль ведущего</label>
-        <input
-          id="password"
-          type="password"
-          autocomplete="current-password"
-          required
-          maxlength="200"
-        >
-        <button id="loginButton" type="submit">Войти</button>
-      </form>
-    </section>
+    /* Полноэкранная студия на телефоне */
+    @media (max-width: 800px) {
+      html, body {
+        width: 100%;
+        min-height: 100%;
+        background: #000;
+      }
 
-    <section class="panel" id="studioPanel" hidden>
-      <h1>Панель ведущего</h1>
+      body.studio-active {
+        height: 100%;
+        height: 100dvh;
+        overflow: hidden;
+      }
 
-      <form id="streamForm">
-        <label for="streamTitle">Название эфира</label>
-        <input
-          id="streamTitle"
-          type="text"
-          maxlength="100"
-          placeholder="Мой прямой эфир"
-          required
-        >
+      body.studio-active > header { display: none; }
 
-        <label for="roomName">Комната эфира</label>
-        <input
-          id="roomName"
-          type="text"
-          maxlength="80"
-          value="live-main"
-          pattern="[A-Za-z0-9_-]+"
-          required
-        >
+      main {
+        width: 100%;
+        margin: 0;
+      }
 
-        <button id="startButton" type="submit">
-          Включить камеру и начать эфир
-        </button>
-      </form>
+      #loginPanel {
+        width: calc(100% - 28px);
+        margin: 20px auto;
+      }
 
-      <video id="preview" autoplay playsinline muted hidden></video>
-
-      <div>
-        <button id="stopButton" class="secondary" type="button" hidden>
-          Завершить эфир
-        </button>
-        <a id="watchLink" class="watch-link" href="/live.html" hidden>
-          Открыть эфир
-        </a>
-        <button id="logoutButton" class="secondary" type="button">
-          Выйти
-        </button>
-      </div>
-
-      <p id="status" class="muted" role="status" aria-live="polite">
-        Войди, чтобы начать.
-      </p>
-    </section>
-  </main>
-
-  <script src="/host.js" defer></script>
-</body>
-</html>
+      #studioPanel {
+        position: fixed;
+        z-index: 1;
