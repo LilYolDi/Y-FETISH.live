@@ -235,7 +235,7 @@
         top: calc(8px + env(safe-area-inset-top, 0px));
         left: 12px;
         right: 12px;
-        z-index: 2;
+        z-index: 5;
         margin: 0;
         padding: 9px;
         border: 1px solid rgba(255,255,255,.14);
@@ -251,7 +251,8 @@
       }
 
       #streamForm {
-        gap: 0;
+        display: block;
+        margin: 0;
       }
 
       #streamTitle {
@@ -262,31 +263,41 @@
         font-size: 14px;
       }
 
+      /* Кнопка расположена независимо от верхней панели */
       #startButton {
-        position: absolute;
+        position: fixed;
+        top: auto;
         left: 50%;
         right: auto;
-        bottom: calc(18px + env(safe-area-inset-bottom, 0px));
-        z-index: 6;
+        bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+        z-index: 20;
         transform: translateX(-50%);
+        display: inline-flex;
         width: auto;
-        min-width: 150px;
+        min-width: 155px;
         min-height: 42px;
         padding: 10px 22px;
         margin: 0;
+        border: 0;
         border-radius: 10px;
         background: #e21b2d;
+        color: #fff;
         box-shadow: 0 4px 18px rgba(226,27,45,.3);
         font-size: 14px;
+        font-weight: 700;
         white-space: nowrap;
       }
 
+      #startButton[hidden] {
+        display: none !important;
+      }
+
       .camera-controls {
-        position: absolute;
+        position: fixed;
         left: 12px;
         right: 12px;
-        bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-        z-index: 5;
+        bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+        z-index: 15;
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
@@ -306,23 +317,19 @@
       }
 
       #status {
-        position: absolute;
+        position: fixed;
         left: 12px;
         right: 12px;
-        bottom: calc(116px + env(safe-area-inset-bottom, 0px));
-        z-index: 4;
-        max-height: 15%;
+        bottom: calc(145px + env(safe-area-inset-bottom, 0px));
+        z-index: 12;
+        max-height: 14%;
         margin: 0;
-        padding: 8px 10px;
+        padding: 7px 9px;
         overflow: auto;
         border-radius: 8px;
-        background: rgba(0,0,0,.62);
+        background: rgba(0,0,0,.58);
         font-size: 11px;
         text-shadow: 0 1px 3px #000;
-      }
-
-      #startButton[hidden] {
-        display: none !important;
       }
     }
   </style>
@@ -357,13 +364,7 @@
 
     <section id="studioPanel" class="panel" hidden>
       <div class="studio-stage">
-        <video
-          id="preview"
-          autoplay
-          playsinline
-          muted
-          hidden
-        ></video>
+        <video id="preview" autoplay playsinline muted hidden></video>
 
         <div class="studio-top">
           <label for="streamTitle">Название эфира</label>
@@ -407,9 +408,7 @@
             target="_blank"
             rel="noopener"
             hidden
-          >
-            Открыть эфир
-          </a>
+          >Открыть эфир</a>
 
           <button id="logoutButton" type="button" class="secondary">
             Выйти
