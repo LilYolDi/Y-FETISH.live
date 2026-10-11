@@ -19,6 +19,8 @@
   let cameraStream = null;
   let facingMode = "user";
   let busy = false;
+  let activeRoomName = null;
+  let heartbeatTimer = null;
 
   function message(text) {
     if (status) status.textContent = text;
@@ -74,26 +76,21 @@
 
       const videoTrack = cameraStream.getVideoTracks()[0];
 
-      // Используем минимальный zoom, если камера это поддерживает.
       if (videoTrack) {
         const capabilities = videoTrack.getCapabilities?.();
 
         if (capabilities?.zoom) {
-          const minZoom = capabilities.zoom.min ?? 1;
-
           try {
             await videoTrack.applyConstraints({
-              advanced: [{ zoom: minZoom }]
+              advanced: [{ zoom: capabilities.zoom.min ?? 1 }]
             });
-          } catch (_) {
-            // Не все камеры поддерживают изменение zoom.
-          }
+          } catch (_) {}
         }
       }
 
       preview.srcObject = cameraStream;
       preview.hidden = false;
-      preview.style.objectFit = "cover";
+      preview.style.objectFit = "contain";
       preview.style.transform = "none";
 
       await preview.play();
@@ -116,6 +113,36 @@
     }
   }
 
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+
+    activeRoomName = null;
+  }
+
+  async function sendHeartbeat() {
+    if (!activeRoomName) return;
+
+    try {
+      await api("/api/streams/heartbeat", {
+        method: "POST",
+        body: JSON.stringify({ roomName: activeRoomName })
+      });
+    } catch (error) {
+      console.warn("Не удалось отправить сигнал эфира:", error.message);
+    }
+  }
+
+  function startHeartbeat(roomName) {
+    stopHeartbeat();
+    activeRoomName = roomName;
+
+    sendHeartbeat();
+    heartbeatTimer = setInterval(sendHeartbeat, 15000);
+  }
+
   async function checkLogin() {
     try {
       const result = await api("/api/host/status");
@@ -136,6 +163,7 @@
     event.preventDefault();
 
     if (busy) return;
+
     loginButton.disabled = true;
     message("Проверка пароля...");
 
@@ -169,7 +197,9 @@
 
     if (
       !cameraStream ||
-      !cameraStream.getVideoTracks().some((track) => track.readyState === "live")
+      !cameraStream.getVideoTracks().some(
+        (track) => track.readyState === "live"
+      )
     ) {
       message("Сначала включите камеру.");
       await startCamera();
@@ -193,9 +223,13 @@
 
       stopCamera();
 
+      // Продолжаем проверять активность, пока ведущий на странице эфира.
+      startHeartbeat(roomName);
+
       window.location.href =
         "/live.html?room=" + encodeURIComponent(roomName);
     } catch (error) {
+      stopHeartbeat();
       message("Не удалось запустить эфир: " + error.message);
       startButton.disabled = false;
     } finally {
@@ -235,5 +269,8 @@
 
   checkLogin();
 
-  window.addEventListener("beforeunload", stopCamera);
+  window.addEventListener("beforeunload", () => {
+    stopCamera();
+    stopHeartbeat();
+  });
 })();
