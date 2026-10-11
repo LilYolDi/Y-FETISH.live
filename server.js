@@ -1,207 +1,217 @@
-
-"use strict";
+require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 const { AccessToken } = require("livekit-server-sdk");
-require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 10000;
+const ROOT = __dirname;
 
-app.disable("x-powered-by");
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true }));
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const {
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  LIVEKIT_URL,
+  LIVEKIT_API_KEY,
+  LIVEKIT_API_SECRET,
+  HOST_PASSWORD,
+  GUEST_SESSION_SECRET
+} = process.env;
 
 const supabase =
-  supabaseUrl && supabaseKey
-    ? createClient(supabaseUrl, supabaseKey, {
+  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
         auth: {
-          autoRefreshToken: false,
-          persistSession: false
+          persistSession: false,
+          autoRefreshToken: false
         }
       })
     : null;
 
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
-const HOST_PASSWORD = process.env.HOST_PASSWORD;
-const GUEST_SESSION_SECRET = process.env.GUEST_SESSION_SECRET;
-
-const HOST_COOKIE = "yfetish_live_host";
-const GUEST_COOKIE = "yfetish_live_guest";
-
-function requireDatabase(res) {
-  if (!supabase) {
-    res.status(503).json({
-      error: "Не настроены SUPABASE_URL или SUPABASE_SERVICE_ROLE_KEY"
-    });
-    return false;
-  }
-  return true;
-}
-
-function requireLiveKit(res) {
-  if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
-    res.status(503).json({
-      error: "Не настроены параметры LiveKit в Render"
-    });
-    return false;
-  }
-  return true;
-}
+const COOKIE_HOST = "yfetish_live_host";
+const COOKIE_GUEST = "yfetish_live_guest";
 
 function parseCookies(req) {
-  const cookies = {};
-  const header = req.headers.cookie || "";
-
-  for (const part of header.split(";")) {
+  const result = {};
+  for (const part of (req.headers.cookie || "").split(";")) {
     const index = part.indexOf("=");
+    if (index < 0) continue;
 
-    if (index > 0) {
-      cookies[part.slice(0, index).trim()] =
-        part.slice(index + 1).trim();
+    const key = part.slice(0, index).trim();
+    const value = part.slice(index + 1).trim();
+
+    try {
+      result[key] = decodeURIComponent(value);
+    } catch {
+      result[key] = value;
     }
   }
-
-  return cookies;
+  return result;
 }
 
 function sign(value, secret) {
   return crypto
-    .createHmac("sha256", secret)
+    .createHmac("sha256", secret || "missing-secret")
     .update(value)
     .digest("hex");
 }
 
 function safeEqual(a, b) {
-  const first = Buffer.from(String(a));
-  const second = Buffer.from(String(b));
+  const first = Buffer.from(String(a || ""));
+  const second = Buffer.from(String(b || ""));
 
-  return (
-    first.length === second.length &&
-    crypto.timingSafeEqual(first, second)
-  );
+  return first.length === second.length &&
+    crypto.timingSafeEqual(first, second);
 }
 
-function setSignedCookie(res, name, id, secret) {
-  const signature = sign(id, secret);
-
+function setCookie(res, name, value, maxAge) {
   res.setHeader(
     "Set-Cookie",
-    `${name}=${id}.${signature}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=31536000`
+    `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}; Secure`
   );
 }
 
-function readSignedCookie(req, name, secret) {
+function clearCookie(res, name) {
+  res.setHeader(
+    "Set-Cookie",
+    `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Secure`
+  );
+}
+
+function createSession(secret) {
+  const id = crypto.randomUUID();
+  return `${id}.${sign(id, secret)}`;
+}
+
+function validSession(req, name, secret) {
+  const value = parseCookies(req)[name];
+  if (!value) return false;
+
+  const index = value.lastIndexOf(".");
+  if (index < 1) return false;
+
+  const id = value.slice(0, index);
+  const signature = value.slice(index + 1);
+
+  return safeEqual(signature, sign(id, secret));
+}
+
+function isHost(req) {
+  return Boolean(HOST_PASSWORD) &&
+    validSession(req, COOKIE_HOST, HOST_PASSWORD);
+}
+
+function getGuestId(req, res) {
+  const secret = GUEST_SESSION_SECRET || HOST_PASSWORD;
   if (!secret) return null;
 
-  const value = parseCookies(req)[name];
-  if (!value) return null;
+  const value = parseCookies(req)[COOKIE_GUEST];
 
-  const parts = value.split(".");
-  if (parts.length !== 2) return null;
+  if (value) {
+    const index = value.lastIndexOf(".");
+    if (index > 0) {
+      const id = value.slice(0, index);
+      const signature = value.slice(index + 1);
 
-  const [id, signature] = parts;
+      if (safeEqual(signature, sign(id, secret))) {
+        return id;
+      }
+    }
+  }
 
-  if (!/^[a-f0-9-]{36}$/i.test(id)) return null;
-
-  if (!safeEqual(sign(id, secret), signature)) return null;
-
-  return id;
+  const session = createSession(secret);
+  setCookie(res, COOKIE_GUEST, session, 60 * 60 * 24 * 365);
+  return session.split(".")[0];
 }
 
-function hostIdFromRequest(req) {
-  return readSignedCookie(req, HOST_COOKIE, HOST_PASSWORD || "");
-}
-
-function guestIdFromRequest(req) {
-  return readSignedCookie(req, GUEST_COOKIE, GUEST_SESSION_SECRET || "");
-}
-
-function requireHost(req, res) {
-  if (!HOST_PASSWORD) {
-    res.status(503).json({
-      error: "Добавь HOST_PASSWORD в переменные Render"
+function requireDatabase(res) {
+  if (!supabase) {
+    res.status(500).json({
+      error: "Не настроены SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY"
     });
     return false;
   }
-
-  if (!hostIdFromRequest(req)) {
-    res.status(401).json({
-      error: "Сначала войди как ведущий"
-    });
-    return false;
-  }
-
   return true;
 }
 
-function validRoomName(value) {
-  return (
-    typeof value === "string" &&
-    /^[A-Za-z0-9_-]{1,80}$/.test(value)
-  );
+function getRoomName(req) {
+  return String(
+    req.query.roomName ||
+    req.query.room_name ||
+    req.body?.roomName ||
+    req.body?.room_name ||
+    req.body?.room ||
+    ""
+  ).trim();
 }
 
-function publicRoot(file) {
-  return path.join(__dirname, "public", file);
+async function getActiveStream(roomName) {
+  let query = supabase
+    .from("live_streams")
+    .select("*")
+    .eq("status", "live");
+
+  if (roomName) query = query.eq("room_name", roomName);
+
+  const { data, error } = await query
+    .order("started_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
-/* Основные страницы */
-
+// Проверка сервера
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// HTML и скрипты находятся в корне репозитория
 app.get("/", (req, res) => {
-  res.sendFile(publicRoot("index.html"));
+  res.sendFile(path.join(ROOT, "live.html"));
 });
 
 app.get("/live.html", (req, res) => {
-  res.sendFile(publicRoot("live.html"));
+  res.sendFile(path.join(ROOT, "live.html"));
 });
 
 app.get("/host.html", (req, res) => {
-  res.sendFile(publicRoot("host.html"));
+  res.sendFile(path.join(ROOT, "host.html"));
 });
 
 app.get("/app.js", (req, res) => {
-  res.sendFile(publicRoot("app.js"));
+  res.sendFile(path.join(ROOT, "app.js"));
 });
 
 app.get("/host.js", (req, res) => {
-  res.sendFile(publicRoot("host.js"));
+  res.sendFile(path.join(ROOT, "host.js"));
 });
 
 app.get("/style.css", (req, res) => {
-  res.sendFile(publicRoot("style.css"));
+  res.sendFile(path.join(ROOT, "style.css"));
 });
 
-/* Авторизация ведущего */
+// Если у проекта есть дополнительные изображения или стили,
+// добавь для них отдельные маршруты, не открывая весь корень сервера.
 
+// Авторизация ведущего
 app.get("/api/host/status", (req, res) => {
-  res.json({
-    authenticated: Boolean(hostIdFromRequest(req))
-  });
+  res.json({ authenticated: isHost(req) });
 });
 
 app.post("/api/host/login", (req, res) => {
   if (!HOST_PASSWORD) {
-    return res.status(503).json({
-      error: "Добавь HOST_PASSWORD в Render"
+    return res.status(500).json({
+      error: "На Render не задан HOST_PASSWORD"
     });
   }
 
-  const password =
-    typeof req.body?.password === "string"
-      ? req.body.password
-      : "";
+  const password = String(req.body?.password || "");
 
   if (!safeEqual(password, HOST_PASSWORD)) {
     return res.status(401).json({
@@ -209,31 +219,29 @@ app.post("/api/host/login", (req, res) => {
     });
   }
 
-  const id = crypto.randomUUID();
-
-  setSignedCookie(res, HOST_COOKIE, id, HOST_PASSWORD);
-
-  res.json({ success: true });
-});
-
-app.post("/api/host/logout", (req, res) => {
-  res.setHeader(
-    "Set-Cookie",
-    `${HOST_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`
+  setCookie(
+    res,
+    COOKIE_HOST,
+    createSession(HOST_PASSWORD),
+    60 * 60 * 24
   );
 
   res.json({ success: true });
 });
 
-/* Список активных эфиров */
+app.post("/api/host/logout", (req, res) => {
+  clearCookie(res, COOKIE_HOST);
+  res.json({ success: true });
+});
 
+// Список активных эфиров
 app.get("/api/streams", async (req, res) => {
   if (!requireDatabase(res)) return;
 
   try {
     const { data, error } = await supabase
       .from("live_streams")
-      .select("id,title,room_name,status,started_at,ended_at")
+      .select("*")
       .eq("status", "live")
       .order("started_at", { ascending: false });
 
@@ -241,203 +249,133 @@ app.get("/api/streams", async (req, res) => {
 
     res.json(data || []);
   } catch (error) {
-    console.error("Streams error:", error);
-    res.status(500).json({ error: "Не удалось загрузить эфиры" });
+    console.error("GET /api/streams:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Запуск эфира */
-
+// Запуск эфира
 app.post("/api/streams/start", async (req, res) => {
+  if (!isHost(req)) {
+    return res.status(401).json({
+      error: "Сначала войдите как ведущий"
+    });
+  }
+
   if (!requireDatabase(res)) return;
-  if (!requireHost(req, res)) return;
 
-  const title =
-    typeof req.body?.title === "string"
-      ? req.body.title.trim().slice(0, 120)
-      : "";
-
+  const title = String(req.body?.title || "").trim().slice(0, 150);
   const roomName =
-    typeof req.body?.roomName === "string"
-      ? req.body.roomName.trim()
-      : "";
+    String(req.body?.roomName || req.body?.room_name || "").trim() ||
+    `yfetish-${crypto.randomUUID()}`;
 
   if (!title) {
     return res.status(400).json({
-      error: "Введи название эфира"
-    });
-  }
-
-  if (!validRoomName(roomName)) {
-    return res.status(400).json({
-      error: "Некорректное имя комнаты"
+      error: "Введите название эфира"
     });
   }
 
   try {
-    const { data: existing, error: lookupError } = await supabase
-      .from("live_streams")
-      .select("id")
-      .eq("room_name", roomName)
-      .maybeSingle();
-
-    if (lookupError) throw lookupError;
-
-    let result;
+    const existing = await getActiveStream("");
 
     if (existing) {
-      result = await supabase
-        .from("live_streams")
-        .update({
-          title,
-          status: "live",
-          started_at: new Date().toISOString(),
-          ended_at: null
-        })
-        .eq("room_name", roomName)
-        .select("id,title,room_name,status,started_at")
-        .single();
-    } else {
-      result = await supabase
-        .from("live_streams")
-        .insert({
-          title,
-          room_name: roomName,
-          status: "live",
-          started_at: new Date().toISOString(),
-          ended_at: null
-        })
-        .select("id,title,room_name,status,started_at")
-        .single();
+      return res.status(409).json({
+        error: "Уже идёт эфир",
+        stream: existing
+      });
     }
 
-    if (result.error) throw result.error;
+    const { data, error } = await supabase
+      .from("live_streams")
+      .insert({
+        title,
+        room_name: roomName,
+        status: "live",
+        started_at: new Date().toISOString(),
+        ended_at: null
+      })
+      .select("*")
+      .single();
 
-    res.json({
-      success: true,
-      stream: result.data,
-      roomName: result.data.room_name
-    });
+    if (error) throw error;
+
+    res.json({ success: true, stream: data });
   } catch (error) {
-    console.error("Start stream error:", error);
-    res.status(500).json({
-      error: "Не удалось создать эфир. Проверь таблицу live_streams."
-    });
+    console.error("POST /api/streams/start:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Остановка эфира */
-
+// Остановка эфира
 app.post("/api/streams/stop", async (req, res) => {
-  if (!requireDatabase(res)) return;
-  if (!requireHost(req, res)) return;
-
-  const roomName =
-    typeof req.body?.roomName === "string"
-      ? req.body.roomName.trim()
-      : "";
-
-  if (!validRoomName(roomName)) {
-    return res.status(400).json({
-      error: "Некорректное имя комнаты"
+  if (!isHost(req)) {
+    return res.status(401).json({
+      error: "Сначала войдите как ведущий"
     });
   }
 
+  if (!requireDatabase(res)) return;
+
+  const roomName = getRoomName(req);
+
   try {
-    const { error } = await supabase
+    let query = supabase
       .from("live_streams")
       .update({
         status: "ended",
         ended_at: new Date().toISOString()
       })
-      .eq("room_name", roomName)
       .eq("status", "live");
 
+    if (roomName) query = query.eq("room_name", roomName);
+
+    const { data, error } = await query.select("*");
     if (error) throw error;
 
-    res.json({ success: true });
+    res.json({ success: true, streams: data || [] });
   } catch (error) {
-    console.error("Stop stream error:", error);
-    res.status(500).json({ error: "Не удалось остановить эфир" });
+    console.error("POST /api/streams/stop:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Токен LiveKit: ведущий публикует видео, зритель смотрит */
-
+// Токен для подключения к LiveKit
 app.get("/api/livekit/token", async (req, res) => {
-  if (!requireLiveKit(res)) return;
-
-  const roomName =
-    typeof req.query.roomName === "string"
-      ? req.query.roomName.trim()
-      : "";
-
-  if (!validRoomName(roomName)) {
-    return res.status(400).json({ error: "Некорректное имя комнаты" });
+  if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+    return res.status(500).json({
+      error: "Не настроены переменные LiveKit в Render"
+    });
   }
 
-  const isHost = Boolean(hostIdFromRequest(req));
+  if (!requireDatabase(res)) return;
 
-  if (isHost) {
-    if (!requireDatabase(res)) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("live_streams")
-        .select("id")
-        .eq("room_name", roomName)
-        .eq("status", "live")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!data) {
-        return res.status(404).json({
-          error: "Сначала создай эфир"
-        });
-      }
-    } catch (error) {
-      console.error("Host token check:", error);
-      return res.status(500).json({
-        error: "Не удалось проверить эфир"
-      });
-    }
-  } else {
-    if (!requireDatabase(res)) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("live_streams")
-        .select("id")
-        .eq("room_name", roomName)
-        .eq("status", "live")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!data) {
-        return res.status(404).json({
-          error: "Эфир не найден или завершён"
-        });
-      }
-    } catch (error) {
-      console.error("Viewer token check:", error);
-      return res.status(500).json({
-        error: "Не удалось проверить эфир"
-      });
-    }
+  const roomName = getRoomName(req);
+  if (!roomName) {
+    return res.status(400).json({
+      error: "Не указана комната эфира"
+    });
   }
 
   try {
-    const identity = isHost
-      ? "host-" + crypto.randomUUID()
-      : "viewer-" + crypto.randomUUID();
+    const stream = await getActiveStream(roomName);
+
+    if (!stream) {
+      return res.status(404).json({
+        error: "Этот эфир не найден или уже завершён"
+      });
+    }
+
+    const host = isHost(req);
+    const identity = host
+      ? `host-${crypto.randomUUID()}`
+      : `guest-${crypto.randomUUID()}`;
 
     const token = new AccessToken(
       LIVEKIT_API_KEY,
       LIVEKIT_API_SECRET,
       {
         identity,
+        name: host ? "Ведущий" : "Гость",
         ttl: "2h"
       }
     );
@@ -445,88 +383,66 @@ app.get("/api/livekit/token", async (req, res) => {
     token.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: isHost,
+      canPublish: host,
       canSubscribe: true,
-      canPublishData: isHost
+      canPublishData: true
     });
 
     res.json({
       token: await token.toJwt(),
-      url: LIVEKIT_URL
+      url: LIVEKIT_URL,
+      serverUrl: LIVEKIT_URL,
+      isHost: host
     });
   } catch (error) {
-    console.error("LiveKit token error:", error);
-    res.status(500).json({
-      error: "Не удалось создать токен LiveKit"
-    });
+    console.error("GET /api/livekit/token:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Чат */
-
+// Чат
 app.get("/api/chat", async (req, res) => {
   if (!requireDatabase(res)) return;
 
-  const roomName =
-    typeof req.query.roomName === "string"
-      ? req.query.roomName.trim()
-      : "";
-
-  if (!validRoomName(roomName)) {
-    return res.status(400).json({ error: "Некорректная комната" });
+  const roomName = getRoomName(req);
+  if (!roomName) {
+    return res.status(400).json({ error: "Не указана комната" });
   }
 
   try {
     const { data, error } = await supabase
       .from("live_messages")
-      .select("id,room_name,participant_name,message,created_at")
+      .select("*")
       .eq("room_name", roomName)
-      .order("id", { ascending: true })
-      .limit(100);
+      .order("created_at", { ascending: true })
+      .limit(200);
 
     if (error) throw error;
 
     res.json(data || []);
   } catch (error) {
-    console.error("Chat read error:", error);
-    res.status(500).json({ error: "Не удалось загрузить чат" });
+    console.error("GET /api/chat:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
 app.post("/api/chat", async (req, res) => {
   if (!requireDatabase(res)) return;
 
-  const roomName =
-    typeof req.body?.roomName === "string"
-      ? req.body.roomName.trim()
-      : "";
+  const roomName = getRoomName(req);
+  const message = String(req.body?.message || "").trim().slice(0, 1000);
+  const participantName = String(
+    req.body?.participantName || req.body?.name || "Гость"
+  ).trim().slice(0, 50) || "Гость";
 
-  const participantName =
-    typeof req.body?.participantName === "string"
-      ? req.body.participantName.trim().slice(0, 40)
-      : "Гость";
-
-  const message =
-    typeof req.body?.message === "string"
-      ? req.body.message.trim().slice(0, 1000)
-      : "";
-
-  if (!validRoomName(roomName) || !message) {
+  if (!roomName || !message) {
     return res.status(400).json({
-      error: "Укажи эфир и текст сообщения"
+      error: "Укажите комнату и сообщение"
     });
   }
 
   try {
-    const { data: stream, error: streamError } = await supabase
-      .from("live_streams")
-      .select("id")
-      .eq("room_name", roomName)
-      .eq("status", "live")
-      .maybeSingle();
-
-    if (streamError) throw streamError;
-
+    const stream = await getActiveStream(roomName);
     if (!stream) {
       return res.status(404).json({ error: "Эфир завершён" });
     }
@@ -535,30 +451,29 @@ app.post("/api/chat", async (req, res) => {
       .from("live_messages")
       .insert({
         room_name: roomName,
-        participant_name: participantName || "Гость",
+        participant_name: participantName,
         message
       })
-      .select("id,room_name,participant_name,message,created_at")
+      .select("*")
       .single();
 
     if (error) throw error;
 
     res.json({ success: true, message: data });
   } catch (error) {
-    console.error("Chat write error:", error);
-    res.status(500).json({ error: "Не удалось отправить сообщение" });
+    console.error("POST /api/chat:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Каталог подарков */
-
+// Список подарков
 app.get("/api/gifts", async (req, res) => {
   if (!requireDatabase(res)) return;
 
   try {
     const { data, error } = await supabase
       .from("gifts")
-      .select("id,name,emoji,price,active")
+      .select("id,name,emoji,price")
       .eq("active", true)
       .order("price", { ascending: true });
 
@@ -566,96 +481,66 @@ app.get("/api/gifts", async (req, res) => {
 
     res.json(data || []);
   } catch (error) {
-    console.error("Gifts error:", error);
-    res.status(500).json({ error: "Не удалось загрузить подарки" });
+    console.error("GET /api/gifts:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Гостевой кошелёк */
-
+// Баланс зрителя
 app.get("/api/wallet", async (req, res) => {
   if (!requireDatabase(res)) return;
 
-  if (!GUEST_SESSION_SECRET) {
-    return res.status(503).json({
-      error: "Добавь GUEST_SESSION_SECRET в Render"
+  const guestId = getGuestId(req, res);
+  if (!guestId) {
+    return res.status(500).json({
+      error: "Не настроен GUEST_SESSION_SECRET или HOST_PASSWORD"
     });
   }
 
   try {
-    let guestId = guestIdFromRequest(req);
-
-    if (!guestId) {
-      guestId = crypto.randomUUID();
-      setSignedCookie(res, GUEST_COOKIE, guestId, GUEST_SESSION_SECRET);
-    }
-
-    const { error: insertError } = await supabase
+    const { data, error } = await supabase
       .from("live_wallets")
       .upsert(
         { guest_id: guestId },
-        {
-          onConflict: "guest_id",
-          ignoreDuplicates: true
-        }
-      );
-
-    if (insertError) throw insertError;
-
-    const { data, error } = await supabase
-      .from("live_wallets")
-      .select("balance")
-      .eq("guest_id", guestId)
-      .single();
+        { onConflict: "guest_id", ignoreDuplicates: true }
+      )
+      .select("guest_id,balance")
+      .maybeSingle();
 
     if (error) throw error;
 
-    res.json({ balance: data.balance });
+    if (data) return res.json(data);
+
+    const result = await supabase
+      .from("live_wallets")
+      .select("guest_id,balance")
+      .eq("guest_id", guestId)
+      .single();
+
+    if (result.error) throw result.error;
+
+    res.json(result.data);
   } catch (error) {
-    console.error("Wallet error:", error);
-    res.status(500).json({
-      error: "Не удалось загрузить баланс"
-    });
+    console.error("GET /api/wallet:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Отправка подарка */
-
+// Отправка подарка и списание монет
 app.post("/api/gifts/send", async (req, res) => {
   if (!requireDatabase(res)) return;
 
-  if (!GUEST_SESSION_SECRET) {
-    return res.status(503).json({
-      error: "Добавь GUEST_SESSION_SECRET в Render"
+  const guestId = getGuestId(req, res);
+  const roomName = getRoomName(req);
+  const giftId = req.body?.giftId ?? req.body?.gift_id;
+
+  if (!guestId || !roomName || giftId == null) {
+    return res.status(400).json({
+      error: "Не указаны комната или подарок"
     });
   }
 
   try {
-    const guestId = guestIdFromRequest(req);
-
-    if (!guestId) {
-      return res.status(401).json({
-        error: "Обнови страницу и повтори"
-      });
-    }
-
-    const roomName =
-      typeof req.body?.roomName === "string"
-        ? req.body.roomName.trim()
-        : "";
-
-    const giftId = Number(req.body?.giftId);
-
-    if (
-      !validRoomName(roomName) ||
-      !Number.isSafeInteger(giftId) ||
-      giftId <= 0
-    ) {
-      return res.status(400).json({
-        error: "Неверный эфир или подарок"
-      });
-    }
-
     const { data, error } = await supabase.rpc("send_live_gift", {
       p_guest_id: guestId,
       p_room_name: roomName,
@@ -664,21 +549,31 @@ app.post("/api/gifts/send", async (req, res) => {
 
     if (error) throw error;
 
+    if (data?.success === false) {
+      return res.status(400).json(data);
+    }
+
     res.json(data);
   } catch (error) {
-    console.error("Send gift error:", error);
-    res.status(400).json({
-      error: error.message || "Не удалось отправить подарок"
-    });
+    console.error("POST /api/gifts/send:", error.message);
+    res.status(500).json({ error: error.message });
   }
 });
 
-/* Обработка неизвестных адресов */
-
-app.use((req, res) => {
-  res.status(404).json({ error: "Маршрут не найден" });
+// Обработка неизвестных API-маршрутов
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    error: "API-маршрут не найден",
+    path: req.path
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Y-FETISH LIVE запущен на порту ${PORT}`);
+// Обработка отсутствующих страниц
+app.use((req, res) => {
+  res.status(404).send("Not Found");
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Y-FETISH LIVE running on port ${PORT}`);
+  console.log(`Root directory: ${ROOT}`);
 });
