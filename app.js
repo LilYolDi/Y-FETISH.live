@@ -1,185 +1,136 @@
+
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+const params = new URLSearchParams(location.search);
+const roomName = params.get("room") || params.get("roomName") || "";
 
-const videoContainer = $("videoContainer") || $("videoPlayer") || $("liveVideo");
 const statusElement = $("status");
+const titleElement = $("streamTitle");
+const hostElement = $("hostName");
 const chatMessages = $("chatMessages");
 const chatForm = $("chatForm");
 const chatInput = $("chatInput");
-const giftsContainer = $("gifts");
-const giftList = $("giftList");
+const giftList = $("giftList") || $("gifts");
+const coinBalance = $("coinBalance");
+const giftMessage = $("giftMessage");
 
-let room = null;
+let liveRoom = null;
 let chatTimer = null;
-let isConnecting = false;
-
-const params = new URLSearchParams(window.location.search);
-const roomName = params.get("room") || params.get("roomName");
+let connecting = false;
 
 function setStatus(message) {
   if (statusElement) statusElement.textContent = message;
 }
 
-function getVideoContainer() {
-  if (videoContainer) return videoContainer;
-
-  let container = $("videoContainer") || $("videoPlayer") || $("liveVideo");
-
-  if (!container) {
-    container = document.createElement("div");
-    container.id = "videoContainer";
-    container.style.cssText =
-      "width:100%;min-height:240px;background:#111;display:flex;" +
-      "flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;";
-    document.body.appendChild(container);
-  }
-
-  return container;
+async function readJSON(response) {
+  try { return await response.json(); }
+  catch { return {}; }
 }
 
 function loadSDK() {
-  if (window.LivekitClient) {
-    return Promise.resolve(window.LivekitClient);
-  }
+  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
 
   return new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src =
-      "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
-
-    script.onload = () => {
-      if (window.LivekitClient) {
-        resolve(window.LivekitClient);
-      } else {
-        reject(new Error("Библиотека LiveKit не загрузилась."));
-      }
-    };
-
-    script.onerror = () =>
-      reject(new Error("Не удалось загрузить LiveKit."));
-
+    script.src = "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
+    script.onload = () => window.LivekitClient
+      ? resolve(window.LivekitClient)
+      : reject(new Error("LiveKit не загрузился"));
+    script.onerror = () => reject(new Error("Ошибка загрузки LiveKit"));
     document.head.appendChild(script);
   });
 }
 
-/* Видео на всю площадь контейнера */
-function attachTrack(track, participant) {
-  const container = getVideoContainer();
-  const element = track.attach();
+async function loadStreamInfo() {
+  try {
+    const response = await fetch("/api/streams", { cache: "no-store" });
+    const streams = await readJSON(response);
+    if (!response.ok || !Array.isArray(streams)) return;
 
+    const stream = streams.find(item => item.room_name === roomName);
+    if (!stream) return;
+
+    if (titleElement) titleElement.textContent = stream.title;
+    if (hostElement) hostElement.textContent = "Y-FETISH LIVE";
+    document.title = `${stream.title} — Y-FETISH LIVE`;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function attachTrack(track, participant) {
+  const container = $("videoContainer") || $("videoPlayer") || $("liveVideo");
+  if (!container) return;
+
+  const element = track.attach();
   element.autoplay = true;
   element.playsInline = true;
 
   if (track.kind === "video") {
     element.muted = true;
     element.setAttribute("playsinline", "");
-    element.setAttribute("webkit-playsinline", "");
-
     element.style.cssText =
-      "position:absolute;inset:0;display:block;" +
-      "width:100%;height:100%;max-width:none;max-height:none;" +
-      "object-fit:cover;object-position:center;" +
-      "background:#000;border:0;border-radius:0;";
-
-    container.style.position = "fixed";
-    container.style.inset = "0";
-    container.style.width = "100vw";
-    container.style.height = "100vh";
-    container.style.setProperty("height", "100dvh");
-    container.style.maxWidth = "none";
-    container.style.maxHeight = "none";
-    container.style.margin = "0";
-    container.style.padding = "0";
+      "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;";
+    container.style.position = "relative";
     container.style.overflow = "hidden";
-    container.style.border = "0";
-    container.style.borderRadius = "0";
-    container.style.background = "#000";
-  } else if (track.kind === "audio") {
-    element.autoplay = true;
+
+    const placeholder = $("videoPlaceholder");
+    if (placeholder) placeholder.style.display = "none";
+  } else {
     element.muted = false;
+    element.style.display = "none";
   }
 
-  element.dataset.participant =
-    participant.identity || "participant";
-
+  element.dataset.participant = participant.identity || "guest";
   container.appendChild(element);
-
-  element.play?.().catch(() => {
-    setStatus("Нажми на страницу, чтобы разрешить воспроизведение.");
-  });
+  element.play?.().catch(() =>
+    setStatus("Нажми на экран, чтобы разрешить воспроизведение.")
+  );
 }
 
-function detachTrack(track) {
-  track.detach().forEach((element) => element.remove());
-}
-
-async function connectToStream() {
-  if (isConnecting) return;
-  isConnecting = true;
+async function connectLive() {
+  if (connecting) return;
+  connecting = true;
 
   try {
-    if (!roomName) {
-      throw new Error("Не указана комната эфира в ссылке.");
-    }
+    if (!roomName) throw new Error("В ссылке не указана комната эфира");
 
     setStatus("Подключаемся к эфиру...");
-
     const sdk = await loadSDK();
 
     const response = await fetch("/api/livekit/token", {
       method: "POST",
-      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         roomName,
-        participantName: "Guest",
+        participantName: "Гость",
         isHost: false
-      }),
-      cache: "no-store"
+      })
     });
 
-    const credentials = await response.json();
+    const credentials = await readJSON(response);
+    if (!response.ok) throw new Error(credentials.error || "Ошибка доступа");
 
-    if (!response.ok) {
-      throw new Error(
-        credentials.error || "Не удалось получить доступ к эфиру."
-      );
-    }
+    liveRoom = new sdk.Room({ adaptiveStream: true, dynacast: true });
 
-    if (!credentials.serverUrl || !credentials.token) {
-      throw new Error("Сервер не вернул данные для подключения LiveKit.");
-    }
-
-    room = new sdk.Room({
-      adaptiveStream: true,
-      dynacast: true
+    liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+      attachTrack(track, participant);
+      setStatus("Ты подключён к эфиру.");
     });
 
-    room.on(
-      sdk.RoomEvent.TrackSubscribed,
-      (track, publication, participant) => {
-        attachTrack(track, participant);
-        setStatus("Ты подключён к эфиру.");
-      }
-    );
-
-    room.on(sdk.RoomEvent.TrackUnsubscribed, (track) => {
-      detachTrack(track);
+    liveRoom.on(sdk.RoomEvent.TrackUnsubscribed, track => {
+      track.detach().forEach(element => element.remove());
     });
 
-    room.on(sdk.RoomEvent.ParticipantDisconnected, () => {
-      setStatus("Участник отключился.");
-    });
-
-    room.on(sdk.RoomEvent.Disconnected, () => {
+    liveRoom.on(sdk.RoomEvent.Disconnected, () => {
       setStatus("Соединение с эфиром завершено.");
     });
 
-    await room.connect(credentials.serverUrl, credentials.token);
+    await liveRoom.connect(credentials.serverUrl, credentials.token);
 
-    room.remoteParticipants.forEach((participant) => {
-      participant.trackPublications.forEach((publication) => {
+    liveRoom.remoteParticipants.forEach(participant => {
+      participant.trackPublications.forEach(publication => {
         if (publication.track && publication.isSubscribed) {
           attachTrack(publication.track, participant);
         }
@@ -187,131 +138,151 @@ async function connectToStream() {
     });
 
     setStatus("Подключено. Ожидаем видео ведущего...");
-
-    loadGifts();
     await loadChat();
+    await loadGifts();
+    await loadWallet();
 
     if (chatTimer) clearInterval(chatTimer);
     chatTimer = setInterval(loadChat, 3000);
-
   } catch (error) {
-    console.error("Ошибка подключения к эфиру:", error);
-    setStatus(error.message || "Не удалось подключиться к эфиру.");
+    console.error(error);
+    setStatus(error.message || "Не удалось подключиться");
   } finally {
-    isConnecting = false;
+    connecting = false;
   }
 }
 
 async function loadChat() {
-  if (!chatMessages) return;
+  if (!chatMessages || !roomName) return;
 
   try {
     const response = await fetch(
-      `/api/chat?roomName=${encodeURIComponent(roomName || "")}`,
-      { credentials: "same-origin", cache: "no-store" }
+      `/api/chat?roomName=${encodeURIComponent(roomName)}`,
+      { cache: "no-store" }
     );
+    const messages = await readJSON(response);
+    if (!response.ok || !Array.isArray(messages)) return;
 
-    if (!response.ok) return;
+    const fragment = document.createDocumentFragment();
 
-    const result = await response.json();
-    const messages = Array.isArray(result) ? result : result.messages;
-
-    if (!Array.isArray(messages)) return;
-
-    chatMessages.replaceChildren();
-
-    messages.forEach((message) => {
+    messages.forEach(message => {
       const item = document.createElement("div");
       item.className = "chat-message";
 
       const author = document.createElement("strong");
-      author.textContent =
-        message.username || message.name || message.sender || "Гость";
+      author.textContent = message.participant_name || "Гость";
 
       const text = document.createElement("span");
-      text.textContent = ` ${message.message || message.text || ""}`;
+      text.textContent = ` ${message.message || ""}`;
 
       item.append(author, text);
-      chatMessages.appendChild(item);
+      fragment.appendChild(item);
     });
 
+    chatMessages.replaceChildren(fragment);
     chatMessages.scrollTop = chatMessages.scrollHeight;
   } catch (error) {
-    console.error("Ошибка загрузки чата:", error);
+    console.error(error);
   }
 }
 
 if (chatForm) {
-  chatForm.addEventListener("submit", async (event) => {
+  chatForm.addEventListener("submit", async event => {
     event.preventDefault();
 
     const message = chatInput?.value.trim();
-    if (!message) return;
+    if (!message || !roomName) return;
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
-        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomName,
+          participantName: "Гость",
           message
         })
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || "Не удалось отправить сообщение."
-        );
-      }
+      const result = await readJSON(response);
+      if (!response.ok) throw new Error(result.error || "Ошибка чата");
 
       chatInput.value = "";
       await loadChat();
     } catch (error) {
-      console.error("Ошибка отправки сообщения:", error);
-      setStatus(error.message || "Не удалось отправить сообщение.");
+      setStatus(error.message);
     }
   });
 }
 
 async function loadGifts() {
-  const container = giftsContainer || giftList;
-  if (!container) return;
+  if (!giftList) return;
 
   try {
-    const response = await fetch("/api/gifts", {
+    const response = await fetch("/api/gifts", { cache: "no-store" });
+    const gifts = await readJSON(response);
+    if (!response.ok || !Array.isArray(gifts)) return;
+
+    giftList.replaceChildren();
+
+    gifts.forEach(gift => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "gift-item";
+      button.textContent =
+        `${gift.emoji || "🎁"} ${gift.name || "Подарок"} — ${gift.price ?? 0} монет`;
+
+      button.addEventListener("click", () => sendGift(gift.id));
+      giftList.appendChild(button);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+async function loadWallet() {
+  try {
+    const response = await fetch("/api/wallet", {
       credentials: "same-origin",
       cache: "no-store"
     });
 
-    if (!response.ok) return;
+    const data = await readJSON(response);
+    if (!response.ok) throw new Error(data.error || "Ошибка кошелька");
 
-    const result = await response.json();
-    const gifts = Array.isArray(result) ? result : result.gifts;
-
-    if (!Array.isArray(gifts)) return;
-
-    container.replaceChildren();
-
-    gifts.forEach((gift) => {
-      const item = document.createElement("div");
-      item.className = "gift-item";
-      item.textContent =
-        `${gift.emoji || "🎁"} ${gift.name || gift.title || "Подарок"}` +
-        (gift.price != null ? ` — ${gift.price}` : "");
-
-      container.appendChild(item);
-    });
+    if (coinBalance) coinBalance.textContent = data.balance;
   } catch (error) {
-    console.error("Ошибка загрузки подарков:", error);
+    if (giftMessage) giftMessage.textContent = error.message;
+  }
+}
+
+async function sendGift(giftId) {
+  if (!roomName) return;
+
+  try {
+    const response = await fetch("/api/gifts/send", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomName, giftId })
+    });
+
+    const data = await readJSON(response);
+    if (!response.ok) throw new Error(data.error || "Не удалось отправить подарок");
+
+    if (coinBalance) coinBalance.textContent = data.balance;
+    if (giftMessage) {
+      giftMessage.textContent = `${data.emoji || "🎁"} Подарок отправлен: ${data.gift}`;
+    }
+  } catch (error) {
+    if (giftMessage) giftMessage.textContent = error.message;
   }
 }
 
 window.addEventListener("beforeunload", () => {
   if (chatTimer) clearInterval(chatTimer);
-  if (room) room.disconnect();
+  if (liveRoom) liveRoom.disconnect();
 });
 
-connectToStream();
+loadStreamInfo();
+connectLive();
