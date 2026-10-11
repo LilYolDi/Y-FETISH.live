@@ -139,6 +139,31 @@
 
     loadStreams();
     setInterval(loadStreams, 15000);
-  </script>
+
+  const menuButton = document.getElementById("yfl-menu-button");
+  const menuPanel = document.getElementById("yfl-menu-panel");
+  const menuOverlay = document.getElementById("yfl-menu-overlay");
+  const menuClose = document.getElementById("yfl-menu-close");
+
+  function openMenu() {
+    menuPanel.classList.add("open");
+    menuOverlay.classList.add("open");
+    document.body.classList.add("menu-open");
+  }
+
+  function closeMenu() {
+    menuPanel.classList.remove("open");
+    menuOverlay.classList.remove("open");
+    document.body.classList.remove("menu-open");
+  }
+
+  menuButton.addEventListener("click", openMenu);
+  menuClose.addEventListener("click", closeMenu);
+  menuOverlay.addEventListener("click", closeMenu);
+
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape") closeMenu();
+  });
+</script>
 </body>
 </html>
