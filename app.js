@@ -1,288 +1,378 @@
 
-"use strict";
+(() => {
+  "use strict";
 
-const $ = (id) => document.getElementById(id);
-const params = new URLSearchParams(location.search);
-const roomName = params.get("room") || params.get("roomName") || "";
+  const params = new URLSearchParams(window.location.search);
+  const roomName = params.get("room");
 
-const statusElement = $("status");
-const titleElement = $("streamTitle");
-const hostElement = $("hostName");
-const chatMessages = $("chatMessages");
-const chatForm = $("chatForm");
-const chatInput = $("chatInput");
-const giftList = $("giftList") || $("gifts");
-const coinBalance = $("coinBalance");
-const giftMessage = $("giftMessage");
+  const $ = (selector) => document.querySelector(selector);
 
-let liveRoom = null;
-let chatTimer = null;
-let connecting = false;
+  const titleElement = $("#streamTitle");
+  const hostNameElement = $("#hostName");
+  const coinBalance = $("#coinBalance");
+  const giftList = $("#giftList") || $("#gifts");
+  const giftMessage = $("#giftMessage");
+  const chatForm = $("#chatForm");
+  const chatInput = $("#chatInput") || $('input[name="message"]');
+  const chatList =
+    $("#chatMessages") || $("#messages") || $("#chat");
 
-function setStatus(message) {
-  if (statusElement) statusElement.textContent = message;
-}
+  let liveRoom = null;
+  let chatTimer = null;
+  let lastMessageId = null;
+  let firstChatLoad = true;
 
-async function readJSON(response) {
-  try { return await response.json(); }
-  catch { return {}; }
-}
-
-function loadSDK() {
-  if (window.LivekitClient) return Promise.resolve(window.LivekitClient);
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
-    script.onload = () => window.LivekitClient
-      ? resolve(window.LivekitClient)
-      : reject(new Error("LiveKit не загрузился"));
-    script.onerror = () => reject(new Error("Ошибка загрузки LiveKit"));
-    document.head.appendChild(script);
-  });
-}
-
-async function loadStreamInfo() {
-  try {
-    const response = await fetch("/api/streams", { cache: "no-store" });
-    const streams = await readJSON(response);
-    if (!response.ok || !Array.isArray(streams)) return;
-
-    const stream = streams.find(item => item.room_name === roomName);
-    if (!stream) return;
-
-    if (titleElement) titleElement.textContent = stream.title;
-    if (hostElement) hostElement.textContent = "Y-FETISH LIVE";
-    document.title = `${stream.title} — Y-FETISH LIVE`;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-function attachTrack(track, participant) {
-  const container = $("videoContainer") || $("videoPlayer") || $("liveVideo");
-  if (!container) return;
-
-  const element = track.attach();
-  element.autoplay = true;
-  element.playsInline = true;
-
-  if (track.kind === "video") {
-    element.muted = true;
-    element.setAttribute("playsinline", "");
-    element.style.cssText =
-      "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;";
-    container.style.position = "relative";
-    container.style.overflow = "hidden";
-
-    const placeholder = $("videoPlaceholder");
-    if (placeholder) placeholder.style.display = "none";
-  } else {
-    element.muted = false;
-    element.style.display = "none";
+  function showMessage(message) {
+    if (giftMessage) {
+      giftMessage.textContent = message;
+    } else {
+      console.log(message);
+    }
   }
 
-  element.dataset.participant = participant.identity || "guest";
-  container.appendChild(element);
-  element.play?.().catch(() =>
-    setStatus("Нажми на экран, чтобы разрешить воспроизведение.")
-  );
-}
-
-async function connectLive() {
-  if (connecting) return;
-  connecting = true;
-
-  try {
-    if (!roomName) throw new Error("В ссылке не указана комната эфира");
-
-    setStatus("Подключаемся к эфиру...");
-    const sdk = await loadSDK();
-
-    const response = await fetch("/api/livekit/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        roomName,
-        participantName: "Гость",
-        isHost: false
-      })
+  async function api(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {})
+      }
     });
 
-    const credentials = await readJSON(response);
-    if (!response.ok) throw new Error(credentials.error || "Ошибка доступа");
+    const data = await response.json().catch(() => ({}));
 
-    liveRoom = new sdk.Room({ adaptiveStream: true, dynacast: true });
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Ошибка сервера: ${response.status}`
+      );
+    }
 
-    liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      attachTrack(track, participant);
-      setStatus("Ты подключён к эфиру.");
+    return data;
+  }
+
+  async function loadLiveKit() {
+    if (window.LivekitClient || window.LiveKit) {
+      return window.LivekitClient || window.LiveKit;
+    }
+
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+
+      script.src =
+        "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
+
+      script.onload = resolve;
+      script.onerror = () =>
+        reject(new Error("Не удалось загрузить LiveKit"));
+
+      document.head.appendChild(script);
     });
 
-    liveRoom.on(sdk.RoomEvent.TrackUnsubscribed, track => {
-      track.detach().forEach(element => element.remove());
+    const sdk = window.LivekitClient || window.LiveKit;
+
+    if (!sdk || !sdk.Room) {
+      throw new Error("Библиотека LiveKit недоступна");
+    }
+
+    return sdk;
+  }
+
+  async function loadStreamInfo() {
+    const data = await api("/api/streams");
+    const streams = Array.isArray(data)
+      ? data
+      : data.streams || [];
+
+    const stream = streams.find(
+      (item) =>
+        item.room_name === roomName &&
+        item.status === "live"
+    );
+
+    if (!stream) {
+      if (titleElement) {
+        titleElement.textContent = "Эфир не найден или завершён";
+      }
+
+      return false;
+    }
+
+    if (titleElement) {
+      titleElement.textContent = stream.title || "Прямой эфир";
+    }
+
+    if (hostNameElement) {
+      hostNameElement.textContent =
+        stream.host_name || "Ведущий";
+    }
+
+    return true;
+  }
+
+  function attachTrack(track) {
+    const videoContainer =
+      $("#videoContainer") ||
+      $("#liveVideo") ||
+      $("#videoPlayer") ||
+      $(".video-container") ||
+      $("video")?.parentElement;
+
+    if (!videoContainer || !track) return;
+
+    const element = track.attach();
+
+    element.autoplay = true;
+    element.playsInline = true;
+
+    if (track.kind === "video") {
+      element.style.width = "100%";
+      element.style.height = "100%";
+      element.style.objectFit = "contain";
+    }
+
+    if (track.kind === "audio") {
+      element.autoplay = true;
+    }
+
+    videoContainer.appendChild(element);
+  }
+
+  async function connectLive() {
+    if (!roomName) {
+      if (titleElement) {
+        titleElement.textContent = "В ссылке отсутствует номер эфира";
+      }
+      return;
+    }
+
+    const isActive = await loadStreamInfo();
+
+    if (!isActive) return;
+
+    const sdk = await loadLiveKit();
+
+    const tokenData = await api(
+      "/api/livekit/token?roomName=" +
+      encodeURIComponent(roomName)
+    );
+
+    const liveKitUrl =
+      tokenData.url ||
+      tokenData.serverUrl ||
+      tokenData.livekitUrl;
+
+    if (!tokenData.token || !liveKitUrl) {
+      throw new Error(
+        "Сервер не вернул данные LiveKit. Проверь server.js."
+      );
+    }
+
+    liveRoom = new sdk.Room();
+
+    liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track) => {
+      attachTrack(track);
+    });
+
+    liveRoom.on(sdk.RoomEvent.TrackUnsubscribed, (track) => {
+      track.detach().forEach((element) => element.remove());
     });
 
     liveRoom.on(sdk.RoomEvent.Disconnected, () => {
-      setStatus("Соединение с эфиром завершено.");
+      showMessage("Соединение с эфиром потеряно");
     });
 
-    await liveRoom.connect(credentials.serverUrl, credentials.token);
+    await liveRoom.connect(liveKitUrl, tokenData.token);
 
-    liveRoom.remoteParticipants.forEach(participant => {
-      participant.trackPublications.forEach(publication => {
-        if (publication.track && publication.isSubscribed) {
-          attachTrack(publication.track, participant);
+    for (const participant of liveRoom.remoteParticipants.values()) {
+      for (const publication of participant.trackPublications.values()) {
+        if (publication.track) {
+          attachTrack(publication.track);
         }
-      });
-    });
-
-    setStatus("Подключено. Ожидаем видео ведущего...");
-    await loadChat();
-    await loadGifts();
-    await loadWallet();
-
-    if (chatTimer) clearInterval(chatTimer);
-    chatTimer = setInterval(loadChat, 3000);
-  } catch (error) {
-    console.error(error);
-    setStatus(error.message || "Не удалось подключиться");
-  } finally {
-    connecting = false;
+      }
+    }
   }
-}
 
-async function loadChat() {
-  if (!chatMessages || !roomName) return;
+  function addChatMessage(item) {
+    if (!chatList) return;
 
-  try {
-    const response = await fetch(
-      `/api/chat?roomName=${encodeURIComponent(roomName)}`,
-      { cache: "no-store" }
-    );
-    const messages = await readJSON(response);
-    if (!response.ok || !Array.isArray(messages)) return;
+    const row = document.createElement("div");
+    row.className = "chat-message";
 
-    const fragment = document.createDocumentFragment();
+    const name = document.createElement("strong");
+    name.textContent = item.participant_name || "Гость";
 
-    messages.forEach(message => {
-      const item = document.createElement("div");
-      item.className = "chat-message";
+    const message = document.createElement("span");
+    message.textContent = " " + (item.message || "");
 
-      const author = document.createElement("strong");
-      author.textContent = message.participant_name || "Гость";
+    row.append(name, message);
+    chatList.appendChild(row);
 
-      const text = document.createElement("span");
-      text.textContent = ` ${message.message || ""}`;
+    while (chatList.children.length > 100) {
+      chatList.firstElementChild.remove();
+    }
 
-      item.append(author, text);
-      fragment.appendChild(item);
-    });
-
-    chatMessages.replaceChildren(fragment);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  } catch (error) {
-    console.error(error);
+    chatList.scrollTop = chatList.scrollHeight;
   }
-}
 
-if (chatForm) {
-  chatForm.addEventListener("submit", async event => {
-    event.preventDefault();
-
-    const message = chatInput?.value.trim();
-    if (!message || !roomName) return;
+  async function loadChat() {
+    if (!roomName || !chatList) return;
 
     try {
-      const response = await fetch("/api/chat", {
+      const data = await api(
+        "/api/chat?roomName=" + encodeURIComponent(roomName)
+      );
+
+      const messages = Array.isArray(data)
+        ? data
+        : data.messages || [];
+
+      if (firstChatLoad) {
+        chatList.replaceChildren();
+        messages.forEach(addChatMessage);
+        firstChatLoad = false;
+      } else {
+        const newMessages = messages.filter((item) => {
+          if (lastMessageId === null) return true;
+
+          return Number(item.id) > Number(lastMessageId);
+        });
+
+        newMessages.forEach(addChatMessage);
+      }
+
+      if (messages.length) {
+        lastMessageId = messages[messages.length - 1].id;
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки чата:", error);
+    }
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const message = chatInput?.value.trim();
+
+      if (!message || !roomName) return;
+
+      try {
+        await api("/api/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            roomName,
+            participantName: "Гость",
+            message
+          })
+        });
+
+        chatInput.value = "";
+        await loadChat();
+      } catch (error) {
+        showMessage(error.message);
+      }
+    });
+  }
+
+  async function loadWallet() {
+    if (!coinBalance) return;
+
+    try {
+      const data = await api("/api/wallet");
+      coinBalance.textContent = data.balance;
+    } catch (error) {
+      console.error("Ошибка загрузки баланса:", error);
+    }
+  }
+
+  async function loadGifts() {
+    if (!giftList) return;
+
+    try {
+      const data = await api("/api/gifts");
+
+      const gifts = Array.isArray(data)
+        ? data
+        : data.gifts || [];
+
+      giftList.replaceChildren();
+
+      gifts.forEach((gift) => {
+        const button = document.createElement("button");
+
+        button.type = "button";
+        button.className = "gift-item";
+        button.textContent =
+          `${gift.emoji || "🎁"} ${gift.name} — ${gift.price} монет`;
+
+        button.addEventListener("click", () => {
+          sendGift(gift.id, button);
+        });
+
+        giftList.appendChild(button);
+      });
+    } catch (error) {
+      showMessage("Ошибка загрузки подарков: " + error.message);
+    }
+  }
+
+  async function sendGift(giftId, button) {
+    if (!roomName) return;
+
+    if (button) button.disabled = true;
+
+    try {
+      const data = await api("/api/gifts/send", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomName,
-          participantName: "Гость",
-          message
+          giftId
         })
       });
 
-      const result = await readJSON(response);
-      if (!response.ok) throw new Error(result.error || "Ошибка чата");
+      if (coinBalance && data.balance !== undefined) {
+        coinBalance.textContent = data.balance;
+      }
 
-      chatInput.value = "";
-      await loadChat();
+      showMessage(
+        `${data.emoji || "🎁"} Подарок «${data.gift || "Подарок"}» отправлен!`
+      );
     } catch (error) {
-      setStatus(error.message);
+      showMessage(error.message);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function init() {
+    try {
+      await connectLive();
+    } catch (error) {
+      console.error("Ошибка подключения к эфиру:", error);
+
+      if (titleElement) {
+        titleElement.textContent =
+          "Ошибка подключения: " + error.message;
+      }
+    }
+
+    await Promise.all([
+      loadChat(),
+      loadWallet(),
+      loadGifts()
+    ]);
+
+    chatTimer = setInterval(loadChat, 3000);
+  }
+
+  window.addEventListener("beforeunload", () => {
+    clearInterval(chatTimer);
+
+    if (liveRoom) {
+      liveRoom.disconnect();
     }
   });
-}
 
-async function loadGifts() {
-  if (!giftList) return;
-
-  try {
-    const response = await fetch("/api/gifts", { cache: "no-store" });
-    const gifts = await readJSON(response);
-    if (!response.ok || !Array.isArray(gifts)) return;
-
-    giftList.replaceChildren();
-
-    gifts.forEach(gift => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "gift-item";
-      button.textContent =
-        `${gift.emoji || "🎁"} ${gift.name || "Подарок"} — ${gift.price ?? 0} монет`;
-
-      button.addEventListener("click", () => sendGift(gift.id));
-      giftList.appendChild(button);
-    });
-  } catch (error) {
-    console.error(error);
-  }
-}
-
-async function loadWallet() {
-  try {
-    const response = await fetch("/api/wallet", {
-      credentials: "same-origin",
-      cache: "no-store"
-    });
-
-    const data = await readJSON(response);
-    if (!response.ok) throw new Error(data.error || "Ошибка кошелька");
-
-    if (coinBalance) coinBalance.textContent = data.balance;
-  } catch (error) {
-    if (giftMessage) giftMessage.textContent = error.message;
-  }
-}
-
-async function sendGift(giftId) {
-  if (!roomName) return;
-
-  try {
-    const response = await fetch("/api/gifts/send", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomName, giftId })
-    });
-
-    const data = await readJSON(response);
-    if (!response.ok) throw new Error(data.error || "Не удалось отправить подарок");
-
-    if (coinBalance) coinBalance.textContent = data.balance;
-    if (giftMessage) {
-      giftMessage.textContent = `${data.emoji || "🎁"} Подарок отправлен: ${data.gift}`;
-    }
-  } catch (error) {
-    if (giftMessage) giftMessage.textContent = error.message;
-  }
-}
-
-window.addEventListener("beforeunload", () => {
-  if (chatTimer) clearInterval(chatTimer);
-  if (liveRoom) liveRoom.disconnect();
-});
-
-loadStreamInfo();
-connectLive();
+  init();
+})();
