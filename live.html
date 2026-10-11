@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -11,9 +12,7 @@
   <link rel="stylesheet" href="/style.css">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -23,13 +22,9 @@
       font-family: Arial, sans-serif;
     }
 
-    body {
-      min-height: 100vh;
-    }
+    body { min-height: 100vh; }
 
-    button, input {
-      font: inherit;
-    }
+    button, input { font: inherit; }
 
     .topbar {
       position: relative;
@@ -50,9 +45,7 @@
       text-decoration: none;
     }
 
-    .logo span {
-      color: #f22;
-    }
+    .logo span { color: #f22; }
 
     .back-link {
       color: #fff;
@@ -69,9 +62,7 @@
       align-items: start;
     }
 
-    .video-section {
-      min-width: 0;
-    }
+    .video-section { min-width: 0; }
 
     .video-container {
       position: relative;
@@ -108,6 +99,11 @@
       color: #bbb;
       text-align: center;
       pointer-events: none;
+      transition: opacity .2s ease;
+    }
+
+    #videoPlaceholder.hidden {
+      display: none;
     }
 
     .play-icon {
@@ -141,6 +137,8 @@
       text-shadow: 0 1px 5px #000;
     }
 
+    #status.hidden { display: none; }
+
     #streamTitle {
       margin: 16px 0 7px;
       font-size: 23px;
@@ -153,20 +151,16 @@
       line-height: 1.5;
     }
 
-    .gift-panel,
-    .chat-panel {
+    .gift-panel, .chat-panel {
       padding: 16px;
       background: #171717;
       border: 1px solid #303030;
       border-radius: 12px;
     }
 
-    .gift-panel {
-      margin-top: 18px;
-    }
+    .gift-panel { margin-top: 18px; }
 
-    .gift-panel h2,
-    .chat-panel h2 {
+    .gift-panel h2, .chat-panel h2 {
       margin: 0 0 12px;
       font-size: 18px;
     }
@@ -187,9 +181,7 @@
       font-size: 13px;
     }
 
-    .gift-item:hover {
-      border-color: #f22;
-    }
+    .gift-item:hover { border-color: #f22; }
 
     .chat-panel {
       display: flex;
@@ -226,9 +218,7 @@
       color: #fff;
     }
 
-    .chat-form input:focus {
-      border-color: #e21b2d;
-    }
+    .chat-form input:focus { border-color: #e21b2d; }
 
     .chat-form button {
       flex-shrink: 0;
@@ -241,13 +231,7 @@
       cursor: pointer;
     }
 
-    .gift-toggle {
-      display: none;
-    }
-
-    .gift-close {
-      display: none;
-    }
+    .gift-toggle, .gift-close { display: none; }
 
     @media (min-width: 801px) {
       .video-section {
@@ -255,9 +239,7 @@
         margin: 0 auto;
       }
 
-      .video-container {
-        max-height: 76vh;
-      }
+      .video-container { max-height: 76vh; }
     }
 
     @media (max-width: 800px) {
@@ -280,9 +262,7 @@
         border: 0;
       }
 
-      .logo {
-        font-size: 21px;
-      }
+      .logo { font-size: 21px; }
 
       .back-link {
         padding: 8px 11px;
@@ -321,9 +301,7 @@
         border-radius: 0;
       }
 
-      .video-container video {
-        object-fit: cover;
-      }
+      .video-container video { object-fit: cover; }
 
       .live-label {
         top: calc(env(safe-area-inset-top) + 64px);
@@ -347,9 +325,7 @@
         pointer-events: none;
       }
 
-      #hostName {
-        display: none;
-      }
+      #hostName { display: none; }
 
       .chat-panel {
         position: fixed;
@@ -365,9 +341,7 @@
         border-radius: 0;
       }
 
-      .chat-panel h2 {
-        display: none;
-      }
+      .chat-panel h2 { display: none; }
 
       .chat-messages {
         display: flex;
@@ -406,9 +380,7 @@
         padding: 0 15px;
       }
 
-      .chat-panel > .muted {
-        display: none;
-      }
+      .chat-panel > .muted { display: none; }
 
       .gift-toggle {
         position: fixed;
@@ -445,13 +417,9 @@
         box-shadow: 0 0 30px rgba(0,0,0,.5);
       }
 
-      body.show-gifts .gift-panel {
-        display: block;
-      }
+      body.show-gifts .gift-panel { display: block; }
 
-      .gift-panel h2 {
-        padding-right: 38px;
-      }
+      .gift-panel h2 { padding-right: 38px; }
 
       .gift-close {
         position: absolute;
@@ -468,15 +436,11 @@
         cursor: pointer;
       }
 
-      .gift-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+      .gift-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 380px) {
-      .logo {
-        font-size: 18px;
-      }
+      .logo { font-size: 18px; }
 
       .chat-form button {
         padding: 0 12px;
@@ -572,6 +536,39 @@
     });
   </script>
 
+  <script>
+    (function () {
+      const container = document.getElementById("videoContainer");
+      const placeholder = document.getElementById("videoPlaceholder");
+      const status = document.getElementById("status");
+
+      if (!container || !placeholder || !status) return;
+
+      function updateLiveOverlay() {
+        const videos = container.querySelectorAll("video");
+        let playingVideoFound = false;
+
+        videos.forEach(function (video) {
+          if (video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+            playingVideoFound = true;
+          }
+        });
+
+        placeholder.classList.toggle("hidden", playingVideoFound);
+        status.classList.toggle("hidden", playingVideoFound);
+      }
+
+      const observer = new MutationObserver(updateLiveOverlay);
+      observer.observe(container, { childList: true, subtree: true });
+
+      container.addEventListener("playing", updateLiveOverlay, true);
+      container.addEventListener("loadeddata", updateLiveOverlay, true);
+      container.addEventListener("emptied", updateLiveOverlay, true);
+      container.addEventListener("pause", updateLiveOverlay, true);
+    })();
+  </script>
+
   <script src="/app.js" defer></script>
 </body>
 </html>
+```
