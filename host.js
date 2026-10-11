@@ -22,9 +22,10 @@ let room = null;
 let localTracks = [];
 let activeRoomName = "";
 let sdk = null;
+let isStopping = false;
 
 function status(message) {
-  statusText.textContent = message;
+  if (statusText) statusText.textContent = message;
 }
 
 async function loadSDK() {
@@ -32,9 +33,11 @@ async function loadSDK() {
 
   await new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"
+    script.src =
+      "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Не удалось загрузить LiveKit"));
+    script.onerror = () =>
+      reject(new Error("Не удалось загрузить LiveKit"));
     document.head.appendChild(script);
   });
 
@@ -48,9 +51,15 @@ async function loadSDK() {
 async function checkLogin() {
   try {
     const response = await fetch("/api/host/status", {
-      credentials: "same-origin"
+      credentials: "same-origin",
+      cache: "no-store"
     });
+
     const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Ошибка проверки входа");
+    }
 
     loginPanel.hidden = Boolean(result.authenticated);
     studioPanel.hidden = !result.authenticated;
@@ -58,8 +67,8 @@ async function checkLogin() {
     if (result.authenticated) {
       status("Вход выполнен. Можно начинать эфир.");
     }
-  } catch {
-    status("Не удалось проверить вход. Обнови страницу.");
+  } catch (error) {
+    status(error.message || "Не удалось проверить вход. Обнови страницу.");
   }
 }
 
@@ -72,7 +81,9 @@ loginForm.addEventListener("submit", async (event) => {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: passwordInput.value })
+      body: JSON.stringify({
+        password: passwordInput.value
+      })
     });
 
     const result = await response.json();
@@ -86,43 +97,81 @@ loginForm.addEventListener("submit", async (event) => {
     studioPanel.hidden = false;
     status("Вход выполнен. Можно начинать эфир.");
   } catch (error) {
-    status(error.message);
+    status(error.message || "Ошибка входа");
   } finally {
     loginButton.disabled = false;
   }
 });
 
 async function stopStream(message = "Эфир завершён.") {
-  if (room) {
-    try {
-      await room.disconnect();
-    } catch (error) {
-      console.error(error);
+  if (isStopping) return;
+  isStopping = true;
+
+  const roomNameToStop = activeRoomName;
+  activeRoomName = "";
+
+  try {
+    if (roomNameToStop) {
+      const response = await fetch("/api/streams/stop", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomName: roomNameToStop
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        console.error(
+          "Ошибка завершения эфира в базе:",
+          result.error || response.status
+        );
+      }
     }
+  } catch (error) {
+    console.error("Stream stop request:", error);
   }
 
+  const oldRoom = room;
   room = null;
+
+  if (oldRoom) {
+    try {
+      await oldRoom.disconnect();
+    } catch (error) {
+      console.error("LiveKit disconnect:", error);
+    }
+  }
 
   localTracks.forEach((track) => {
     try {
       track.stop();
-    } catch {}
+    } catch (error) {
+      console.error("Track stop:", error);
+    }
   });
 
   localTracks = [];
-  preview.srcObject = null;
-  preview.hidden = true;
-  stopButton.hidden = true;
-  startButton.disabled = false;
-  watchLink.hidden = true;
 
+  if (preview) {
+    preview.srcObject = null;
+    preview.hidden = true;
+  }
+
+  if (stopButton) stopButton.hidden = true;
+  if (startButton) startButton.disabled = false;
+  if (watchLink) watchLink.hidden = true;
+
+  isStopping = false;
   status(message);
 }
 
 streamForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  if (room) return;
+  if (room || isStopping) return;
 
   const title = titleInput.value.trim();
   const roomName = roomInput.value.trim();
@@ -136,8 +185,8 @@ streamForm.addEventListener("submit", async (event) => {
   status("Запрашиваем доступ к камере и микрофону...");
 
   try {
-    // Сначала получаем защищённый токен ведущего.
-    const response = await fetch("/api/livekit/token", {
+    // Получаем защищённый токен ведущего.
+    const tokenResponse = await fetch("/api/livekit/token", {
       method: "POST",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
@@ -148,23 +197,30 @@ streamForm.addEventListener("submit", async (event) => {
       })
     });
 
-    const credentials = await response.json();
+    const credentials = await tokenResponse.json();
 
-    if (!response.ok) {
-      throw new Error(credentials.error || "Не удалось получить права ведущего");
+    if (!tokenResponse.ok) {
+      throw new Error(
+        credentials.error || "Не удалось получить права ведущего"
+      );
     }
 
     sdk = await loadSDK();
 
-    // Подключаем комнату LiveKit.
-    room = new sdk.Room({
+    // Подключаем ведущего к LiveKit.
+    const newRoom = new sdk.Room({
       adaptiveStream: true,
       dynacast: true
     });
 
-    await room.connect(credentials.serverUrl, credentials.token);
+    room = newRoom;
 
-    // Запрашиваем камеру и микрофон и публикуем их в комнате.
+    await newRoom.connect(
+      credentials.serverUrl,
+      credentials.token
+    );
+
+    // Запускаем камеру и микрофон.
     const tracks = await sdk.createLocalTracks({
       audio: true,
       video: {
@@ -176,30 +232,61 @@ streamForm.addEventListener("submit", async (event) => {
     localTracks = tracks;
 
     for (const track of tracks) {
-      await room.localParticipant.publishTrack(track);
+      await newRoom.localParticipant.publishTrack(track);
     }
 
-    const cameraTrack = tracks.find((track) => track.kind === "video");
+    const cameraTrack = tracks.find(
+      (track) => track.kind === "video"
+    );
 
-    if (cameraTrack) {
-      preview.srcObject = new MediaStream([cameraTrack.mediaStreamTrack]);
+    if (cameraTrack && preview) {
+      preview.srcObject = new MediaStream([
+        cameraTrack.mediaStreamTrack
+      ]);
       preview.hidden = false;
       await preview.play().catch(() => {});
     }
 
+    // Сохраняем эфир в Supabase.
+    const saveResponse = await fetch("/api/streams/start", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title,
+        roomName
+      })
+    });
+
+    const saved = await saveResponse.json();
+
+    if (!saveResponse.ok) {
+      throw new Error(
+        saved.error || "Не удалось зарегистрировать эфир"
+      );
+    }
+
     activeRoomName = roomName;
-    watchLink.href = `/live.html?room=${encodeURIComponent(roomName)}`;
-    watchLink.hidden = false;
-    stopButton.hidden = false;
+
+    if (watchLink) {
+      watchLink.href =
+        `/live.html?room=${encodeURIComponent(roomName)}`;
+      watchLink.hidden = false;
+    }
+
+    if (stopButton) stopButton.hidden = false;
 
     status(
       `Эфир запущен: ${title}\n` +
       `Комната: ${roomName}\n` +
-      `Ссылка для зрителей: ${location.origin}${watchLink.getAttribute("href")}`
+      `Ссылка для зрителей: ${location.origin}/live.html?room=${encodeURIComponent(roomName)}`
     );
 
-    room.on(sdk.RoomEvent.Disconnected, () => {
-      if (room) stopStream("Соединение с эфиром потеряно.");
+    // Если соединение потеряно, завершаем эфир.
+    newRoom.on(sdk.RoomEvent.Disconnected, () => {
+      if (room === newRoom && !isStopping) {
+        stopStream("Соединение с эфиром потеряно.");
+      }
     });
 
   } catch (error) {
@@ -224,6 +311,8 @@ logoutButton.addEventListener("click", async () => {
       method: "POST",
       credentials: "same-origin"
     });
+  } catch (error) {
+    console.error("Logout:", error);
   } finally {
     studioPanel.hidden = true;
     loginPanel.hidden = false;
