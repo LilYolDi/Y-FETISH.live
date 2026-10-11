@@ -173,7 +173,7 @@ app.get("/health", (req, res) => {
 
 // HTML и скрипты находятся в корне репозитория
 app.get("/", (req, res) => {
-  res.sendFile(path.join(ROOT, "live.html"));
+  res.sendFile(path.join(ROOT, "index.html"));
 });
 
 app.get("/live.html", (req, res) => {
