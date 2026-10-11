@@ -14,12 +14,11 @@ const PORT = process.env.PORT || 10000;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
-
 const HOST_PASSWORD = process.env.HOST_PASSWORD;
+
 const GUEST_SESSION_SECRET =
   process.env.GUEST_SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 
@@ -27,24 +26,23 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Не заданы SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY");
 }
 
-if (
-  !LIVEKIT_URL ||
-  !LIVEKIT_API_KEY ||
-  !LIVEKIT_API_SECRET ||
-  !HOST_PASSWORD
-) {
-  throw new Error(
-    "Не заданы LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET или HOST_PASSWORD"
-  );
+if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET || !HOST_PASSWORD) {
+  throw new Error("Не заданы настройки LiveKit или HOST_PASSWORD");
 }
 
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 const HOST_COOKIE = "yfetish_live_host";
 const GUEST_COOKIE = "yfetish_live_guest";
+
+// Если ведущий не присылает сигнал 60 секунд — эфир завершается.
+const HOST_TIMEOUT_MS = 60 * 1000;
+
+// Старые записи после перезапуска сервера очищаются по возрасту.
+const OLD_STREAM_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+// Последнее время активности ведущего хранится в памяти сервера.
+const hostActivity = new Map();
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -74,12 +72,9 @@ function getCookie(req, name) {
 
   for (const item of cookies) {
     const index = item.indexOf("=");
-
     if (index === -1) continue;
 
-    const key = item.slice(0, index).trim();
-
-    if (key === name) {
+    if (item.slice(0, index).trim() === name) {
       return decodeURIComponent(item.slice(index + 1).trim());
     }
   }
@@ -89,17 +84,14 @@ function getCookie(req, name) {
 
 function isHost(req) {
   const value = getCookie(req, HOST_COOKIE);
-
   if (!value) return false;
 
   const parts = value.split(".");
-
   if (parts.length !== 2) return false;
 
   const [payload, signature] = parts;
 
-  return safeEqual(sign(payload), signature) &&
-    payload === "host";
+  return payload === "host" && safeEqual(sign(payload), signature);
 }
 
 function requireHost(req, res, next) {
@@ -119,24 +111,18 @@ function validRoomName(value) {
 
 function cleanText(value, maxLength = 300) {
   if (typeof value !== "string") return "";
-
   return value.trim().slice(0, maxLength);
 }
 
 function guestId(req, res) {
   const existing = getCookie(req, GUEST_COOKIE);
 
-  if (
-    existing &&
-    /^[a-f0-9-]{36}$/i.test(existing)
-  ) {
+  if (existing && /^[a-f0-9-]{36}$/i.test(existing)) {
     return existing;
   }
 
   const id = crypto.randomUUID();
-
   res.cookie(GUEST_COOKIE, id, COOKIE_OPTIONS);
-
   return id;
 }
 
@@ -151,7 +137,6 @@ async function getLiveStream(roomName) {
     .maybeSingle();
 
   if (error) throw error;
-
   return data;
 }
 
@@ -163,12 +148,87 @@ function sendError(res, error, message = "Ошибка сервера") {
   });
 }
 
-/* Статус сервера */
+/* Завершение эфира в базе */
+async function endStream(roomName, reason = "automatic") {
+  const { data, error } = await supabase
+    .from("live_streams")
+    .update({
+      status: "ended",
+      ended_at: new Date().toISOString()
+    })
+    .eq("room_name", roomName)
+    .eq("status", "live")
+    .select("id");
+
+  if (error) throw error;
+
+  hostActivity.delete(roomName);
+
+  if (data && data.length) {
+    console.log(`Эфир ${roomName} завершён: ${reason}`);
+  }
+
+  return Boolean(data && data.length);
+}
+
+/* Автоматическая очистка зависших эфиров */
+let cleanupRunning = false;
+
+async function cleanupOldStreams() {
+  if (cleanupRunning) return;
+  cleanupRunning = true;
+
+  try {
+    const { data: streams, error } = await supabase
+      .from("live_streams")
+      .select("room_name, started_at")
+      .eq("status", "live");
+
+    if (error) throw error;
+
+    const now = Date.now();
+
+    for (const stream of streams || []) {
+      const roomName = stream.room_name;
+      const lastActivity = hostActivity.get(roomName);
+
+      // Ведущий давно не присылал heartbeat.
+      if (
+        lastActivity &&
+        now - lastActivity > HOST_TIMEOUT_MS
+      ) {
+        await endStream(roomName, "host timeout");
+        continue;
+      }
+
+      // После перезапуска сервера время активности неизвестно.
+      // Старые записи старше двух часов очищаются автоматически.
+      const startedAt = Date.parse(stream.started_at || "");
+
+      if (
+        !lastActivity &&
+        Number.isFinite(startedAt) &&
+        now - startedAt > OLD_STREAM_TIMEOUT_MS
+      ) {
+        await endStream(roomName, "old stream cleanup");
+      }
+    }
+  } catch (error) {
+    console.error("Ошибка автоматической очистки эфиров:", error);
+  } finally {
+    cleanupRunning = false;
+  }
+}
+
+setInterval(cleanupOldStreams, 15000);
+cleanupOldStreams();
+
+/* Проверка сервера */
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-/* Страницы сайта */
+/* Страницы */
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
@@ -199,18 +259,12 @@ app.get("/api/host/status", (req, res) => {
 });
 
 app.post("/api/host/login", (req, res) => {
-  const password = req.body?.password;
-
-  if (!safeEqual(password, HOST_PASSWORD)) {
-    return res.status(401).json({
-      error: "Неверный пароль"
-    });
+  if (!safeEqual(req.body?.password, HOST_PASSWORD)) {
+    return res.status(401).json({ error: "Неверный пароль" });
   }
 
   const payload = "host";
-  const cookieValue = `${payload}.${sign(payload)}`;
-
-  res.cookie(HOST_COOKIE, cookieValue, COOKIE_OPTIONS);
+  res.cookie(HOST_COOKIE, `${payload}.${sign(payload)}`, COOKIE_OPTIONS);
 
   res.json({ success: true });
 });
@@ -226,7 +280,31 @@ app.post("/api/host/logout", (req, res) => {
   res.json({ success: true });
 });
 
-/* Список активных эфиров */
+/* Сигнал активности ведущего — host.js должен отправлять его каждые 15 секунд */
+app.post("/api/streams/heartbeat", requireHost, async (req, res) => {
+  try {
+    const roomName = cleanText(req.body?.roomName, 100);
+
+    if (!validRoomName(roomName)) {
+      return res.status(400).json({ error: "Неверное имя комнаты" });
+    }
+
+    const stream = await getLiveStream(roomName);
+
+    if (!stream) {
+      hostActivity.delete(roomName);
+      return res.status(404).json({ error: "Эфир уже завершён" });
+    }
+
+    hostActivity.set(roomName, Date.now());
+
+    res.json({ success: true });
+  } catch (error) {
+    sendError(res, error, "Не удалось проверить активность эфира");
+  }
+});
+
+/* Список эфиров */
 app.get("/api/streams", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -236,7 +314,6 @@ app.get("/api/streams", async (req, res) => {
       .order("started_at", { ascending: false });
 
     if (error) return sendError(res, error, "Не удалось загрузить эфиры");
-
     res.json(data || []);
   } catch (error) {
     sendError(res, error, "Не удалось загрузить эфиры");
@@ -250,10 +327,11 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
     const roomName = cleanText(req.body?.roomName, 100);
 
     if (!validRoomName(roomName)) {
-      return res.status(400).json({
-        error: "Неверное имя комнаты"
-      });
+      return res.status(400).json({ error: "Неверное имя комнаты" });
     }
+
+    // Перед запуском удаляем только действительно старые зависшие записи.
+    await cleanupOldStreams();
 
     const { data: existing, error: checkError } = await supabase
       .from("live_streams")
@@ -285,63 +363,39 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
       .select()
       .single();
 
-    if (error) {
-      return sendError(res, error, "Не удалось создать эфир");
-    }
+    if (error) return sendError(res, error, "Не удалось создать эфир");
 
-    res.json({
-      success: true,
-      stream: data,
-      roomName
-    });
+    hostActivity.set(roomName, Date.now());
+
+    res.json({ success: true, stream: data, roomName });
   } catch (error) {
     sendError(res, error, "Не удалось запустить эфир");
   }
 });
 
-/* Завершение эфира */
+/* Ручное завершение эфира */
 app.post("/api/streams/stop", requireHost, async (req, res) => {
   try {
     const roomName = cleanText(req.body?.roomName, 100);
 
     if (!validRoomName(roomName)) {
-      return res.status(400).json({
-        error: "Неверное имя комнаты"
-      });
+      return res.status(400).json({ error: "Неверное имя комнаты" });
     }
 
-    const { data, error } = await supabase
-      .from("live_streams")
-      .update({
-        status: "ended",
-        ended_at: new Date().toISOString()
-      })
-      .eq("room_name", roomName)
-      .eq("status", "live")
-      .select();
-
-    if (error) {
-      return sendError(res, error, "Не удалось завершить эфир");
-    }
-
-    res.json({
-      success: true,
-      stopped: (data || []).length > 0
-    });
+    const stopped = await endStream(roomName, "manual");
+    res.json({ success: true, stopped });
   } catch (error) {
     sendError(res, error, "Не удалось завершить эфир");
   }
 });
 
-/* Токен LiveKit для ведущего и зрителей */
+/* Токен LiveKit */
 app.get("/api/livekit/token", async (req, res) => {
   try {
     const roomName = cleanText(req.query.roomName, 100);
 
     if (!validRoomName(roomName)) {
-      return res.status(400).json({
-        error: "Неверное имя комнаты"
-      });
+      return res.status(400).json({ error: "Неверное имя комнаты" });
     }
 
     const stream = await getLiveStream(roomName);
@@ -360,10 +414,7 @@ app.get("/api/livekit/token", async (req, res) => {
     const token = new AccessToken(
       LIVEKIT_API_KEY,
       LIVEKIT_API_SECRET,
-      {
-        identity,
-        ttl: "2h"
-      }
+      { identity, ttl: "2h" }
     );
 
     token.addGrant({
@@ -389,15 +440,13 @@ app.get("/api/livekit/token", async (req, res) => {
   }
 });
 
-/* Чат: загрузка сообщений */
+/* Загрузка чата */
 app.get("/api/chat", async (req, res) => {
   try {
     const roomName = cleanText(req.query.roomName, 100);
 
     if (!validRoomName(roomName)) {
-      return res.status(400).json({
-        error: "Неверное имя комнаты"
-      });
+      return res.status(400).json({ error: "Неверное имя комнаты" });
     }
 
     const { data, error } = await supabase
@@ -408,56 +457,42 @@ app.get("/api/chat", async (req, res) => {
       .limit(100);
 
     if (error) return sendError(res, error, "Не удалось загрузить чат");
-
     res.json(data || []);
   } catch (error) {
     sendError(res, error, "Не удалось загрузить чат");
   }
 });
 
-/* Чат: отправка сообщения */
+/* Отправка сообщения */
 app.post("/api/chat", async (req, res) => {
   try {
     const roomName = cleanText(req.body?.roomName, 100);
     const message = cleanText(req.body?.message, 500);
-    const participantName = cleanText(
-      req.body?.participantName || req.body?.name,
-      40
-    ) || "Гость";
+    const participantName =
+      cleanText(req.body?.participantName || req.body?.name, 40) || "Гость";
 
     if (!validRoomName(roomName) || !message) {
-      return res.status(400).json({
-        error: "Укажите комнату и сообщение"
-      });
+      return res.status(400).json({ error: "Укажите комнату и сообщение" });
     }
 
-    const stream = await getLiveStream(roomName);
-
-    if (!stream) {
-      return res.status(404).json({
-        error: "Эфир завершён"
-      });
+    if (!await getLiveStream(roomName)) {
+      return res.status(404).json({ error: "Эфир завершён" });
     }
 
     const { data, error } = await supabase
       .from("live_messages")
-      .insert({
-        room_name: roomName,
-        participant_name: participantName,
-        message
-      })
+      .insert({ room_name: roomName, participant_name: participantName, message })
       .select()
       .single();
 
     if (error) return sendError(res, error, "Не удалось отправить сообщение");
-
     res.json({ success: true, message: data });
   } catch (error) {
     sendError(res, error, "Не удалось отправить сообщение");
   }
 });
 
-/* Список подарков */
+/* Подарки */
 app.get("/api/gifts", async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -467,14 +502,13 @@ app.get("/api/gifts", async (req, res) => {
       .order("price", { ascending: true });
 
     if (error) return sendError(res, error, "Не удалось загрузить подарки");
-
     res.json(data || []);
   } catch (error) {
     sendError(res, error, "Не удалось загрузить подарки");
   }
 });
 
-/* Баланс зрителя */
+/* Баланс */
 app.get("/api/wallet", async (req, res) => {
   try {
     const id = guestId(req, res);
@@ -487,16 +521,9 @@ app.get("/api/wallet", async (req, res) => {
 
     if (error) return sendError(res, error, "Не удалось загрузить кошелёк");
 
-    if (!data) {
-      return res.json({
-        guestId: id,
-        balance: 0
-      });
-    }
-
     res.json({
       guestId: id,
-      balance: Number(data.balance || 0)
+      balance: Number(data?.balance || 0)
     });
   } catch (error) {
     sendError(res, error, "Не удалось загрузить кошелёк");
@@ -515,17 +542,11 @@ app.post("/api/gifts/send", async (req, res) => {
       !Number.isSafeInteger(giftId) ||
       giftId <= 0
     ) {
-      return res.status(400).json({
-        error: "Неверные данные подарка"
-      });
+      return res.status(400).json({ error: "Неверные данные подарка" });
     }
 
-    const stream = await getLiveStream(roomName);
-
-    if (!stream) {
-      return res.status(404).json({
-        error: "Эфир завершён"
-      });
+    if (!await getLiveStream(roomName)) {
+      return res.status(404).json({ error: "Эфир завершён" });
     }
 
     const { data, error } = await supabase.rpc("send_live_gift", {
@@ -536,29 +557,22 @@ app.post("/api/gifts/send", async (req, res) => {
 
     if (error) {
       console.error("Ошибка отправки подарка:", error);
-
       return res.status(400).json({
         error: error.message || "Не удалось отправить подарок"
       });
     }
 
-    res.json({
-      success: true,
-      result: data
-    });
+    res.json({ success: true, result: data });
   } catch (error) {
     sendError(res, error, "Не удалось отправить подарок");
   }
 });
 
-/* Неизвестные API-маршруты */
+/* Неизвестные маршруты */
 app.use("/api", (req, res) => {
-  res.status(404).json({
-    error: "API-маршрут не найден"
-  });
+  res.status(404).json({ error: "API-маршрут не найден" });
 });
 
-/* Страница не найдена */
 app.use((req, res) => {
   res.status(404).send("Страница не найдена");
 });
