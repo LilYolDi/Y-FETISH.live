@@ -2,11 +2,13 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#111111">
 
   <title>Y-FETISH LIVE — Прямые эфиры</title>
-  <meta name="description" content="Смотри прямые эфиры, общайся со зрителями и отправляй виртуальные подарки на Y-FETISH LIVE.">
+  <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE, общайся со зрителями и отправляй виртуальные подарки ведущим.">
+
+  <link rel="canonical" href="https://y-fetish-live.onrender.com/">
 
   <style>
     * {
@@ -15,6 +17,7 @@
 
     body {
       margin: 0;
+      min-height: 100vh;
       background: #111;
       color: #fff;
       font-family: Arial, sans-serif;
@@ -34,6 +37,7 @@
     .logo {
       font-size: 25px;
       font-weight: bold;
+      white-space: nowrap;
     }
 
     .logo span {
@@ -60,6 +64,7 @@
       font-weight: bold;
       border-radius: 7px;
       white-space: nowrap;
+      text-align: center;
     }
 
     .start-live:hover {
@@ -78,6 +83,7 @@
 
     .muted {
       color: #aaa;
+      line-height: 1.5;
     }
 
     .streams {
@@ -87,24 +93,33 @@
     }
 
     .stream {
+      min-width: 0;
       background: #202020;
       border: 1px solid #333;
       border-radius: 12px;
       padding: 18px;
+      overflow: hidden;
     }
 
     .preview {
-      background: #292929;
+      background: #090909;
       border-radius: 8px;
-      min-height: 130px;
+      min-height: 150px;
       display: grid;
       place-items: center;
-      font-size: 40px;
+      font-size: 42px;
+      color: #e5222e;
     }
 
     .live {
       color: #ff4545;
       font-weight: bold;
+      font-size: 13px;
+    }
+
+    .stream h2 {
+      font-size: 19px;
+      overflow-wrap: anywhere;
     }
 
     .empty {
@@ -112,6 +127,32 @@
       background: #1b1b1b;
       border-radius: 10px;
       color: #bbb;
+      grid-column: 1 / -1;
+      line-height: 1.5;
+    }
+
+    .watch-button {
+      display: block;
+      width: 100%;
+      margin-top: 14px;
+      padding: 13px 16px;
+      border-radius: 8px;
+      background: #e5222e;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .watch-button:hover {
+      background: #c91824;
+    }
+
+    footer {
+      padding: 20px 16px;
+      text-align: center;
+      color: #777;
+      font-size: 13px;
     }
 
     @media (max-width: 600px) {
@@ -135,6 +176,23 @@
         padding: 10px 12px;
         font-size: 13px;
       }
+
+      main {
+        padding: 18px 12px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .streams {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .preview {
+        min-height: 170px;
+      }
     }
   </style>
 </head>
@@ -151,60 +209,107 @@
 
   <main>
     <h1>Прямые эфиры</h1>
+
     <p class="muted">
       Смотри прямые эфиры, общайся со зрителями и отправляй подарки ведущим.
     </p>
 
-    <div id="streams" class="streams">
+    <div id="streams" class="streams" aria-live="polite">
       <div class="empty">Загружаем эфиры...</div>
     </div>
   </main>
 
+  <footer>
+    Y-FETISH LIVE — прямые эфиры
+  </footer>
+
   <script>
+    "use strict";
+
     async function loadStreams() {
       const container = document.getElementById("streams");
 
       try {
-        const response = await fetch("/api/streams");
+        const response = await fetch("/api/streams", {
+          cache: "no-store"
+        });
+
         if (!response.ok) {
           throw new Error("Не удалось загрузить эфиры");
         }
 
-        const streams = await response.json();
+        const result = await response.json();
+        const streams = Array.isArray(result)
+          ? result
+          : result.streams || [];
 
-        if (!streams.length) {
-          container.innerHTML =
-            '<div class="empty">Сейчас активных эфиров нет. Загляни позже!</div>';
+        const activeStreams = streams.filter(
+          stream => stream.status === "live" && stream.room_name
+        );
+
+        if (!activeStreams.length) {
+          container.replaceChildren();
+
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent =
+            "Сейчас активных эфиров нет. Загляни позже!";
+
+          container.appendChild(empty);
           return;
         }
 
         container.replaceChildren();
 
-        streams.forEach((stream) => {
+        activeStreams.forEach(stream => {
           const card = document.createElement("article");
           card.className = "stream";
 
           const preview = document.createElement("div");
           preview.className = "preview";
           preview.textContent = "▶";
+          preview.setAttribute("aria-hidden", "true");
 
           const status = document.createElement("p");
           status.className = "live";
           status.textContent = "● LIVE";
 
           const title = document.createElement("h2");
-          title.textContent = stream.title;
+          title.textContent = stream.title || "Прямой эфир";
 
           const host = document.createElement("p");
           host.className = "muted";
-          host.textContent = stream.profiles?.username || "Ведущий";
+          host.textContent =
+            stream.host_name ||
+            stream.profiles?.username ||
+            "Ведущий";
 
-          card.append(preview, status, title, host);
+          const watchLink = document.createElement("a");
+          watchLink.className = "watch-button";
+          watchLink.href =
+            "/live.html?room=" +
+            encodeURIComponent(stream.room_name);
+          watchLink.textContent = "Смотреть эфир";
+
+          card.append(
+            preview,
+            status,
+            title,
+            host,
+            watchLink
+          );
+
           container.appendChild(card);
         });
-      } catch {
-        container.innerHTML =
-          '<div class="empty">Не удалось загрузить эфиры. Попробуй позже.</div>';
+      } catch (error) {
+        console.error("Ошибка загрузки эфиров:", error);
+
+        const message = document.createElement("div");
+        message.className = "empty";
+        message.textContent =
+          "Не удалось загрузить эфиры. Обнови страницу позже.";
+
+        container.replaceChildren(message);
       }
     }
 
