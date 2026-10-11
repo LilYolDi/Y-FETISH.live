@@ -11,7 +11,9 @@
   <link rel="stylesheet" href="/style.css">
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     html, body {
       margin: 0;
@@ -21,9 +23,17 @@
       font-family: Arial, sans-serif;
     }
 
-    body { min-height: 100vh; }
-    button, input { font: inherit; }
-    [hidden] { display: none !important; }
+    body {
+      min-height: 100vh;
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
 
     header {
       padding: 16px 5%;
@@ -33,12 +43,14 @@
 
     .logo {
       color: #fff;
-      font-size: 24px;
+      font-size: 25px;
       font-weight: 800;
       text-decoration: none;
     }
 
-    .logo span { color: #f22; }
+    .logo span {
+      color: #f22;
+    }
 
     main {
       width: min(720px, 94%);
@@ -46,14 +58,15 @@
     }
 
     .panel {
-      margin-bottom: 18px;
       padding: 22px;
       background: #1b1b1b;
       border: 1px solid #333;
       border-radius: 12px;
     }
 
-    h1 { font-size: 25px; }
+    h1 {
+      font-size: 25px;
+    }
 
     label {
       display: block;
@@ -64,6 +77,7 @@
     input {
       display: block;
       width: 100%;
+      min-width: 0;
       padding: 13px;
       background: #101010;
       color: #fff;
@@ -76,6 +90,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      min-height: 44px;
       padding: 12px 16px;
       margin: 10px 6px 0 0;
       border: 0;
@@ -93,7 +108,9 @@
       cursor: not-allowed;
     }
 
-    .secondary { background: #333; }
+    .secondary {
+      background: #333;
+    }
 
     #preview {
       display: block;
@@ -114,6 +131,9 @@
     #status {
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+      color: #eee;
+      font-size: 14px;
+      line-height: 1.45;
     }
 
     .camera-controls {
@@ -122,7 +142,32 @@
       gap: 8px;
     }
 
-    .camera-controls button { margin-right: 0; }
+    .camera-controls button {
+      margin-right: 0;
+    }
+
+    #streamForm {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Студия на компьютере */
+    .studio-stage {
+      position: relative;
+    }
+
+    .studio-top {
+      margin-bottom: 12px;
+    }
+
+    .studio-top label {
+      margin-top: 0;
+    }
+
+    #startButton {
+      width: 100%;
+    }
 
     /* Полноэкранная студия на телефоне */
     @media (max-width: 800px) {
@@ -133,15 +178,21 @@
       }
 
       body.studio-active {
-        height: 100%;
+        height: 100vh;
         height: 100dvh;
         overflow: hidden;
       }
 
-      body.studio-active > header { display: none; }
+      body.studio-active > header {
+        display: none;
+      }
 
-      main {
+      body.studio-active main {
+        position: fixed;
+        inset: 0;
         width: 100%;
+        height: 100%;
+        height: 100dvh;
         margin: 0;
       }
 
@@ -152,4 +203,223 @@
 
       #studioPanel {
         position: fixed;
-        z-index: 1;
+        inset: 0;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #000;
+        border: 0;
+        border-radius: 0;
+      }
+
+      .studio-stage {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: #000;
+      }
+
+      #preview {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        border-radius: 0;
+        background: #000;
+        object-fit: cover;
+      }
+
+      .studio-top {
+        position: absolute;
+        top: env(safe-area-inset-top, 0px);
+        left: 0;
+        right: 0;
+        z-index: 2;
+        margin: 0;
+        padding: 14px;
+        background: linear-gradient(
+          to bottom,
+          rgba(0,0,0,.8),
+          rgba(0,0,0,.35),
+          transparent
+        );
+      }
+
+      .studio-top label {
+        margin: 0 0 6px;
+        font-size: 13px;
+      }
+
+      #streamTitle {
+        padding: 12px;
+        background: rgba(20,20,20,.88);
+        border-color: #555;
+      }
+
+      #streamForm {
+        position: static;
+      }
+
+      #startButton {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        z-index: 3;
+        width: calc(100% - 28px);
+        min-height: 50px;
+        margin: 0;
+        border-radius: 12px;
+        font-size: 16px;
+      }
+
+      .camera-controls {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+        z-index: 3;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .camera-controls button,
+      .camera-controls .watch-link {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin: 0;
+        padding: 11px 12px;
+        font-size: 13px;
+      }
+
+      #status {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+        z-index: 2;
+        max-height: 22%;
+        margin: 0;
+        padding: 8px 10px;
+        overflow: auto;
+        border-radius: 8px;
+        background: rgba(0,0,0,.62);
+        font-size: 12px;
+      }
+
+      /* При открытом эфире кнопка старта скрывается скриптом */
+      #startButton[hidden] {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <a class="logo" href="/live.html">Y<span>-</span>FETISH LIVE</a>
+  </header>
+
+  <main>
+    <section id="loginPanel" class="panel">
+      <h1>Панель ведущего</h1>
+      <p class="muted">Войди, чтобы включить камеру и начать эфир.</p>
+
+      <form id="loginForm">
+        <label for="password">Пароль ведущего</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+
+        <button id="loginButton" type="submit">Войти</button>
+      </form>
+
+      <p id="loginHelp" class="muted">
+        После входа разреши доступ к камере и микрофону.
+      </p>
+    </section>
+
+    <section id="studioPanel" class="panel" hidden>
+      <div class="studio-stage">
+        <video
+          id="preview"
+          autoplay
+          playsinline
+          muted
+          hidden
+        ></video>
+
+        <div class="studio-top">
+          <label for="streamTitle">Название эфира</label>
+
+          <form id="streamForm">
+            <input
+              id="streamTitle"
+              name="streamTitle"
+              type="text"
+              maxlength="100"
+              placeholder="Например, Прямой эфир"
+              required
+            >
+
+            <input
+              id="roomName"
+              name="roomName"
+              type="hidden"
+              value="live-main"
+            >
+
+            <button id="startButton" type="submit">
+              Начать эфир
+            </button>
+          </form>
+        </div>
+
+        <div class="camera-controls">
+          <button id="cameraButton" type="button" class="secondary">
+            Переключить камеру
+          </button>
+
+          <button id="stopButton" type="button" hidden>
+            Завершить эфир
+          </button>
+
+          <a
+            id="watchLink"
+            class="watch-link"
+            href="/live.html"
+            target="_blank"
+            rel="noopener"
+            hidden
+          >
+            Открыть эфир
+          </a>
+
+          <button id="logoutButton" type="button" class="secondary">
+            Выйти
+          </button>
+        </div>
+
+        <p id="status" role="status" aria-live="polite">
+          Проверяем вход...
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/host.js" defer></script>
+</body>
+</html>
