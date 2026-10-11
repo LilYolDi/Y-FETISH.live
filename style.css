@@ -210,46 +210,29 @@ input {
 
 
 /* Кнопки перехода между страницами */
+
 .page-buttons {
   display: flex;
   justify-content: center;
-  align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  width: 100%;
-  max-width: 900px;
-  box-sizing: border-box;
   margin: 20px auto;
-  padding: 0 14px;
+  padding: 0 12px;
 }
 
 .page-btn {
   display: inline-flex;
-  align-items: center;
   justify-content: center;
-  gap: 9px;
-  min-height: 46px;
-  padding: 12px 20px;
-  box-sizing: border-box;
-  border: 1px solid #383838;
-  border-radius: 12px;
-  background: #202020;
-  color: #fff;
+  align-items: center;
+  padding: 13px 20px;
+  border-radius: 10px;
+  background: #222;
+  border: 1px solid #444;
+  color: white;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: bold;
   text-decoration: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
-  transition: .2s ease;
-}
-
-.page-btn span {
-  font-size: 18px;
-}
-
-.page-btn:hover {
-  background: #303030;
-  border-color: #e32636;
-  transform: translateY(-2px);
+  cursor: pointer;
 }
 
 .page-btn-red {
@@ -257,26 +240,15 @@ input {
   border-color: #d71932;
 }
 
-.page-btn-red:hover {
-  background: #b91228;
-  border-color: #b91228;
+.page-btn:hover {
+  filter: brightness(1.2);
 }
 
 @media (max-width: 600px) {
-  .page-buttons {
-    gap: 9px;
-    padding: 0 12px;
-  }
-
   .page-btn {
-    flex: 1 1 145px;
-    padding: 12px 10px;
-    font-size: 13px;
+    flex: 1 1 140px;
   }
 }
-
-
-
 
 
 
