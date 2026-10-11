@@ -288,7 +288,6 @@ async function sendHeartbeat() {
 
 function startHeartbeat() {
   stopHeartbeat();
-
   sendHeartbeat();
   heartbeatTimer = setInterval(sendHeartbeat, 15000);
 }
@@ -353,10 +352,12 @@ async function stopStream(message = "Эфир завершён.") {
   }
 
   if (stopButton) stopButton.hidden = true;
+
   if (startButton) {
     startButton.hidden = false;
     startButton.disabled = false;
   }
+
   if (watchLink) watchLink.hidden = true;
 
   isStopping = false;
@@ -381,7 +382,7 @@ if (streamForm) {
 
     if (startButton) startButton.disabled = true;
 
-    status("Подключаемся и запускаем эфир...");
+    status("Регистрируем эфир...");
 
     let newRoom = null;
     let streamRegistered = false;
@@ -399,7 +400,31 @@ if (streamForm) {
         });
       }
 
-      // Сервер принимает токен через GET с параметром roomName.
+      // Сначала создаём запись эфира в Supabase.
+      const saveResponse = await fetch("/api/streams/start", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          roomName
+        })
+      });
+
+      const saved = await saveResponse.json();
+
+      if (!saveResponse.ok) {
+        throw new Error(
+          saved.error || "Не удалось зарегистрировать эфир"
+        );
+      }
+
+      streamRegistered = true;
+      activeRoomName = roomName;
+
+      // Затем запрашиваем токен LiveKit для созданного эфира.
+      status("Подключаемся к LiveKit...");
+
       const tokenUrl =
         `/api/livekit/token?roomName=${encodeURIComponent(roomName)}`;
 
@@ -429,6 +454,7 @@ if (streamForm) {
         credentials.token
       );
 
+      // Публикуем камеру и микрофон.
       for (const track of localTracks) {
         await newRoom.localParticipant.publishTrack(track);
       }
@@ -443,27 +469,6 @@ if (streamForm) {
         preview.hidden = false;
         await preview.play().catch(() => {});
       }
-
-      const saveResponse = await fetch("/api/streams/start", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          roomName
-        })
-      });
-
-      const saved = await saveResponse.json();
-
-      if (!saveResponse.ok) {
-        throw new Error(
-          saved.error || "Не удалось зарегистрировать эфир"
-        );
-      }
-
-      streamRegistered = true;
-      activeRoomName = roomName;
 
       if (watchLink) {
         watchLink.href =
@@ -521,6 +526,7 @@ if (streamForm) {
         }
 
         if (stopButton) stopButton.hidden = true;
+
         if (startButton) {
           startButton.hidden = false;
           startButton.disabled = false;
