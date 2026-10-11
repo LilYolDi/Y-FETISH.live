@@ -79,46 +79,7 @@
 <body>
   <header>
     <div class="logo"><span>Y</span>-FETISH LIVE</div>
-
-<button id="yfl-menu-button" type="button" aria-label="Открыть меню">
-  ☰
-</button>
-
-<div id="yfl-menu-overlay">
-  <nav id="yfl-menu-panel">
-    <button id="yfl-menu-close" type="button" aria-label="Закрыть меню">
-      ×
-    </button>
-</div>
-
-<script>
-(function () {
-  const menuButton = document.getElementById('yfl-menu-button');
-  const overlay = document.getElementById('yfl-menu-overlay');
-  const closeButton = document.getElementById('yfl-menu-close');
-
-  if (!menuButton || !overlay || !closeButton) return;
-
-  menuButton.addEventListener('click', function () {
-    overlay.classList.add('yfl-menu-open');
-  });
-
-  closeButton.addEventListener('click', function () {
-    overlay.classList.remove('yfl-menu-open');
-  });
-
-  overlay.addEventListener('click', function (event) {
-    if (event.target === overlay) {
-      overlay.classList.remove('yfl-menu-open');
-    }
-  });
-
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape') {
-      overlay.classList.remove('yfl-menu-open');
-    }
-  });
-})();
+    <div>Прямые эфиры</div>
   </header>
 
   
