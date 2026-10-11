@@ -4,14 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#080808">
-
   <title>Студия эфира — Y-FETISH LIVE</title>
   <meta name="description" content="Студия прямых эфиров Y-FETISH LIVE.">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
@@ -21,17 +18,9 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    body {
-      padding: 20px;
-    }
-
-    [hidden] {
-      display: none !important;
-    }
-
-    button, input {
-      font: inherit;
-    }
+    body { padding: 20px; }
+    [hidden] { display: none !important; }
+    button, input { font: inherit; }
 
     button, .watch-link {
       min-height: 44px;
@@ -46,10 +35,7 @@
       text-decoration: none;
     }
 
-    button:disabled {
-      opacity: .6;
-      cursor: wait;
-    }
+    button:disabled { opacity: .6; cursor: wait; }
 
     button.secondary {
       background: #303030;
@@ -80,9 +66,7 @@
       text-decoration: none;
     }
 
-    .logo-y {
-      color: #e21b2d;
-    }
+    .logo-y { color: #e21b2d; }
 
     .panel {
       width: 100%;
@@ -94,22 +78,15 @@
       background: #121212;
     }
 
-    .panel h1 {
-      margin: 0 0 20px;
-      font-size: 23px;
-    }
+    .panel h1 { margin: 0 0 20px; font-size: 23px; }
 
-    #loginForm {
+    #loginForm, #streamForm {
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
 
-    #loginButton {
-      width: 100%;
-      min-height: 48px;
-      background: #e21b2d;
-    }
+    #loginButton { width: 100%; min-height: 48px; }
 
     .studio-stage {
       position: relative;
@@ -118,22 +95,8 @@
       gap: 16px;
     }
 
-    .studio-top {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .studio-top label {
-      font-size: 14px;
-      color: #ddd;
-    }
-
-    #streamForm {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+    .studio-top { display: flex; flex-direction: column; gap: 8px; }
+    .studio-top label { font-size: 14px; color: #ddd; }
 
     #preview {
       display: block;
@@ -154,9 +117,7 @@
     }
 
     .camera-controls button,
-    .camera-controls .watch-link {
-      flex: 1 1 130px;
-    }
+    .camera-controls .watch-link { flex: 1 1 130px; }
 
     #status {
       min-height: 20px;
@@ -178,9 +139,7 @@
         overflow: hidden;
       }
 
-      body.studio-active .page-header {
-        display: none;
-      }
+      body.studio-active .page-header { display: none; }
 
       body.studio-active #studioPanel {
         position: fixed;
@@ -236,12 +195,7 @@
         text-shadow: 0 1px 4px #000;
       }
 
-      body.studio-active #streamForm {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        width: 100%;
-      }
+      body.studio-active #streamForm { gap: 0; width: 100%; }
 
       body.studio-active #streamTitle {
         width: 100%;
@@ -249,17 +203,17 @@
         padding: 11px 12px;
         border: 1px solid #555;
         border-radius: 10px;
-        background: rgba(15, 15, 15, .9);
+        background: rgba(15,15,15,.9);
         color: #fff;
         font-size: 16px;
       }
 
       body.studio-active #startButton {
-        position: fixed !important;
-        left: 50% !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+        position: fixed;
+        left: 50%;
+        right: auto;
+        top: auto;
+        bottom: calc(82px + env(safe-area-inset-bottom, 0px));
         z-index: 130;
         display: inline-flex;
         align-items: center;
@@ -269,14 +223,12 @@
         margin: 0;
         padding: 12px 18px;
         transform: translateX(-50%);
-        border: 0;
         border-radius: 11px;
         background: #e21b2d;
         color: #fff;
         font-size: 15px;
-        font-weight: 700;
         white-space: nowrap;
-        box-shadow: 0 4px 18px rgba(226, 27, 45, .35);
+        box-shadow: 0 4px 18px rgba(226,27,45,.35);
       }
 
       body.studio-active .camera-controls {
@@ -286,10 +238,8 @@
         bottom: calc(12px + env(safe-area-inset-bottom, 0px));
         z-index: 120;
         display: flex;
-        flex-direction: row;
         flex-wrap: wrap;
         justify-content: center;
-        align-items: center;
         gap: 8px;
         margin: 0;
         padding: 0;
@@ -305,7 +255,6 @@
         padding: 9px 12px;
         border-radius: 9px;
         font-size: 12px;
-        white-space: normal;
         overflow-wrap: anywhere;
       }
 
@@ -315,21 +264,15 @@
         right: 12px;
         bottom: calc(132px + env(safe-area-inset-bottom, 0px));
         z-index: 115;
-        margin: 0;
         color: #fff;
         font-size: 12px;
-        text-align: center;
         text-shadow: 0 1px 4px #000;
         pointer-events: none;
       }
     }
 
     @media (max-width: 380px) {
-      body.studio-active .camera-controls {
-        left: 6px;
-        right: 6px;
-        gap: 5px;
-      }
+      body.studio-active .camera-controls { left: 6px; right: 6px; gap: 5px; }
 
       body.studio-active .camera-controls button,
       body.studio-active .camera-controls .watch-link {
@@ -340,7 +283,7 @@
 
     @media (max-height: 500px) and (max-width: 800px) {
       body.studio-active #startButton {
-        bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+        bottom: calc(66px + env(safe-area-inset-bottom, 0px));
         min-height: 42px;
       }
 
@@ -368,7 +311,6 @@
 
       <form id="loginForm">
         <label for="password">Пароль ведущего</label>
-
         <input
           id="password"
           name="password"
@@ -377,7 +319,6 @@
           placeholder="Введите пароль"
           required
         >
-
         <button id="loginButton" type="submit">Войти</button>
       </form>
     </section>
@@ -400,17 +341,14 @@
             >
 
             <input id="roomName" type="hidden" value="live-main">
-
             <button id="startButton" type="submit">Начать эфир</button>
           </form>
         </div>
 
         <div class="camera-controls">
-          <button
-            id="cameraButton"
-            type="button"
-            class="secondary"
-          >Переключить камеру</button>
+          <button id="cameraButton" type="button" class="secondary">
+            Переключить камеру
+          </button>
 
           <button id="stopButton" type="button" hidden>
             Завершить эфир
@@ -425,11 +363,9 @@
             hidden
           >Открыть эфир</a>
 
-          <button
-            id="logoutButton"
-            type="button"
-            class="secondary"
-          >Выйти</button>
+          <button id="logoutButton" type="button" class="secondary">
+            Выйти
+          </button>
         </div>
 
         <p id="status" role="status" aria-live="polite">
