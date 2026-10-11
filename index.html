@@ -4,18 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111111">
+
   <title>Y-FETISH LIVE — Прямые эфиры</title>
   <meta name="description" content="Смотри прямые эфиры, общайся со зрителями и отправляй виртуальные подарки на Y-FETISH LIVE.">
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       background: #111;
       color: #fff;
       font-family: Arial, sans-serif;
     }
+
     header {
-      padding: 18px;
+      padding: 14px 18px;
       background: #1a1a1a;
       border-bottom: 1px solid #333;
       display: flex;
@@ -24,29 +30,69 @@
       gap: 12px;
       flex-wrap: wrap;
     }
+
     .logo {
       font-size: 25px;
       font-weight: bold;
     }
-    .logo span { color: #f22; }
+
+    .logo span {
+      color: #f22;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-title {
+      color: #ddd;
+    }
+
+    .start-live {
+      display: inline-block;
+      padding: 12px 16px;
+      background: #e5222e;
+      color: #fff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 7px;
+      white-space: nowrap;
+    }
+
+    .start-live:hover {
+      background: #c91824;
+    }
+
     main {
       max-width: 1100px;
       margin: auto;
       padding: 24px 16px;
     }
-    h1 { font-size: 27px; }
-    .muted { color: #aaa; }
+
+    h1 {
+      font-size: 27px;
+    }
+
+    .muted {
+      color: #aaa;
+    }
+
     .streams {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
       gap: 18px;
     }
+
     .stream {
       background: #202020;
       border: 1px solid #333;
       border-radius: 12px;
       padding: 18px;
     }
+
     .preview {
       background: #292929;
       border-radius: 8px;
@@ -55,36 +101,60 @@
       place-items: center;
       font-size: 40px;
     }
+
     .live {
       color: #ff4545;
       font-weight: bold;
     }
-    button {
-      background: #e51e2a;
-      border: 0;
-      border-radius: 7px;
-      padding: 12px 16px;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
+
     .empty {
       padding: 24px;
       background: #1b1b1b;
       border-radius: 10px;
       color: #bbb;
     }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 12px;
+      }
+
+      .logo {
+        font-size: 21px;
+      }
+
+      .header-right {
+        gap: 10px;
+      }
+
+      .header-title {
+        display: none;
+      }
+
+      .start-live {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <div class="logo"><span>Y</span>-FETISH LIVE</div>
-    <div>Прямые эфиры</div>
+
+    <div class="header-right">
+      <div class="header-title">Прямые эфиры</div>
+      <a class="start-live" href="/host.html">Начать эфир</a>
+    </div>
   </header>
 
   <main>
     <h1>Прямые эфиры</h1>
-    <p class="muted">Смотри трансляции и отправляй подарки ведущим.</p>
+    <p class="muted">
+      Смотри прямые эфиры, общайся со зрителями и отправляй подарки ведущим.
+    </p>
+
     <div id="streams" class="streams">
       <div class="empty">Загружаем эфиры...</div>
     </div>
@@ -96,7 +166,9 @@
 
       try {
         const response = await fetch("/api/streams");
-        if (!response.ok) throw new Error("Не удалось загрузить эфиры");
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить эфиры");
+        }
 
         const streams = await response.json();
 
@@ -125,8 +197,7 @@
 
           const host = document.createElement("p");
           host.className = "muted";
-          host.textContent =
-            stream.profiles?.username || "Ведущий";
+          host.textContent = stream.profiles?.username || "Ведущий";
 
           card.append(preview, status, title, host);
           container.appendChild(card);
