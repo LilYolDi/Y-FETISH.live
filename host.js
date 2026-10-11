@@ -1,8 +1,8 @@
-
 (() => {
   "use strict";
 
   const $ = (s) => document.querySelector(s);
+
   const loginForm = $("#loginForm");
   const password = $("#password");
   const loginButton = $("#loginButton");
@@ -51,6 +51,7 @@
   }
 
   function showLogin() {
+    stopCamera();
     loginPanel.hidden = false;
     studioPanel.hidden = true;
     document.body.classList.remove("studio-active");
@@ -64,15 +65,37 @@
 
       cameraStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode,
-          width: { ideal: 1080 },
-          height: { ideal: 1920 }
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         },
         audio: true
       });
 
+      const videoTrack = cameraStream.getVideoTracks()[0];
+
+      // Используем минимальный zoom, если камера это поддерживает.
+      if (videoTrack) {
+        const capabilities = videoTrack.getCapabilities?.();
+
+        if (capabilities?.zoom) {
+          const minZoom = capabilities.zoom.min ?? 1;
+
+          try {
+            await videoTrack.applyConstraints({
+              advanced: [{ zoom: minZoom }]
+            });
+          } catch (_) {
+            // Не все камеры поддерживают изменение zoom.
+          }
+        }
+      }
+
       preview.srcObject = cameraStream;
       preview.hidden = false;
+      preview.style.objectFit = "cover";
+      preview.style.transform = "none";
+
       await preview.play();
 
       message("Камера готова. Введите название эфира.");
@@ -88,6 +111,7 @@
     }
 
     if (preview) {
+      preview.pause();
       preview.srcObject = null;
     }
   }
@@ -110,6 +134,8 @@
 
   async function login(event) {
     event.preventDefault();
+
+    if (busy) return;
     loginButton.disabled = true;
     message("Проверка пароля...");
 
@@ -130,6 +156,7 @@
 
   async function startStream(event) {
     event.preventDefault();
+
     if (busy) return;
 
     const title = titleInput.value.trim();
@@ -140,8 +167,11 @@
       return;
     }
 
-    if (!cameraStream || !cameraStream.getVideoTracks().some(t => t.readyState === "live")) {
-      message("Сначала разрешите доступ к камере.");
+    if (
+      !cameraStream ||
+      !cameraStream.getVideoTracks().some((track) => track.readyState === "live")
+    ) {
+      message("Сначала включите камеру.");
       await startCamera();
       return;
     }
@@ -161,8 +191,6 @@
         body: JSON.stringify({ title, roomName })
       });
 
-      // Останавливаем предварительный просмотр.
-      // На live.html камера будет подключена к LiveKit заново.
       stopCamera();
 
       window.location.href =
@@ -176,11 +204,16 @@
   }
 
   async function switchCamera() {
+    if (busy) return;
+
     facingMode = facingMode === "user" ? "environment" : "user";
     await startCamera();
   }
 
   async function logout() {
+    if (busy) return;
+
+    busy = true;
     stopCamera();
 
     try {
@@ -189,11 +222,14 @@
       message("Вы вышли.");
     } catch (error) {
       message("Ошибка выхода: " + error.message);
+      await startCamera();
+    } finally {
+      busy = false;
     }
   }
 
-  loginForm.addEventListener("submit", login);
-  streamForm.addEventListener("submit", startStream);
+  loginForm?.addEventListener("submit", login);
+  streamForm?.addEventListener("submit", startStream);
   cameraButton?.addEventListener("click", switchCamera);
   logoutButton?.addEventListener("click", logout);
 
