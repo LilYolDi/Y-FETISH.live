@@ -15,6 +15,7 @@ const COOKIE_NAME = "yfetish_host_session";
 const SESSION_MS = 6 * 60 * 60 * 1000;
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "20kb" }));
 
 let supabase = null;
@@ -100,6 +101,12 @@ function sendFile(name, type) {
   };
 }
 
+function databaseUnavailable(res) {
+  return res.status(503).json({
+    error: "Supabase не настроен. Проверь переменные окружения Render."
+  });
+}
+
 app.get("/health", (req, res) => {
   res.json({ status: "ok", site: "Y-FETISH LIVE" });
 });
@@ -170,20 +177,17 @@ app.post("/api/host/login", (req, res) => {
 });
 
 app.post("/api/host/logout", (req, res) => {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    path: "/"
-  });
+  res.setHeader(
+    "Set-Cookie",
+    `${COOKIE_NAME}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`
+  );
 
   res.json({ success: true });
 });
 
+// Подарки
 app.get("/api/gifts", async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
-  }
+  if (!supabase) return databaseUnavailable(res);
 
   try {
     const { data, error } = await supabase
@@ -193,39 +197,41 @@ app.get("/api/gifts", async (req, res) => {
       .order("price");
 
     if (error) throw error;
+
     res.json(data || []);
   } catch (error) {
-    console.error("Gifts error:", error.message);
-    res.status(500).json({ error: "Could not load gifts" });
+    console.error("Gifts error:", error);
+    res.status(500).json({
+      error: "Не удалось загрузить подарки"
+    });
   }
 });
 
-// Получение списка активных эфиров.
+// Список активных эфиров
 app.get("/api/streams", async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
-  }
+  if (!supabase) return databaseUnavailable(res);
 
   try {
     const { data, error } = await supabase
       .from("live_streams")
-      .select("id,title,host_id,room_name,started_at")
+      .select("id,title,room_name,started_at,status")
       .eq("status", "live")
       .order("started_at", { ascending: false });
 
     if (error) throw error;
+
     res.json(data || []);
   } catch (error) {
-    console.error("Streams error:", error.message);
-    res.status(500).json({ error: "Could not load streams" });
+    console.error("Streams error:", error);
+    res.status(500).json({
+      error: "Не удалось загрузить эфиры"
+    });
   }
 });
 
-// Регистрация эфира после запуска камеры и публикации видео.
+// Регистрация эфира
 app.post("/api/streams/start", requireHost, async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
-  }
+  if (!supabase) return databaseUnavailable(res);
 
   const title = typeof req.body?.title === "string"
     ? req.body.title.trim().slice(0, 100)
@@ -251,7 +257,7 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
 
     if (findError) throw findError;
 
-    if (existing?.length) {
+    if (existing && existing.length > 0) {
       return res.status(409).json({
         error: "Эфир в этой комнате уже зарегистрирован"
       });
@@ -260,7 +266,6 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
     const { data, error } = await supabase
       .from("live_streams")
       .insert({
-        host_id: null,
         title,
         status: "live",
         room_name: roomName,
@@ -272,27 +277,32 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
 
     if (error) throw error;
 
-    res.status(201).json({ success: true, stream: data });
+    res.status(201).json({
+      success: true,
+      stream: data
+    });
   } catch (error) {
-    console.error("Stream start error:", error.message);
+    console.error("Stream start error:", error);
+
     res.status(500).json({
-      error: "Не удалось зарегистрировать эфир. Проверь столбец host_id в Supabase."
+      error: "Ошибка регистрации эфира: " +
+        (error.message || "неизвестная ошибка")
     });
   }
 });
 
-// Завершение эфира.
+// Завершение эфира
 app.post("/api/streams/stop", requireHost, async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
-  }
+  if (!supabase) return databaseUnavailable(res);
 
   const roomName = typeof req.body?.roomName === "string"
     ? req.body.roomName.trim()
     : "";
 
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(roomName)) {
-    return res.status(400).json({ error: "Неверное имя комнаты" });
+    return res.status(400).json({
+      error: "Неверное имя комнаты"
+    });
   }
 
   try {
@@ -308,24 +318,30 @@ app.post("/api/streams/stop", requireHost, async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ success: true, updated: data?.length || 0 });
+    res.json({
+      success: true,
+      updated: data?.length || 0
+    });
   } catch (error) {
-    console.error("Stream stop error:", error.message);
+    console.error("Stream stop error:", error);
+
     res.status(500).json({
-      error: "Не удалось завершить эфир в базе"
+      error: "Ошибка завершения эфира: " +
+        (error.message || "неизвестная ошибка")
     });
   }
 });
 
+// Чтение сообщений чата
 app.get("/api/chat", async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
-  }
+  if (!supabase) return databaseUnavailable(res);
 
-  const roomName = String(req.query.room || "").trim();
+  const roomName = String(
+    req.query.roomName || req.query.room || ""
+  ).trim();
 
   if (!roomName || roomName.length > 100) {
-    return res.status(400).json({ error: "Invalid room" });
+    return res.status(400).json({ error: "Неверное имя комнаты" });
   }
 
   try {
@@ -333,23 +349,47 @@ app.get("/api/chat", async (req, res) => {
       .from("live_messages")
       .select("id,room_name,participant_name,message,created_at")
       .eq("room_name", roomName)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(100);
 
     if (error) throw error;
-    res.json((data || []).reverse());
+
+    res.json(data || []);
   } catch (error) {
-    console.error("Chat read error:", error.message);
-    res.status(500).json({ error: "Could not load chat" });
+    console.error("Chat read error:", error);
+
+    res.status(500).json({
+      error: "Не удалось загрузить чат"
+    });
   }
 });
 
 const chatLimits = new Map();
 
+// Отправка сообщения в чат
 app.post("/api/chat", async (req, res) => {
-  if (!supabase) {
-    return res.status(503).json({ error: "Database not configured" });
+  if (!supabase) return databaseUnavailable(res);
+
+  const roomName = typeof req.body?.roomName === "string"
+    ? req.body.roomName.trim()
+    : "";
+
+  const participantName =
+    typeof req.body?.participantName === "string"
+      ? req.body.participantName.trim().slice(0, 50)
+      : "Гость";
+
+  const message = typeof req.body?.message === "string"
+    ? req.body.message.trim()
+    : "";
+
+  if (
+    !roomName || roomName.length > 100 ||
+    !message || message.length > 300
+  ) {
+    return res.status(400).json({
+      error: "Проверь имя комнаты и текст сообщения"
+    });
   }
 
   const now = Date.now();
@@ -367,44 +407,34 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 
-  const roomName = typeof req.body?.roomName === "string"
-    ? req.body.roomName.trim()
-    : "";
-
-  const participantName = typeof req.body?.participantName === "string"
-    ? req.body.participantName.trim()
-    : "";
-
-  const message = typeof req.body?.message === "string"
-    ? req.body.message.trim()
-    : "";
-
-  if (
-    !roomName || roomName.length > 100 ||
-    !participantName || participantName.length > 50 ||
-    !message || message.length > 300
-  ) {
-    return res.status(400).json({ error: "Проверь текст сообщения" });
-  }
-
   rate.count += 1;
   chatLimits.set(ip, rate);
 
   try {
     const { data, error } = await supabase
       .from("live_messages")
-      .insert({ room_name: roomName, participant_name: participantName, message })
+      .insert({
+        room_name: roomName,
+        participant_name: participantName || "Гость",
+        message
+      })
       .select("id,room_name,participant_name,message,created_at")
       .single();
 
     if (error) throw error;
+
     res.status(201).json(data);
   } catch (error) {
-    console.error("Chat send error:", error.message);
-    res.status(500).json({ error: "Не удалось отправить сообщение" });
+    console.error("Chat send error:", error);
+
+    res.status(500).json({
+      error: "Не удалось отправить сообщение: " +
+        (error.message || "неизвестная ошибка")
+    });
   }
 });
 
+// Токен LiveKit
 app.post("/api/livekit/token", async (req, res) => {
   try {
     const { roomName, participantName, isHost: wantsHost } = req.body || {};
@@ -416,7 +446,7 @@ app.post("/api/livekit/token", async (req, res) => {
       !participantName.trim() || participantName.length > 50
     ) {
       return res.status(400).json({
-        error: "Invalid room or participant name"
+        error: "Неверное имя комнаты или участника"
       });
     }
 
@@ -425,11 +455,15 @@ app.post("/api/livekit/token", async (req, res) => {
       !process.env.LIVEKIT_API_SECRET ||
       !process.env.LIVEKIT_URL
     ) {
-      return res.status(503).json({ error: "LiveKit is not configured" });
+      return res.status(503).json({
+        error: "LiveKit не настроен в Render"
+      });
     }
 
     if (wantsHost && !isHost(req)) {
-      return res.status(401).json({ error: "Вход ведущего не выполнен" });
+      return res.status(401).json({
+        error: "Вход ведущего не выполнен"
+      });
     }
 
     const token = new AccessToken(
@@ -457,8 +491,11 @@ app.post("/api/livekit/token", async (req, res) => {
       token: await token.toJwt()
     });
   } catch (error) {
-    console.error("LiveKit token error:", error.message);
-    res.status(500).json({ error: "Could not create LiveKit token" });
+    console.error("LiveKit token error:", error);
+
+    res.status(500).json({
+      error: "Не удалось создать токен LiveKit"
+    });
   }
 });
 
