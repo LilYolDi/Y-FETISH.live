@@ -14,13 +14,16 @@
   const giftMessage = $("#giftMessage");
   const chatForm = $("#chatForm");
   const chatInput = $("#chatInput") || $('input[name="message"]');
-  const chatList =
-    $("#chatMessages") || $("#messages") || $("#chat");
+  const chatList = $("#chatMessages") || $("#messages") || $("#chat");
 
   let liveRoom = null;
   let chatTimer = null;
   let lastMessageId = null;
   let firstChatLoad = true;
+  let isHost = false;
+  let hostTracks = [];
+  let hostFacingMode = "user";
+  let hostBusy = false;
 
   function showMessage(message) {
     if (giftMessage) {
@@ -43,9 +46,7 @@
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(
-        data.error || `Ошибка сервера: ${response.status}`
-      );
+      throw new Error(data.error || `Ошибка сервера: ${response.status}`);
     }
 
     return data;
@@ -78,47 +79,19 @@
     return sdk;
   }
 
-  async function loadStreamInfo() {
-    const data = await api("/api/streams");
-    const streams = Array.isArray(data)
-      ? data
-      : data.streams || [];
-
-    const stream = streams.find(
-      (item) =>
-        item.room_name === roomName &&
-        item.status === "live"
-    );
-
-    if (!stream) {
-      if (titleElement) {
-        titleElement.textContent = "Эфир не найден или завершён";
-      }
-
-      return false;
-    }
-
-    if (titleElement) {
-      titleElement.textContent = stream.title || "Прямой эфир";
-    }
-
-    if (hostNameElement) {
-      hostNameElement.textContent =
-        stream.host_name || "Ведущий";
-    }
-
-    return true;
-  }
-
-  function attachTrack(track) {
-    const videoContainer =
+  function getVideoContainer() {
+    return (
       $("#videoContainer") ||
       $("#liveVideo") ||
       $("#videoPlayer") ||
       $(".video-container") ||
-      $("video")?.parentElement;
+      $("video")?.parentElement
+    );
+  }
 
-    if (!videoContainer || !track) return;
+  function attachTrack(track) {
+    const container = getVideoContainer();
+    if (!container || !track) return;
 
     const element = track.attach();
 
@@ -128,14 +101,227 @@
     if (track.kind === "video") {
       element.style.width = "100%";
       element.style.height = "100%";
-      element.style.objectFit = "contain";
+      element.style.objectFit = isHost ? "cover" : "contain";
+
+      if (isHost) element.muted = true;
     }
 
-    if (track.kind === "audio") {
-      element.autoplay = true;
+    container.appendChild(element);
+  }
+
+  async function loadStreamInfo() {
+    const data = await api("/api/streams");
+    const streams = Array.isArray(data) ? data : data.streams || [];
+
+    const stream = streams.find(
+      (item) => item.room_name === roomName && item.status === "live"
+    );
+
+    if (!stream) {
+      if (titleElement) {
+        titleElement.textContent = "Эфир не найден или завершён";
+      }
+      return false;
     }
 
-    videoContainer.appendChild(element);
+    if (titleElement) {
+      titleElement.textContent = stream.title || "Прямой эфир";
+    }
+
+    if (hostNameElement) {
+      hostNameElement.textContent = stream.host_name || "Ведущий";
+    }
+
+    return true;
+  }
+
+  function setupHostInterface() {
+    document.body.classList.add("host-broadcast-mode");
+
+    const style = document.createElement("style");
+    style.textContent = `
+      body.host-broadcast-mode {
+        background: #080808;
+      }
+
+      body.host-broadcast-mode #videoContainer,
+      body.host-broadcast-mode #liveVideo,
+      body.host-broadcast-mode #videoPlayer,
+      body.host-broadcast-mode .video-container {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        background: #080808;
+        z-index: 1;
+      }
+
+      body.host-broadcast-mode #videoContainer video,
+      body.host-broadcast-mode #liveVideo video,
+      body.host-broadcast-mode #videoPlayer video,
+      body.host-broadcast-mode .video-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover !important;
+      }
+
+      #hostLiveControls {
+        position: fixed;
+        z-index: 9999;
+        left: 12px;
+        right: 12px;
+        bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      #hostLiveControls button {
+        min-height: 44px;
+        padding: 11px 15px;
+        border: 0;
+        border-radius: 10px;
+        background: #e21b2d;
+        color: white;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #hostLiveControls .secondary {
+        background: #303030;
+      }
+    `;
+    document.head.appendChild(style);
+
+    const controls = document.createElement("div");
+    controls.id = "hostLiveControls";
+
+    const switchButton = document.createElement("button");
+    switchButton.type = "button";
+    switchButton.className = "secondary";
+    switchButton.textContent = "Переключить камеру";
+
+    const stopButton = document.createElement("button");
+    stopButton.type = "button";
+    stopButton.textContent = "Завершить эфир";
+
+    switchButton.addEventListener("click", switchHostCamera);
+    stopButton.addEventListener("click", stopHostStream);
+
+    controls.append(switchButton, stopButton);
+    document.body.appendChild(controls);
+  }
+
+  async function publishHostTracks(sdk) {
+    const tracks = await sdk.createLocalTracks({
+      audio: true,
+      video: { facingMode: hostFacingMode }
+    });
+
+    try {
+      for (const track of tracks) {
+        await liveRoom.localParticipant.publishTrack(track);
+        hostTracks.push(track);
+
+        if (track.kind === "video") {
+          attachTrack(track);
+        }
+      }
+    } catch (error) {
+      tracks.forEach((track) => {
+        try {
+          track.stop();
+        } catch (_) {}
+      });
+      throw error;
+    }
+  }
+
+  async function switchHostCamera() {
+    if (!liveRoom || !isHost || hostBusy) return;
+
+    hostBusy = true;
+
+    try {
+      const sdk = await loadLiveKit();
+      const nextMode = hostFacingMode === "user" ? "environment" : "user";
+
+      const newTracks = await sdk.createLocalTracks({
+        video: { facingMode: nextMode },
+        audio: false
+      });
+
+      const newVideoTrack = newTracks.find((track) => track.kind === "video");
+
+      if (!newVideoTrack) {
+        throw new Error("Камера не найдена");
+      }
+
+      const oldVideoTracks = hostTracks.filter((track) => track.kind === "video");
+
+      for (const track of oldVideoTracks) {
+        try {
+          await liveRoom.localParticipant.unpublishTrack(track);
+          track.detach().forEach((element) => element.remove());
+          track.stop();
+        } catch (_) {}
+      }
+
+      hostTracks = hostTracks.filter((track) => track.kind !== "video");
+
+      await liveRoom.localParticipant.publishTrack(newVideoTrack);
+      hostTracks.push(newVideoTrack);
+      hostFacingMode = nextMode;
+
+      attachTrack(newVideoTrack);
+      showMessage("Камера переключена.");
+    } catch (error) {
+      showMessage("Не удалось переключить камеру: " + error.message);
+    } finally {
+      hostBusy = false;
+    }
+  }
+
+  async function stopHostStream() {
+    if (!isHost || hostBusy) return;
+
+    hostBusy = true;
+
+    try {
+      await api("/api/streams/stop", {
+        method: "POST",
+        body: JSON.stringify({ roomName })
+      });
+
+      await disconnectLiveRoom();
+      window.location.href = "/";
+    } catch (error) {
+      showMessage("Ошибка завершения эфира: " + error.message);
+    } finally {
+      hostBusy = false;
+    }
+  }
+
+  async function disconnectLiveRoom() {
+    if (liveRoom) {
+      try {
+        await liveRoom.disconnect();
+      } catch (_) {}
+    }
+
+    liveRoom = null;
+
+    hostTracks.forEach((track) => {
+      try {
+        track.detach().forEach((element) => element.remove());
+        track.stop();
+      } catch (_) {}
+    });
+
+    hostTracks = [];
   }
 
   async function connectLive() {
@@ -147,27 +333,22 @@
     }
 
     const isActive = await loadStreamInfo();
-
     if (!isActive) return;
 
     const sdk = await loadLiveKit();
 
     const tokenData = await api(
-      "/api/livekit/token?roomName=" +
-      encodeURIComponent(roomName)
+      "/api/livekit/token?roomName=" + encodeURIComponent(roomName)
     );
 
     const liveKitUrl =
-      tokenData.url ||
-      tokenData.serverUrl ||
-      tokenData.livekitUrl;
+      tokenData.url || tokenData.serverUrl || tokenData.livekitUrl;
 
     if (!tokenData.token || !liveKitUrl) {
-      throw new Error(
-        "Сервер не вернул данные LiveKit. Проверь server.js."
-      );
+      throw new Error("Сервер не вернул данные LiveKit.");
     }
 
+    isHost = tokenData.isHost === true;
     liveRoom = new sdk.Room();
 
     liveRoom.on(sdk.RoomEvent.TrackSubscribed, (track) => {
@@ -179,15 +360,18 @@
     });
 
     liveRoom.on(sdk.RoomEvent.Disconnected, () => {
-      showMessage("Соединение с эфиром потеряно");
+      showMessage("Соединение с эфиром потеряно.");
     });
 
     await liveRoom.connect(liveKitUrl, tokenData.token);
 
-    for (const participant of liveRoom.remoteParticipants.values()) {
-      for (const publication of participant.trackPublications.values()) {
-        if (publication.track) {
-          attachTrack(publication.track);
+    if (isHost) {
+      setupHostInterface();
+      await publishHostTracks(sdk);
+    } else {
+      for (const participant of liveRoom.remoteParticipants.values()) {
+        for (const publication of participant.trackPublications.values()) {
+          if (publication.track) attachTrack(publication.track);
         }
       }
     }
@@ -223,20 +407,18 @@
         "/api/chat?roomName=" + encodeURIComponent(roomName)
       );
 
-      const messages = Array.isArray(data)
-        ? data
-        : data.messages || [];
+      const messages = Array.isArray(data) ? data : data.messages || [];
 
       if (firstChatLoad) {
         chatList.replaceChildren();
         messages.forEach(addChatMessage);
         firstChatLoad = false;
       } else {
-        const newMessages = messages.filter((item) => {
-          if (lastMessageId === null) return true;
-
-          return Number(item.id) > Number(lastMessageId);
-        });
+        const newMessages = messages.filter(
+          (item) =>
+            lastMessageId === null ||
+            Number(item.id) > Number(lastMessageId)
+        );
 
         newMessages.forEach(addChatMessage);
       }
@@ -254,7 +436,6 @@
       event.preventDefault();
 
       const message = chatInput?.value.trim();
-
       if (!message || !roomName) return;
 
       try {
@@ -291,25 +472,18 @@
 
     try {
       const data = await api("/api/gifts");
-
-      const gifts = Array.isArray(data)
-        ? data
-        : data.gifts || [];
+      const gifts = Array.isArray(data) ? data : data.gifts || [];
 
       giftList.replaceChildren();
 
       gifts.forEach((gift) => {
         const button = document.createElement("button");
-
         button.type = "button";
         button.className = "gift-item";
         button.textContent =
           `${gift.emoji || "🎁"} ${gift.name} — ${gift.price} монет`;
 
-        button.addEventListener("click", () => {
-          sendGift(gift.id, button);
-        });
-
+        button.addEventListener("click", () => sendGift(gift.id, button));
         giftList.appendChild(button);
       });
     } catch (error) {
@@ -319,16 +493,12 @@
 
   async function sendGift(giftId, button) {
     if (!roomName) return;
-
     if (button) button.disabled = true;
 
     try {
       const data = await api("/api/gifts/send", {
         method: "POST",
-        body: JSON.stringify({
-          roomName,
-          giftId
-        })
+        body: JSON.stringify({ roomName, giftId })
       });
 
       if (coinBalance && data.balance !== undefined) {
@@ -352,17 +522,11 @@
       console.error("Ошибка подключения к эфиру:", error);
 
       if (titleElement) {
-        titleElement.textContent =
-          "Ошибка подключения: " + error.message;
+        titleElement.textContent = "Ошибка подключения: " + error.message;
       }
     }
 
-    await Promise.all([
-      loadChat(),
-      loadWallet(),
-      loadGifts()
-    ]);
-
+    await Promise.all([loadChat(), loadWallet(), loadGifts()]);
     chatTimer = setInterval(loadChat, 3000);
   }
 
