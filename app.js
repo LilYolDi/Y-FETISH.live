@@ -63,6 +63,7 @@ function loadSDK() {
   });
 }
 
+/* Видео на всю площадь контейнера */
 function attachTrack(track, participant) {
   const container = getVideoContainer();
   const element = track.attach();
@@ -72,15 +73,36 @@ function attachTrack(track, participant) {
 
   if (track.kind === "video") {
     element.muted = true;
+    element.setAttribute("playsinline", "");
+    element.setAttribute("webkit-playsinline", "");
+
     element.style.cssText =
-      "display:block;width:100%;max-width:900px;max-height:75vh;" +
-      "object-fit:contain;background:#000;border-radius:8px;";
+      "position:absolute;inset:0;display:block;" +
+      "width:100%;height:100%;max-width:none;max-height:none;" +
+      "object-fit:cover;object-position:center;" +
+      "background:#000;border:0;border-radius:0;";
+
+    container.style.position = "fixed";
+    container.style.inset = "0";
+    container.style.width = "100vw";
+    container.style.height = "100vh";
+    container.style.setProperty("height", "100dvh");
+    container.style.maxWidth = "none";
+    container.style.maxHeight = "none";
+    container.style.margin = "0";
+    container.style.padding = "0";
+    container.style.overflow = "hidden";
+    container.style.border = "0";
+    container.style.borderRadius = "0";
+    container.style.background = "#000";
   } else if (track.kind === "audio") {
     element.autoplay = true;
     element.muted = false;
   }
 
-  element.dataset.participant = participant.identity || "participant";
+  element.dataset.participant =
+    participant.identity || "participant";
+
   container.appendChild(element);
 
   element.play?.().catch(() => {
@@ -120,7 +142,9 @@ async function connectToStream() {
     const credentials = await response.json();
 
     if (!response.ok) {
-      throw new Error(credentials.error || "Не удалось получить доступ к эфиру.");
+      throw new Error(
+        credentials.error || "Не удалось получить доступ к эфиру."
+      );
     }
 
     if (!credentials.serverUrl || !credentials.token) {
@@ -132,10 +156,13 @@ async function connectToStream() {
       dynacast: true
     });
 
-    room.on(sdk.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-      attachTrack(track, participant);
-      setStatus("Ты подключён к эфиру.");
-    });
+    room.on(
+      sdk.RoomEvent.TrackSubscribed,
+      (track, publication, participant) => {
+        attachTrack(track, participant);
+        setStatus("Ты подключён к эфиру.");
+      }
+    );
 
     room.on(sdk.RoomEvent.TrackUnsubscribed, (track) => {
       detachTrack(track);
@@ -235,7 +262,9 @@ if (chatForm) {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Не удалось отправить сообщение.");
+        throw new Error(
+          result.error || "Не удалось отправить сообщение."
+        );
       }
 
       chatInput.value = "";
@@ -272,6 +301,7 @@ async function loadGifts() {
       item.textContent =
         `${gift.emoji || "🎁"} ${gift.name || gift.title || "Подарок"}` +
         (gift.price != null ? ` — ${gift.price}` : "");
+
       container.appendChild(item);
     });
   } catch (error) {
