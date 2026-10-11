@@ -201,346 +201,111 @@ input {
 
 
 
+/* ===== Y-FETISH LIVE: боковое меню ===== */
 
-
-
-
-/* Кнопка открытия меню */
-#yfl-menu-button {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 10001;
-  width: 42px;
-  height: 38px;
+.menu-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
   padding: 0;
+  background: transparent;
   border: 1px solid #444;
-  border-radius: 6px;
-  background: #222;
+  border-radius: 8px;
   color: #fff;
-  font-size: 23px;
+  font-size: 27px;
   cursor: pointer;
 }
 
-/* Затемнённый фон */
-#yfl-menu-overlay {
-  display: none;
+.menu-button:hover {
+  background: #292929;
+}
+
+.menu-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
 }
 
-/* Открытое меню */
-#yfl-menu-overlay.yfl-menu-open {
-  display: block;
-}
-
-/* Боковая панель */
-#yfl-menu-panel {
-  position: absolute;
+.menu-panel {
+  position: fixed;
   top: 0;
   right: 0;
-  width: 270px;
-  max-width: 85%;
-  height: 100%;
-  box-sizing: border-box;
+  z-index: 1001;
+  width: 300px;
+  max-width: 85vw;
+  height: 100vh;
+  padding: 24px 20px;
   overflow-y: auto;
-  padding: 20px;
   background: #181818;
-  border-left: 3px solid #ff9000;
+  border-left: 1px solid #333;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
 }
 
-/* Заголовок */
-.yfl-menu-title {
-  margin: 35px 0 25px;
-  color: #ff9000;
-  font: 700 22px Arial, sans-serif;
+.menu-panel.open {
+  transform: translateX(0);
 }
 
-/* Кнопка закрытия */
-#yfl-menu-close {
-  float: right;
-  border: 0;
+.menu-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid #e5222e;
+}
+
+.menu-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.menu-close {
+  padding: 4px 10px;
   background: transparent;
   color: #fff;
-  font-size: 30px;
-  cursor: pointer;
+  font-size: 28px;
 }
 
-/* Ссылки меню */
-.yfl-menu-link {
+.menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.menu-links a {
   display: block;
-  margin-top: 12px;
-  padding: 13px 12px;
+  padding: 14px 12px;
+  color: #eee;
   border-radius: 6px;
-  background: #292929;
-  color: #fff;
-  text-decoration: none;
-  font: 600 14px Arial, sans-serif;
+  font-size: 16px;
 }
 
-.yfl-menu-link:hover {
-  background: #444;
-}
-
-/* Телефон */
-@media (max-width: 600px) {
-  #yfl-menu-button {
-    top: 10px;
-    right: 10px;
-  }
-
-
-
-
-
-
-/* Основная страница */
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: #111;
-  color: #fff;
-  font-family: Arial, sans-serif;
+.menu-links a:hover {
+  background: #303030;
+  color: #ff333d;
 }
 
 body.menu-open {
   overflow: hidden;
 }
 
-.site-header {
-  min-height: 66px;
-  padding: 16px 70px 16px 18px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.logo {
-  font-size: 25px;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.logo span {
-  color: #f22;
-}
-
-.header-label {
-  color: #ddd;
-}
-
-main {
-  max-width: 1100px;
-  margin: auto;
-  padding: 24px 16px;
-}
-
-h1 {
-  font-size: 27px;
-}
-
-.muted {
-  color: #aaa;
-}
-
-.streams {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
-}
-
-.stream {
-  background: #202020;
-  border: 1px solid #333;
-  border-radius: 12px;
-  padding: 18px;
-}
-
-.preview {
-  background: #292929;
-  border-radius: 8px;
-  min-height: 130px;
-  display: grid;
-  place-items: center;
-  font-size: 40px;
-}
-
-.live {
-  color: #ff4545;
-  font-weight: bold;
-}
-
-.empty {
-  padding: 24px;
-  background: #1b1b1b;
-  border-radius: 10px;
-  color: #bbb;
-}
-
-/* Кнопка меню */
-.menu-button {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  z-index: 10001;
-  width: 44px;
-  height: 42px;
-  padding: 0;
-  background: #202020;
-  color: #fff;
-  border: 1px solid #444;
-  border-radius: 6px;
-  font-size: 25px;
-  cursor: pointer;
-}
-
-/* Затемнённый фон */
-.menu-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.78);
-  opacity: 0;
-  transition: opacity 0.28s ease;
-}
-
-.menu-overlay[hidden] {
-  display: none;
-}
-
-.menu-overlay.is-visible {
-  opacity: 1;
-}
-
-/* Панель выезжает справа */
-.menu-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 300px;
-  max-width: 85%;
-  height: 100%;
-  overflow-y: auto;
-  padding: 22px 18px;
-  background: #111;
-  border-left: 2px solid #ed1c24;
-  transform: translateX(100%);
-  transition: transform 0.28s ease;
-  box-shadow: -12px 0 35px rgba(0, 0, 0, 0.35);
-}
-
-.menu-panel.is-visible {
-  transform: translateX(0);
-}
-
-/* Заголовок меню */
-.menu-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.menu-title {
-  margin: 8px 0;
-  color: #fff;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 1px;
-}
-
-.menu-close {
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  background: transparent;
-  color: #fff;
-  border: 0;
-  font-size: 32px;
-  cursor: pointer;
-}
-
-.menu-red-line {
-  height: 3px;
-  width: 100%;
-  margin: 12px 0 24px;
-  background: #ed1c24;
-  border-radius: 2px;
-}
-
-/* Ссылки меню */
-.menu-link {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  min-height: 50px;
-  margin: 10px 0;
-  padding: 13px;
-  background: #202020;
-  border: 1px solid #303030;
-  border-radius: 6px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.menu-link:hover,
-.menu-link:focus-visible {
-  background: #2b2b2b;
-  border-color: #ed1c24;
-  outline: none;
-}
-
-.menu-icon {
-  width: 22px;
-  color: #ed1c24;
-  font-size: 20px;
-  text-align: center;
-}
-
 @media (max-width: 600px) {
-  .site-header {
-    padding: 16px 62px 16px 14px;
-  }
-
-  .logo {
-    font-size: 21px;
-  }
-
-  .header-label {
-    font-size: 13px;
-  }
-
-  main {
-    padding: 20px 14px;
-  }
-
   .menu-panel {
-    width: 290px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .menu-overlay,
-  .menu-panel,
-  .menu-link {
-    transition: none;
-  }
-}
-
-
-  #yfl-menu-panel {
-    width: 260px;
+    width: 280px;
   }
 }
