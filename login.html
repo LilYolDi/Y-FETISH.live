@@ -184,7 +184,7 @@
           maxlength="24"
           pattern="[A-Za-z0-9_]+"
           autocomplete="nickname"
-          placeholder="Например, my_nick"
+          placeholder="Например, My_Nick"
           spellcheck="false"
         >
         <p class="hint">
@@ -314,7 +314,6 @@
       $("forgotButton").hidden = registering;
     }
 
-    // Каждый переключатель подключён ровно один раз.
     $("loginTab").addEventListener("click", () => setMode("login"));
     $("registerTab").addEventListener("click", () => setMode("register"));
 
@@ -331,8 +330,12 @@
 
     function friendlyError(error) {
       const text = String(error?.message || "");
+      const details = String(error?.details || "");
+      const combined = text + " " + details;
 
-      if (/user_profiles_nickname_lower_unique|duplicate key|unique constraint/i.test(text)) {
+      if (
+        /user_profiles_nickname_lower_unique|user_profiles_nickname_key|duplicate key|unique constraint|23505/i.test(combined)
+      ) {
         return "Этот ник уже занят. Придумай другой.";
       }
 
@@ -377,18 +380,21 @@
 
       const email = $("email").value.trim();
       const password = $("password").value;
-      const nickname = $("registerNickname").value.trim().toLowerCase();
+
+      // Сохраняем регистр ника, который выбрал пользователь.
+      const nickname = $("registerNickname").value.trim();
 
       try {
         const client = await requireSupabase();
 
         if (mode === "register") {
-          if (!/^[a-z0-9_]{3,24}$/.test(nickname)) {
+          if (!/^[A-Za-z0-9_]{3,24}$/.test(nickname)) {
             throw new Error(
               "Ник: 3–24 символа, только латинские буквы, цифры и _."
             );
           }
 
+          // Проверка занятости ника без учёта регистра.
           const { data: existing, error: checkError } = await client
             .from("user_profiles")
             .select("id")
@@ -397,7 +403,7 @@
 
           if (checkError) {
             throw new Error(
-              "Не удалось проверить ник. Проверь таблицу user_profiles в Supabase."
+              "Не удалось проверить ник. Проверь доступ к таблице user_profiles в Supabase."
             );
           }
 
