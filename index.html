@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -47,17 +48,17 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 10px;
     }
 
     .header-title {
       color: #ddd;
     }
 
-    .start-live {
+    .start-live,
+    .login-button {
       display: inline-block;
       padding: 12px 16px;
-      background: #e5222e;
       color: #fff;
       text-decoration: none;
       font-size: 14px;
@@ -67,8 +68,21 @@
       text-align: center;
     }
 
+    .start-live {
+      background: #e5222e;
+    }
+
     .start-live:hover {
       background: #c91824;
+    }
+
+    .login-button {
+      background: #303030;
+      border: 1px solid #555;
+    }
+
+    .login-button:hover {
+      background: #444;
     }
 
     main {
@@ -155,46 +169,6 @@
       font-size: 13px;
     }
 
-    @media (max-width: 600px) {
-      header {
-        padding: 12px;
-      }
-
-      .logo {
-        font-size: 21px;
-      }
-
-      .header-right {
-        gap: 10px;
-      }
-
-      .header-title {
-        display: none;
-      }
-
-      .start-live {
-        padding: 10px 12px;
-        font-size: 13px;
-      }
-
-      main {
-        padding: 18px 12px;
-      }
-
-      h1 {
-        font-size: 24px;
-      }
-
-      .streams {
-        grid-template-columns: 1fr;
-        gap: 14px;
-      }
-
-      .preview {
-        min-height: 170px;
-      }
-    }
-
     .country-filter {
       position: relative;
       margin: 16px 0;
@@ -237,6 +211,67 @@
     #countryMenu button:hover {
       background: #303030;
     }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 12px;
+      }
+
+      .logo {
+        font-size: 21px;
+      }
+
+      .header-right {
+        gap: 7px;
+      }
+
+      .header-title {
+        display: none;
+      }
+
+      .start-live,
+      .login-button {
+        padding: 10px 11px;
+        font-size: 12px;
+      }
+
+      main {
+        padding: 18px 12px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .streams {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .preview {
+        min-height: 170px;
+      }
+    }
+
+    @media (max-width: 370px) {
+      header {
+        gap: 8px;
+      }
+
+      .logo {
+        font-size: 19px;
+      }
+
+      .header-right {
+        gap: 5px;
+      }
+
+      .start-live,
+      .login-button {
+        padding: 9px 8px;
+        font-size: 11px;
+      }
+    }
   </style>
 </head>
 
@@ -246,6 +281,7 @@
 
     <div class="header-right">
       <div class="header-title">Прямые эфиры</div>
+      <a class="login-button" href="/login.html">Войти</a>
       <a class="start-live" href="/host.html">Начать эфир</a>
     </div>
   </header>
@@ -257,7 +293,6 @@
       Смотри прямые эфиры, общайся со зрителями и отправляй подарки ведущим.
     </p>
 
-    <!-- Фильтр стран -->
     <div class="country-filter">
       <button id="countryButton" type="button">🌍 Все страны ▼</button>
 
@@ -290,12 +325,10 @@
     let selectedCountry = "all";
     let allStreams = [];
 
-    // Открытие и закрытие меню стран.
     countryButton.addEventListener("click", () => {
       countryMenu.hidden = !countryMenu.hidden;
     });
 
-    // Выбор страны и применение фильтра.
     countryMenu.querySelectorAll("button").forEach(button => {
       button.addEventListener("click", () => {
         selectedCountry = button.dataset.country;
@@ -310,14 +343,12 @@
       });
     });
 
-    // Закрытие меню при нажатии за его пределами.
     document.addEventListener("click", event => {
       if (!event.target.closest(".country-filter")) {
         countryMenu.hidden = true;
       }
     });
 
-    // Отображение эфиров с учётом выбранной страны.
     function renderStreams() {
       streamsContainer.replaceChildren();
 
@@ -383,7 +414,6 @@
       });
     }
 
-    // Загрузка активных эфиров.
     async function loadStreams() {
       try {
         const response = await fetch("/api/streams", {
