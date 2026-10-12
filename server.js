@@ -1,4 +1,3 @@
-
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
@@ -346,12 +345,26 @@ app.get("/api/streams", async (req, res) => {
   }
 });
 
-/* Запуск эфира — исправлено */
+/* Запуск эфира */
 
 app.post("/api/streams/start", requireHost, async (req, res) => {
   try {
     const title = cleanText(req.body?.title, 150) || "Прямой эфир";
     const roomName = cleanText(req.body?.roomName, 100);
+
+    // СТРАНА ЭФИРА: разрешаем только варианты из списка.
+    const allowedCountries = [
+      "Украина",
+      "Россия",
+      "Польша",
+      "Германия",
+      "Другие"
+    ];
+
+    const requestedCountry = cleanText(req.body?.country, 50);
+    const country = allowedCountries.includes(requestedCountry)
+      ? requestedCountry
+      : "Украина";
 
     if (!validRoomName(roomName)) {
       return res.status(400).json({
@@ -389,6 +402,7 @@ app.post("/api/streams/start", requireHost, async (req, res) => {
         {
           title,
           room_name: roomName,
+          country, // СТРАНА ЭФИРА: сохраняем в Supabase.
           status: "live",
           started_at: new Date().toISOString(),
           ended_at: null
