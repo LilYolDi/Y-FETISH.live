@@ -335,7 +335,13 @@
       $("forgotButton").hidden = registering;
     }
 
-    $("loginTab").addEventListener("click", () => setMode("login"));
+$("loginTab").onclick = function () {
+  setMode("login");
+};
+
+$("registerTab").onclick = function () {
+  setMode("register");
+};
     $("registerTab").addEventListener("click", () => setMode("register"));
 
     $("forgotButton").addEventListener("click", () => {
