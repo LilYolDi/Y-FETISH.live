@@ -1,3 +1,4 @@
+
 "use strict";
 
 const express = require("express");
@@ -140,6 +141,46 @@ async function getNickname(user) {
     "Пользователь";
 }
 
+/*
+ * АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ПРОФИЛЯ ВЕДУЩЕГО
+ *
+ * live_streams.host_id ссылается на profiles.id.
+ * Перед созданием эфира проверяем, существует ли профиль.
+ * Если его нет, создаём запись автоматически.
+ */
+
+async function ensureHostProfile(user) {
+  const { data: profile, error: checkError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (checkError) {
+    throw checkError;
+  }
+
+  if (profile) {
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from("profiles")
+    .upsert(
+      { id: user.id },
+      {
+        onConflict: "id",
+        ignoreDuplicates: true
+      }
+    );
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  console.log("Профиль ведущего проверен:", user.id);
+}
+
 async function getLiveStream(roomName) {
   const { data, error } = await supabase
     .from("live_streams")
@@ -176,7 +217,7 @@ async function endStream(roomName, hostId) {
   return Boolean(data?.length);
 }
 
-/* Очистка зависших эфиров */
+/* Автоматическая очистка зависших эфиров */
 
 let cleanupRunning = false;
 
@@ -286,8 +327,6 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
         balance: Number(created.balance || 0)
       });
     }
-
-    /* Если запись создал параллельный запрос, читаем её повторно */
 
     const { data: existing, error: readError } = await supabase
       .from("user_wallets")
@@ -443,6 +482,14 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
         error: "Неверное имя комнаты"
       });
     }
+
+    /*
+     * Сначала автоматически проверяем профиль ведущего.
+     * Это предотвращает ошибку внешнего ключа host_id,
+     * если таблица profiles допускает создание записи только по id.
+     */
+
+    await ensureHostProfile(req.user);
 
     await cleanupOldStreams();
 
@@ -678,7 +725,7 @@ app.get("/api/gifts", async (req, res) => {
   }
 });
 
-/* Кошелёк гостя — оставлен без изменений */
+/* Кошелёк гостя — без изменений */
 
 app.get("/api/wallet", async (req, res) => {
   try {
@@ -701,7 +748,7 @@ app.get("/api/wallet", async (req, res) => {
   }
 });
 
-/* Отправка подарка — оставлена без изменений */
+/* Отправка подарка — без изменений */
 
 app.post("/api/gifts/send", async (req, res) => {
   try {
