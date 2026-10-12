@@ -1,4 +1,3 @@
-
 "use strict";
 
 const express = require("express");
@@ -35,10 +34,6 @@ const supabase = createClient(
 
 const GUEST_COOKIE = "yfetish_live_guest";
 
-const GUEST_SESSION_SECRET =
-  process.env.GUEST_SESSION_SECRET ||
-  crypto.randomBytes(32).toString("hex");
-
 const HOST_TIMEOUT_MS = 60 * 1000;
 const OLD_STREAM_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const hostActivity = new Map();
@@ -56,7 +51,10 @@ function validRoomName(value) {
 
 function sendError(res, error, message = "Ошибка сервера") {
   console.error(message, error);
-  return res.status(500).json({ error: message });
+
+  return res.status(500).json({
+    error: message
+  });
 }
 
 function getCookie(req, name) {
@@ -92,6 +90,7 @@ function guestId(req, res) {
   }
 
   const id = crypto.randomUUID();
+
   setGuestCookie(res, id);
 
   return id;
@@ -123,30 +122,17 @@ async function requireUser(req, res, next) {
     }
 
     req.user = user;
+
     next();
   } catch (error) {
     sendError(res, error, "Не удалось проверить аккаунт");
   }
 }
 
-async function getNickname(user) {
-  const { data } = await supabase
-    .from("user_profiles")
-    .select("nickname")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  return data?.nickname ||
-    cleanText(user.user_metadata?.nickname, 24) ||
-    "Пользователь";
-}
-
 /*
- * АВТОМАТИЧЕСКОЕ СОЗДАНИЕ ПРОФИЛЯ ВЕДУЩЕГО
- *
+ * ИСПРАВЛЕНИЕ:
+ * Перед запуском эфира проверяем наличие профиля в profiles.
  * live_streams.host_id ссылается на profiles.id.
- * Перед созданием эфира проверяем, существует ли профиль.
- * Если его нет, создаём запись автоматически.
  */
 
 async function ensureHostProfile(user) {
@@ -164,10 +150,25 @@ async function ensureHostProfile(user) {
     return;
   }
 
+  const emailName = user.email
+    ? user.email.split("@")[0]
+    : "";
+
+  const username = cleanText(
+    user.user_metadata?.username ||
+    user.user_metadata?.nickname ||
+    emailName ||
+    `user_${user.id.replace(/-/g, "").slice(0, 12)}`,
+    50
+  );
+
   const { error: insertError } = await supabase
     .from("profiles")
     .upsert(
-      { id: user.id },
+      {
+        id: user.id,
+        username
+      },
       {
         onConflict: "id",
         ignoreDuplicates: true
@@ -179,6 +180,18 @@ async function ensureHostProfile(user) {
   }
 
   console.log("Профиль ведущего проверен:", user.id);
+}
+
+async function getNickname(user) {
+  const { data } = await supabase
+    .from("user_profiles")
+    .select("nickname")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return data?.nickname ||
+    cleanText(user.user_metadata?.nickname, 24) ||
+    "Пользователь";
 }
 
 async function getLiveStream(roomName) {
@@ -217,7 +230,7 @@ async function endStream(roomName, hostId) {
   return Boolean(data?.length);
 }
 
-/* Автоматическая очистка зависших эфиров */
+/* Очистка зависших эфиров */
 
 let cleanupRunning = false;
 
@@ -327,6 +340,8 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
         balance: Number(created.balance || 0)
       });
     }
+
+    /* Если запись создал параллельный запрос, читаем её повторно */
 
     const { data: existing, error: readError } = await supabase
       .from("user_wallets")
@@ -484,9 +499,8 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
     }
 
     /*
-     * Сначала автоматически проверяем профиль ведущего.
-     * Это предотвращает ошибку внешнего ключа host_id,
-     * если таблица profiles допускает создание записи только по id.
+     * Сначала создаём или проверяем профиль ведущего.
+     * Это предотвращает ошибку внешнего ключа host_id.
      */
 
     await ensureHostProfile(req.user);
