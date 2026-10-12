@@ -1,4 +1,3 @@
-
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -282,8 +281,11 @@ async function sendHeartbeat() {
       body: JSON.stringify({ roomName: activeRoomName })
     });
 
-    if (response.status === 401 || response.status === 403 ||
-        response.status === 404) {
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      response.status === 404
+    ) {
       stopHeartbeat();
       status("Сервер завершил сессию эфира. Проверь вход.");
     }
@@ -335,7 +337,9 @@ async function stopStream(message = "Эфир завершён.") {
   }
 
   localTracks.forEach(track => {
-    try { track.stop(); } catch {}
+    try {
+      track.stop();
+    } catch {}
   });
   localTracks = [];
 
@@ -386,9 +390,18 @@ if (streamForm) {
         throw new Error("Войди в свой аккаунт на странице входа.");
       }
 
-      // Уникальная комната для каждого аккаунта.
-      const suffix = currentUser.id.replace(/-/g, "").slice(0, 12);
-      const roomName = `${baseRoomName}_${suffix}`;
+      /*
+       * ИСПРАВЛЕНИЕ:
+       * Каждому запуску присваивается новое имя комнаты.
+       * Даже если старый эфир завершён, уникальное ограничение
+       * live_streams_room_name_key не будет мешать новому запуску.
+       */
+
+      const baseName = baseRoomName.slice(0, 65);
+      const userSuffix = currentUser.id.replace(/-/g, "").slice(0, 12);
+      const randomSuffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+
+      const roomName = `${baseName}_${userSuffix}_${randomSuffix}`;
 
       sdk = sdk || await loadSDK();
 
@@ -427,7 +440,9 @@ if (streamForm) {
       const credentials = await tokenResponse.json();
 
       if (!tokenResponse.ok) {
-        throw new Error(credentials.error || "Не удалось получить токен LiveKit");
+        throw new Error(
+          credentials.error || "Не удалось получить токен LiveKit"
+        );
       }
 
       const newRoom = new sdk.Room({
@@ -487,14 +502,18 @@ if (streamForm) {
         stopHeartbeat();
 
         if (room) {
-          try { await room.disconnect(); } catch {}
+          try {
+            await room.disconnect();
+          } catch {}
         }
 
         room = null;
         activeRoomName = "";
 
         localTracks.forEach(track => {
-          try { track.stop(); } catch {}
+          try {
+            track.stop();
+          } catch {}
         });
         localTracks = [];
 
@@ -539,7 +558,9 @@ if (logoutButton) {
     currentUser = null;
 
     localTracks.forEach(track => {
-      try { track.stop(); } catch {}
+      try {
+        track.stop();
+      } catch {}
     });
     localTracks = [];
 
@@ -560,7 +581,9 @@ window.addEventListener("beforeunload", () => {
   if (room) room.disconnect();
 
   localTracks.forEach(track => {
-    try { track.stop(); } catch {}
+    try {
+      track.stop();
+    } catch {}
   });
 });
 
