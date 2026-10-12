@@ -167,7 +167,10 @@ async function checkLogin() {
     if (!data?.session) {
       currentUser = null;
       setStudioVisible(false);
-      status("Сначала войди в свой аккаунт.");
+      status("Войди в аккаунт, чтобы открыть студию.");
+
+      // Не перенаправляем автоматически:
+      // пользователь может войти через форму на этой странице.
       return;
     }
 
@@ -193,16 +196,25 @@ async function checkLogin() {
   }
 }
 
-/* Старая форма пароля больше не используется */
-
+/*
+ * Вход через аккаунт сайта.
+ * Пароль из этой формы не отправляем на сервер как отдельный пароль ведущего.
+ */
 if (loginForm) {
   loginForm.addEventListener("submit", async event => {
     event.preventDefault();
-    status("Войди через страницу аккаунта.");
 
-    if (passwordInput) passwordInput.value = "";
+    if (loginButton) loginButton.disabled = true;
 
-    location.href = "/login.html";
+    try {
+      status("Открываем страницу входа...");
+
+      if (passwordInput) passwordInput.value = "";
+
+      location.href = "/login.html?next=%2Fhost.html";
+    } finally {
+      if (loginButton) loginButton.disabled = false;
+    }
   });
 }
 
@@ -390,17 +402,9 @@ if (streamForm) {
         throw new Error("Войди в свой аккаунт на странице входа.");
       }
 
-      /*
-       * ИСПРАВЛЕНИЕ:
-       * Каждому запуску присваивается новое имя комнаты.
-       * Даже если старый эфир завершён, уникальное ограничение
-       * live_streams_room_name_key не будет мешать новому запуску.
-       */
-
       const baseName = baseRoomName.slice(0, 65);
       const userSuffix = currentUser.id.replace(/-/g, "").slice(0, 12);
       const randomSuffix = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-
       const roomName = `${baseName}_${userSuffix}_${randomSuffix}`;
 
       sdk = sdk || await loadSDK();
@@ -571,7 +575,7 @@ if (logoutButton) {
 
     setStudioVisible(false);
     status("Ты вышел из аккаунта.");
-    location.href = "/login.html";
+    location.href = "/login.html?next=%2Fhost.html";
   });
 }
 
