@@ -214,6 +214,94 @@
       Смотри прямые эфиры, общайся со зрителями и отправляй подарки ведущим.
     </p>
 
+
+    
+<!-- Кнопка выбора страны -->
+<div class="country-filter">
+  <button id="countryButton" type="button">🌍 Выбор страны ▼</button>
+
+  <div id="countryMenu" hidden>
+    <button type="button" data-country="all">🌐 Все страны</button>
+    <button type="button" data-country="Украина">🇺🇦 Украина</button>
+    <button type="button" data-country="Россия">🇷🇺 Россия</button>
+    <button type="button" data-country="Польша">🇵🇱 Польша</button>
+    <button type="button" data-country="Германия">🇩🇪 Германия</button>
+    <button type="button" data-country="Другие">🌐 Другие</button>
+  </div>
+</div>
+
+<style>
+.country-filter {
+  position: relative;
+  margin: 16px 0;
+}
+
+#countryButton {
+  background: #202020;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#countryMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 999;
+  min-width: 190px;
+  padding: 6px;
+  background: #151515;
+  border: 1px solid #444;
+  border-radius: 10px;
+}
+
+#countryMenu button {
+  display: block;
+  width: 100%;
+  padding: 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+#countryMenu button:hover {
+  background: #303030;
+}
+</style>
+
+<script>
+const countryButton = document.getElementById('countryButton');
+const countryMenu = document.getElementById('countryMenu');
+
+countryButton.addEventListener('click', () => {
+  countryMenu.hidden = !countryMenu.hidden;
+});
+
+countryMenu.querySelectorAll('button').forEach(button => {
+  button.addEventListener('click', () => {
+    countryButton.textContent =
+      button.dataset.country === 'all'
+        ? '🌍 Все страны ▼'
+        : button.textContent + ' ▼';
+
+    countryMenu.hidden = true;
+  });
+});
+
+document.addEventListener('click', event => {
+  if (!event.target.closest('.country-filter')) {
+    countryMenu.hidden = true;
+  }
+});
+</script>
+
+    
     <div id="streams" class="streams" aria-live="polite">
       <div class="empty">Загружаем эфиры...</div>
     </div>
