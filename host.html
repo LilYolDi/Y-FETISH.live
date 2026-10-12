@@ -340,10 +340,22 @@
               required
             >
 
-            <input id="roomName" type="hidden" value="live-main">
-            <button id="startButton" type="submit">Начать эфир</button>
+
+<label for="streamCountry">Страна эфира</label>
+<select id="streamCountry" name="country" required
+  style="width:100%;min-height:46px;padding:12px;border:1px solid #444;border-radius:10px;background:#151515;color:#fff;font-size:16px;">
+  <option value="Украина">🇺🇦 Украина</option>
+  <option value="Россия">🇷🇺 Россия</option>
+  <option value="Польша">🇵🇱 Польша</option>
+  <option value="Германия">🇩🇪 Германия</option>
+  <option value="Другие">🌐 Другие</option>
+</select>
+
+<input id="roomName" type="hidden" value="live-main">
+<button id="startButton" type="submit">Начать эфир</button>
           </form>
         </div>
+
 
         <div class="camera-controls">
           <button id="cameraButton" type="button" class="secondary">
