@@ -19,6 +19,10 @@ const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 
+const HOST_PASSWORD = process.env.HOST_PASSWORD || "";
+const HOST_SESSION_SECRET = process.env.HOST_SESSION_SECRET || "";
+const HOST_PROFILE_ID = process.env.HOST_PROFILE_ID || "";
+
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Не заданы SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY");
 }
@@ -33,9 +37,12 @@ const supabase = createClient(
 );
 
 const GUEST_COOKIE = "yfetish_live_guest";
+const HOST_COOKIE = "yfetish_live_host";
 
 const HOST_TIMEOUT_MS = 60 * 1000;
 const OLD_STREAM_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+const HOST_SESSION_MS = 7 * 24 * 60 * 60 * 1000;
+
 const hostActivity = new Map();
 
 function cleanText(value, max = 300) {
@@ -75,11 +82,24 @@ function getCookie(req, name) {
   return null;
 }
 
-function setGuestCookie(res, value) {
+function setCookie(res, name, value, maxAge) {
   res.append(
     "Set-Cookie",
-    `${GUEST_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`
+    `${name}=${encodeURIComponent(value)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`
   );
+}
+
+function clearCookie(res, name) {
+  res.append(
+    "Set-Cookie",
+    `${name}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+  );
+}
+
+/* Кошелёк гостя */
+
+function setGuestCookie(res, value) {
+  setCookie(res, GUEST_COOKIE, value, 604800);
 }
 
 function guestId(req, res) {
@@ -94,6 +114,68 @@ function guestId(req, res) {
   setGuestCookie(res, id);
 
   return id;
+}
+
+/* Защищённая сессия ведущего по общему паролю */
+
+function hostSignature(expires) {
+  return crypto
+    .createHmac("sha256", HOST_SESSION_SECRET)
+    .update(`${HOST_PROFILE_ID}.${expires}`)
+    .digest("hex");
+}
+
+function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") {
+    return false;
+  }
+
+  const first = Buffer.from(a);
+  const second = Buffer.from(b);
+
+  return first.length === second.length &&
+    crypto.timingSafeEqual(first, second);
+}
+
+function getHostSession(req) {
+  if (!HOST_SESSION_SECRET || !HOST_PROFILE_ID) {
+    return null;
+  }
+
+  const value = getCookie(req, HOST_COOKIE);
+
+  if (!value) return null;
+
+  const parts = value.split(".");
+
+  if (parts.length !== 2) return null;
+
+  const expires = parts[0];
+  const signature = parts[1];
+
+  if (!/^\d+$/.test(expires)) return null;
+  if (Number(expires) <= Date.now()) return null;
+
+  if (!safeEqual(signature, hostSignature(expires))) {
+    return null;
+  }
+
+  return {
+    hostId: HOST_PROFILE_ID,
+    expires: Number(expires)
+  };
+}
+
+function createHostSession(res) {
+  const expires = String(Date.now() + HOST_SESSION_MS);
+  const signature = hostSignature(expires);
+
+  setCookie(
+    res,
+    HOST_COOKIE,
+    `${expires}.${signature}`,
+    Math.floor(HOST_SESSION_MS / 1000)
+  );
 }
 
 /* Проверка аккаунта через Supabase Auth */
@@ -130,10 +212,40 @@ async function requireUser(req, res, next) {
 }
 
 /*
- * ИСПРАВЛЕНИЕ:
- * Перед запуском эфира проверяем наличие профиля в profiles.
- * live_streams.host_id ссылается на profiles.id.
+ * Доступ ведущего:
+ * 1. Через защищённую сессию общего пароля.
+ * 2. Через существующий аккаунт Supabase.
  */
+
+async function requireHostAccess(req, res, next) {
+  try {
+    const session = getHostSession(req);
+
+    if (session) {
+      req.hostId = session.hostId;
+      req.sharedHost = true;
+      return next();
+    }
+
+    const user = await getUser(req);
+
+    if (!user) {
+      return res.status(401).json({
+        error: "Войди как ведущий, чтобы продолжить."
+      });
+    }
+
+    req.user = user;
+    req.hostId = user.id;
+    req.sharedHost = false;
+
+    next();
+  } catch (error) {
+    sendError(res, error, "Не удалось проверить доступ ведущего");
+  }
+}
+
+/* Проверка профиля ведущего */
 
 async function ensureHostProfile(user) {
   const { data: profile, error: checkError } = await supabase
@@ -142,13 +254,9 @@ async function ensureHostProfile(user) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (checkError) {
-    throw checkError;
-  }
+  if (checkError) throw checkError;
 
-  if (profile) {
-    return;
-  }
+  if (profile) return;
 
   const emailName = user.email
     ? user.email.split("@")[0]
@@ -175,11 +283,31 @@ async function ensureHostProfile(user) {
       }
     );
 
-  if (insertError) {
-    throw insertError;
-  }
+  if (insertError) throw insertError;
 
   console.log("Профиль ведущего проверен:", user.id);
+}
+
+async function ensureSharedHostProfile() {
+  if (!HOST_PROFILE_ID) {
+    throw new Error(
+      "В Render не задан HOST_PROFILE_ID — укажи существующий ID из profiles"
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", HOST_PROFILE_ID)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  if (!data) {
+    throw new Error(
+      "HOST_PROFILE_ID не найден в profiles. Укажи ID существующего профиля"
+    );
+  }
 }
 
 async function getNickname(user) {
@@ -192,6 +320,26 @@ async function getNickname(user) {
   return data?.nickname ||
     cleanText(user.user_metadata?.nickname, 24) ||
     "Пользователь";
+}
+
+async function getHostNickname(hostId) {
+  const { data: userProfile } = await supabase
+    .from("user_profiles")
+    .select("nickname")
+    .eq("id", hostId)
+    .maybeSingle();
+
+  if (userProfile?.nickname) {
+    return userProfile.nickname;
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("username")
+    .eq("id", hostId)
+    .maybeSingle();
+
+  return profile?.username || "Ведущий";
 }
 
 async function getLiveStream(roomName) {
@@ -341,8 +489,6 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
       });
     }
 
-    /* Если запись создал параллельный запрос, читаем её повторно */
-
     const { data: existing, error: readError } = await supabase
       .from("user_wallets")
       .select("balance")
@@ -351,7 +497,7 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
 
     if (readError) throw readError;
 
-    return res.json({
+    res.json({
       balance: Number(existing.balance || 0)
     });
   } catch (error) {
@@ -359,35 +505,88 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
   }
 });
 
-/* Статус авторизации */
+/* Статус авторизации ведущего */
 
-app.get("/api/host/status", requireUser, async (req, res) => {
+app.get("/api/host/status", async (req, res) => {
   try {
+    const session = getHostSession(req);
+
+    if (session) {
+      return res.json({
+        authenticated: true,
+        sharedHost: true,
+        userId: session.hostId,
+        nickname: await getHostNickname(session.hostId)
+      });
+    }
+
+    const user = await getUser(req);
+
+    if (!user) {
+      return res.json({
+        authenticated: false,
+        sharedHost: false
+      });
+    }
+
     res.json({
       authenticated: true,
-      userId: req.user.id,
-      nickname: await getNickname(req.user)
+      sharedHost: false,
+      userId: user.id,
+      nickname: await getNickname(user)
     });
   } catch (error) {
-    sendError(res, error, "Не удалось загрузить профиль");
+    sendError(res, error, "Не удалось проверить статус ведущего");
   }
 });
 
-/* Совместимость со старой формой входа */
+/* Вход ведущего по общему паролю */
 
-app.post("/api/host/login", (req, res) => {
-  res.status(410).json({
-    error: "Общий пароль отключён. Войди через свой аккаунт."
-  });
+app.post("/api/host/login", async (req, res) => {
+  try {
+    if (!HOST_PASSWORD || !HOST_SESSION_SECRET || !HOST_PROFILE_ID) {
+      return res.status(503).json({
+        error: "В Render должны быть заданы HOST_PASSWORD, HOST_SESSION_SECRET и HOST_PROFILE_ID."
+      });
+    }
+
+    const password = typeof req.body?.password === "string"
+      ? req.body.password
+      : "";
+
+    if (!safeEqual(password, HOST_PASSWORD)) {
+      return res.status(401).json({
+        error: "Неверный пароль"
+      });
+    }
+
+    await ensureSharedHostProfile();
+
+    createHostSession(res);
+
+    res.json({
+      success: true,
+      authenticated: true,
+      sharedHost: true,
+      userId: HOST_PROFILE_ID,
+      nickname: await getHostNickname(HOST_PROFILE_ID)
+    });
+  } catch (error) {
+    sendError(res, error, "Не удалось выполнить вход ведущего");
+  }
 });
 
+/* Выход ведущего */
+
 app.post("/api/host/logout", (req, res) => {
+  clearCookie(res, HOST_COOKIE);
+
   res.json({ success: true });
 });
 
 /* Активность эфира: только его владелец */
 
-app.post("/api/streams/heartbeat", requireUser, async (req, res) => {
+app.post("/api/streams/heartbeat", requireHostAccess, async (req, res) => {
   try {
     const roomName = cleanText(req.body?.roomName, 100);
 
@@ -414,7 +613,7 @@ app.post("/api/streams/heartbeat", requireUser, async (req, res) => {
       });
     }
 
-    if (stream.host_id !== req.user.id) {
+    if (stream.host_id !== req.hostId) {
       return res.status(403).json({
         error: "Это не твой эфир"
       });
@@ -473,7 +672,7 @@ app.get("/api/streams", async (req, res) => {
 
 /* Запуск эфира */
 
-app.post("/api/streams/start", requireUser, async (req, res) => {
+app.post("/api/streams/start", requireHostAccess, async (req, res) => {
   try {
     const title = cleanText(req.body?.title, 150) || "Прямой эфир";
     const roomName = cleanText(req.body?.roomName, 100);
@@ -498,12 +697,11 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
       });
     }
 
-    /*
-     * Сначала создаём или проверяем профиль ведущего.
-     * Это предотвращает ошибку внешнего ключа host_id.
-     */
-
-    await ensureHostProfile(req.user);
+    if (req.sharedHost) {
+      await ensureSharedHostProfile();
+    } else {
+      await ensureHostProfile(req.user);
+    }
 
     await cleanupOldStreams();
 
@@ -511,7 +709,7 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
       .from("live_streams")
       .select("id, host_id")
       .eq("status", "live")
-      .eq("host_id", req.user.id)
+      .eq("host_id", req.hostId)
       .maybeSingle();
 
     if (checkError) throw checkError;
@@ -540,7 +738,7 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
     const { data, error } = await supabase
       .from("live_streams")
       .insert({
-        host_id: req.user.id,
+        host_id: req.hostId,
         title,
         room_name: roomName,
         country,
@@ -567,7 +765,7 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
 
 /* Завершение эфира */
 
-app.post("/api/streams/stop", requireUser, async (req, res) => {
+app.post("/api/streams/stop", requireHostAccess, async (req, res) => {
   try {
     const roomName = cleanText(req.body?.roomName, 100);
 
@@ -577,7 +775,7 @@ app.post("/api/streams/stop", requireUser, async (req, res) => {
       });
     }
 
-    const stopped = await endStream(roomName, req.user.id);
+    const stopped = await endStream(roomName, req.hostId);
 
     res.json({
       success: true,
@@ -609,10 +807,19 @@ app.get("/api/livekit/token", async (req, res) => {
     }
 
     const user = await getUser(req);
-    const isHost = Boolean(user && stream.host_id === user.id);
+    const session = getHostSession(req);
+
+    const authenticatedHostId = session
+      ? session.hostId
+      : user?.id;
+
+    const isHost = Boolean(
+      authenticatedHostId &&
+      stream.host_id === authenticatedHostId
+    );
 
     const identity = isHost
-      ? `host-${user.id}`
+      ? `host-${authenticatedHostId}`
       : `viewer-${crypto.randomUUID()}`;
 
     const token = new AccessToken(
@@ -739,7 +946,7 @@ app.get("/api/gifts", async (req, res) => {
   }
 });
 
-/* Кошелёк гостя — без изменений */
+/* Кошелёк гостя */
 
 app.get("/api/wallet", async (req, res) => {
   try {
@@ -762,7 +969,7 @@ app.get("/api/wallet", async (req, res) => {
   }
 });
 
-/* Отправка подарка — без изменений */
+/* Отправка подарка */
 
 app.post("/api/gifts/send", async (req, res) => {
   try {
