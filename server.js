@@ -250,6 +250,10 @@ app.get("/host.html", (req, res) => {
   res.sendFile(path.join(__dirname, "host.html"));
 });
 
+app.get("/login.html", (req, res) => {
+  res.sendFile(path.join(__dirname, "login.html"));
+});
+
 app.get("/app.js", (req, res) => {
   res.sendFile(path.join(__dirname, "app.js"));
 });
