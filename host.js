@@ -10,6 +10,7 @@ const loginButton = $("loginButton");
 const streamForm = $("streamForm");
 const titleInput = $("streamTitle");
 const roomInput = $("roomName");
+const countryInput = $("streamCountry");
 const startButton = $("startButton");
 const stopButton = $("stopButton");
 const logoutButton = $("logoutButton");
@@ -372,6 +373,7 @@ if (streamForm) {
 
     const title = titleInput ? titleInput.value.trim() : "";
     const roomName = roomInput ? roomInput.value.trim() : "";
+    const country = countryInput ? countryInput.value : "Украина";
 
     if (!title || !/^[A-Za-z0-9_-]{1,80}$/.test(roomName)) {
       status("Укажи название и корректное имя комнаты.");
@@ -407,7 +409,8 @@ if (streamForm) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
-          roomName
+          roomName,
+          country
         })
       });
 
