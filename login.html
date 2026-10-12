@@ -32,16 +32,42 @@
       border-radius: 16px;
     }
 
+    /* Логотип Y-FETISH LIVE */
     .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
       margin: 0 0 8px;
       text-align: center;
+      font-family: "Arial Rounded MT Bold", Arial, sans-serif;
       font-size: 29px;
       font-weight: 900;
       letter-spacing: -1px;
+      white-space: nowrap;
     }
 
-    .logo .y { color: #ff1744; }
-    .logo .fetish { color: #fff; }
+    .logo .y {
+      color: #ff3038;
+      font-weight: 900;
+    }
+
+    .logo .fetish {
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .logo .live {
+      display: inline-block;
+      margin-left: 7px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: #ff3038;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
 
     .subtitle {
       margin: 0 0 24px;
@@ -157,14 +183,25 @@
     .back:hover { color: #fff; }
 
     [hidden] { display: none !important; }
+
+    @media (max-width: 380px) {
+      .logo { font-size: 25px; }
+
+      .logo .live {
+        margin-left: 5px;
+        padding: 3px 6px;
+        font-size: 12px;
+      }
+
+      .card { padding: 25px 17px; }
+    }
   </style>
 </head>
 
 <body>
   <main class="card">
     <h1 class="logo">
-      <span class="y">Y</span><span class="fetish">-FETISH</span>
-      <span style="color:#ff1744">LIVE</span>
+      <span class="y">Y</span><span class="fetish">-FETISH</span><span class="live">LIVE</span>
     </h1>
 
     <p class="subtitle">Твой аккаунт и твои эфиры</p>
@@ -380,8 +417,6 @@
 
       const email = $("email").value.trim();
       const password = $("password").value;
-
-      // Сохраняем регистр ника, который выбрал пользователь.
       const nickname = $("registerNickname").value.trim();
 
       try {
@@ -394,7 +429,6 @@
             );
           }
 
-          // Проверка занятости ника без учёта регистра.
           const { data: existing, error: checkError } = await client
             .from("user_profiles")
             .select("id")
