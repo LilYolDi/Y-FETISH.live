@@ -33,14 +33,37 @@
       flex-wrap: wrap;
     }
 
+    /* Новый логотип */
     .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      font-family: "Arial Rounded MT Bold", Arial, sans-serif;
       font-size: 25px;
-      font-weight: bold;
+      font-weight: 900;
+      letter-spacing: -1px;
       white-space: nowrap;
     }
 
-    .logo span {
-      color: #f22;
+    .logo-y {
+      color: #ff3038;
+      font-weight: 900;
+    }
+
+    .logo-name {
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .logo-live {
+      margin-left: 7px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: #ff3038;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
     }
 
     .header-right {
@@ -345,6 +368,12 @@
         font-size: 21px;
       }
 
+      .logo-live {
+        font-size: 12px;
+        padding: 3px 6px;
+        margin-left: 5px;
+      }
+
       .header-right {
         gap: 7px;
       }
@@ -392,6 +421,12 @@
         font-size: 19px;
       }
 
+      .logo-live {
+        font-size: 11px;
+        padding: 3px 5px;
+        margin-left: 4px;
+      }
+
       .header-right {
         gap: 5px;
       }
@@ -407,7 +442,9 @@
 
 <body>
   <header>
-    <div class="logo"><span>Y</span>-FETISH LIVE</div>
+    <div class="logo">
+      <span class="logo-y">Y</span><span class="logo-name">-FETISH</span><span class="logo-live">LIVE</span>
+    </div>
 
     <div class="header-right">
       <div class="header-title">Прямые эфиры</div>
