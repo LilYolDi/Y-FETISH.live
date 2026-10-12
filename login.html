@@ -2,9 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080808">
-  <title>Вход — Y-FETISH LIVE</title>
+
+  <title>Вход и регистрация — Y-FETISH LIVE</title>
+  <meta name="description" content="Вход и регистрация пользователей Y-FETISH LIVE.">
 
   <style>
     * { box-sizing: border-box; }
@@ -12,8 +14,7 @@
     body {
       margin: 0;
       min-height: 100vh;
-      min-height: 100dvh;
-      padding: 20px;
+      padding: 24px 14px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -24,91 +25,116 @@
 
     .card {
       width: 100%;
-      max-width: 400px;
-      padding: 26px 22px;
+      max-width: 420px;
+      padding: 28px 22px;
       background: #151515;
-      border: 1px solid #292929;
+      border: 1px solid #303030;
       border-radius: 16px;
     }
 
     .logo {
-      display: block;
-      margin-bottom: 12px;
+      margin: 0 0 8px;
       text-align: center;
-      text-decoration: none;
-      font-size: 30px;
+      font-size: 29px;
       font-weight: 900;
       letter-spacing: -1px;
     }
 
-    .logo-y { color: #ff1744; }
-    .logo-fetish { color: #fff; }
+    .logo .y { color: #ff1744; }
+    .logo .fetish { color: #fff; }
 
-    h1 {
-      margin: 0 0 22px;
+    .subtitle {
+      margin: 0 0 24px;
       text-align: center;
-      font-size: 22px;
+      color: #aaa;
+      font-size: 14px;
     }
 
     .tabs {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       gap: 8px;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     button, input {
-      width: 100%;
-      min-height: 46px;
-      border-radius: 9px;
-      font-size: 15px;
+      font: inherit;
     }
 
-    button {
-      padding: 10px;
-      border: 0;
-      cursor: pointer;
-      font-weight: 700;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .tab {
-      background: #292929;
+    .tabs button {
+      flex: 1;
+      padding: 12px 8px;
       color: #ddd;
+      background: #242424;
+      border: 1px solid #383838;
+      border-radius: 8px;
+      cursor: pointer;
     }
 
-    .tab.active {
-      background: #ff1744;
+    .tabs button.active {
       color: #fff;
+      background: #b9002a;
+      border-color: #ff1744;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      color: #ddd;
+      font-size: 13px;
     }
 
     input {
-      display: block;
-      margin-bottom: 12px;
-      padding: 0 13px;
-      border: 1px solid #383838;
-      background: #0d0d0d;
+      width: 100%;
+      min-height: 46px;
+      padding: 12px;
       color: #fff;
+      background: #090909;
+      border: 1px solid #393939;
+      border-radius: 8px;
       outline: none;
     }
 
-    input:focus { border-color: #ff1744; }
-
-    .primary {
-      background: #ff1744;
-      color: #fff;
+    input:focus {
+      border-color: #ff1744;
     }
 
-    .forgot {
+    .hint {
+      margin: 6px 0 0;
+      color: #999;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 46px;
+      margin-top: 5px;
+      padding: 12px;
+      color: white;
+      background: #e60035;
+      border: 0;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .primary:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
+    .secondary {
       display: block;
-      width: auto;
-      min-height: auto;
-      margin: 0 0 14px auto;
-      padding: 4px 0;
-      background: transparent;
-      color: #ff657f;
-      font-weight: 400;
+      margin: 16px auto 0;
+      padding: 5px;
+      color: #ff6684;
+      background: none;
+      border: 0;
+      cursor: pointer;
     }
 
     .message {
@@ -116,20 +142,16 @@
       margin-top: 16px;
       padding: 12px;
       border-radius: 8px;
-      background: #252525;
+      background: #242424;
+      color: #eee;
       font-size: 14px;
       line-height: 1.5;
       overflow-wrap: anywhere;
     }
 
-    .secondary {
-      margin-top: 12px;
-      background: transparent;
-      color: #ccc;
-      border: 1px solid #383838;
-    }
+    .message.show { display: block; }
 
-    .home {
+    .back {
       display: block;
       margin-top: 20px;
       color: #aaa;
@@ -138,302 +160,394 @@
       font-size: 14px;
     }
 
-    .hidden { display: none !important; }
-    button:disabled { opacity: .6; }
+    .back:hover { color: #fff; }
+
+    [hidden] { display: none !important; }
   </style>
 </head>
 
 <body>
   <main class="card">
-    <a href="/" class="logo">
-      <span class="logo-y">Y</span><span class="logo-fetish">-FETISH</span>
-    </a>
+    <h1 class="logo">
+      <span class="y">Y</span><span class="fetish">-FETISH</span>
+      <span style="color:#ff1744">LIVE</span>
+    </h1>
 
-    <h1 id="pageTitle">Вход в аккаунт</h1>
+    <p class="subtitle">Твой аккаунт и твои эфиры</p>
 
     <div class="tabs" id="tabs">
-      <button type="button" class="tab active" id="loginTab">Войти</button>
-      <button type="button" class="tab" id="signupTab">Регистрация</button>
+      <button type="button" id="loginTab" class="active">Войти</button>
+      <button type="button" id="registerTab">Регистрация</button>
     </div>
 
     <form id="authForm">
-      <input id="email" type="email" placeholder="Email"
-             autocomplete="email" required>
+      <div class="field" id="nicknameField" hidden>
+        <label for="registerNickname">Твой ник</label>
+        <input
+          type="text"
+          id="registerNickname"
+          minlength="3"
+          maxlength="24"
+          pattern="[A-Za-z0-9_]+"
+          autocomplete="nickname"
+          placeholder="Например, my_nick"
+          spellcheck="false"
+        >
+        <p class="hint">
+          3–24 символа: латинские буквы, цифры и знак _.
+          Ник должен быть уникальным.
+        </p>
+      </div>
 
-      <input id="password" type="password" placeholder="Пароль"
-             autocomplete="current-password" minlength="6" required>
+      <div class="field">
+        <label for="email">Электронная почта</label>
+        <input
+          type="email"
+          id="email"
+          autocomplete="email"
+          placeholder="name@example.com"
+          required
+        >
+      </div>
 
-      <button type="button" class="forgot" id="forgotButton">
-        Забыли пароль?
+      <div class="field">
+        <label for="password">Пароль</label>
+        <input
+          type="password"
+          id="password"
+          minlength="6"
+          autocomplete="current-password"
+          placeholder="Минимум 6 символов"
+          required
+        >
+      </div>
+
+      <button class="primary" id="submitButton" type="submit">
+        Войти
       </button>
-
-      <button type="submit" class="primary" id="submitButton">Войти</button>
     </form>
 
-    <form id="newPasswordForm" class="hidden">
-      <input id="newPassword" type="password" placeholder="Новый пароль"
-             minlength="6" autocomplete="new-password" required>
-
-      <input id="repeatPassword" type="password"
-             placeholder="Повторите новый пароль"
-             minlength="6" autocomplete="new-password" required>
-
-      <button type="submit" class="primary">Сохранить пароль</button>
-    </form>
-
-    <button type="button" class="secondary hidden" id="backButton">
-      Вернуться ко входу
+    <button type="button" class="secondary" id="forgotButton">
+      Забыли пароль?
     </button>
 
+    <form id="recoveryForm" hidden>
+      <div class="field">
+        <label for="recoveryEmail">Электронная почта аккаунта</label>
+        <input
+          type="email"
+          id="recoveryEmail"
+          autocomplete="email"
+          placeholder="name@example.com"
+          required
+        >
+      </div>
+      <button class="primary" type="submit" id="recoveryButton">
+        Отправить ссылку восстановления
+      </button>
+      <button type="button" class="secondary" id="backButton">
+        Назад
+      </button>
+    </form>
+
+    <form id="resetForm" hidden>
+      <div class="field">
+        <label for="newPassword">Новый пароль</label>
+        <input
+          type="password"
+          id="newPassword"
+          minlength="6"
+          autocomplete="new-password"
+          required
+        >
+      </div>
+      <button class="primary" type="submit" id="resetButton">
+        Сохранить новый пароль
+      </button>
+    </form>
+
     <div class="message" id="message" role="status" aria-live="polite"></div>
-    <a href="/" class="home">← Вернуться к эфирам</a>
+
+    <a class="back" href="/">← Вернуться на главную</a>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    (() => {
-      "use strict";
+    "use strict";
 
-      // ВСТАВЬ URL И ПУБЛИЧНЫЙ КЛЮЧ SUPABASE ДЛЯ Y-FETISH LIVE
-      const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
-      const SUPABASE_PUBLIC_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+    const SUPABASE_URL =
+      "https://cdyuxiicllnfrwssigsr.supabase.co";
 
-      const $ = id => document.getElementById(id);
+    const SUPABASE_KEY =
+      "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
 
-      const loginTab = $("loginTab");
-      const signupTab = $("signupTab");
-      const tabs = $("tabs");
-      const authForm = $("authForm");
-      const newPasswordForm = $("newPasswordForm");
-      const emailInput = $("email");
-      const passwordInput = $("password");
-      const forgotButton = $("forgotButton");
-      const submitButton = $("submitButton");
-      const backButton = $("backButton");
-      const pageTitle = $("pageTitle");
+    const supabase = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
 
-      let mode = "login";
-      let recoveryMode = false;
-      let supabaseClient = null;
+    const $ = (id) => document.getElementById(id);
 
-      function message(text) {
-        $("message").textContent = text;
-        $("message").style.display = "block";
+    let mode = "login";
+    let busy = false;
+
+    function showMessage(text) {
+      $("message").textContent = text;
+      $("message").classList.add("show");
+    }
+
+    function clearMessage() {
+      $("message").textContent = "";
+      $("message").classList.remove("show");
+    }
+
+    function setBusy(value) {
+      busy = value;
+      $("submitButton").disabled = value;
+      $("recoveryButton").disabled = value;
+      $("resetButton").disabled = value;
+    }
+
+    function setMode(nextMode) {
+      mode = nextMode;
+      clearMessage();
+
+      $("authForm").hidden = false;
+      $("recoveryForm").hidden = true;
+      $("resetForm").hidden = true;
+      $("tabs").hidden = false;
+      $("forgotButton").hidden = false;
+
+      const registering = mode === "register";
+
+      $("nicknameField").hidden = !registering;
+      $("registerNickname").required = registering;
+      $("password").autocomplete =
+        registering ? "new-password" : "current-password";
+
+      $("loginTab").classList.toggle("active", !registering);
+      $("registerTab").classList.toggle("active", registering);
+
+      $("submitButton").textContent =
+        registering ? "Создать аккаунт" : "Войти";
+
+      $("forgotButton").hidden = registering;
+    }
+
+    $("loginTab").addEventListener("click", () => setMode("login"));
+    $("registerTab").addEventListener("click", () => setMode("register"));
+
+    $("forgotButton").addEventListener("click", () => {
+      clearMessage();
+      $("authForm").hidden = true;
+      $("tabs").hidden = true;
+      $("forgotButton").hidden = true;
+      $("recoveryForm").hidden = false;
+      $("recoveryEmail").value = $("email").value.trim();
+    });
+
+    $("backButton").addEventListener("click", () => setMode("login"));
+
+    function friendlyError(error) {
+      const text = String(error?.message || "");
+
+      if (/user_profiles_nickname_lower_unique|duplicate key|unique constraint/i.test(text)) {
+        return "Этот ник уже занят. Придумай другой.";
       }
 
-      function clearMessage() {
-        $("message").textContent = "";
-        $("message").style.display = "none";
+      if (/invalid login credentials/i.test(text)) {
+        return "Неверная почта или пароль.";
       }
 
-      function setMode(nextMode) {
-        mode = nextMode;
-        recoveryMode = false;
-
-        tabs.classList.remove("hidden");
-        authForm.classList.remove("hidden");
-        newPasswordForm.classList.add("hidden");
-        backButton.classList.add("hidden");
-
-        emailInput.classList.remove("hidden");
-        passwordInput.classList.remove("hidden");
-        passwordInput.required = true;
-        forgotButton.classList.toggle("hidden", nextMode !== "login");
-
-        loginTab.classList.toggle("active", nextMode === "login");
-        signupTab.classList.toggle("active", nextMode === "signup");
-
-        pageTitle.textContent =
-          nextMode === "login" ? "Вход в аккаунт" : "Регистрация";
-
-        submitButton.textContent =
-          nextMode === "login" ? "Войти" : "Зарегистрироваться";
-
-        passwordInput.autocomplete =
-          nextMode === "login" ? "current-password" : "new-password";
-
-        clearMessage();
+      if (/email not confirmed/i.test(text)) {
+        return "Подтверди электронную почту по ссылке из письма.";
       }
 
-      // Переключение работает независимо от Supabase.
-      loginTab.addEventListener("click", () => setMode("login"));
-      signupTab.addEventListener("click", () => setMode("signup"));
-
-      function showRecovery() {
-        recoveryMode = true;
-        tabs.classList.add("hidden");
-        authForm.classList.remove("hidden");
-        newPasswordForm.classList.add("hidden");
-        backButton.classList.remove("hidden");
-
-        passwordInput.classList.add("hidden");
-        passwordInput.required = false;
-        forgotButton.classList.add("hidden");
-        submitButton.textContent = "Отправить ссылку";
-        pageTitle.textContent = "Восстановление пароля";
-        clearMessage();
+      if (/user already registered/i.test(text)) {
+        return "Этот email уже зарегистрирован. Попробуй войти.";
       }
 
-      function showNewPassword() {
-        recoveryMode = true;
-        tabs.classList.add("hidden");
-        authForm.classList.add("hidden");
-        newPasswordForm.classList.remove("hidden");
-        backButton.classList.remove("hidden");
-        pageTitle.textContent = "Новый пароль";
-        clearMessage();
-      }
+      return text || "Произошла ошибка. Попробуй ещё раз.";
+    }
 
-      forgotButton.addEventListener("click", showRecovery);
-      backButton.addEventListener("click", () => setMode("login"));
+    $("authForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
 
-      // Проверяем подключение Supabase отдельно.
+      clearMessage();
+      setBusy(true);
+
+      const email = $("email").value.trim();
+      const password = $("password").value;
+      const nickname = $("registerNickname").value.trim().toLowerCase();
+
       try {
-        if (!window.supabase) {
-          throw new Error("Не загрузилась библиотека Supabase. Обнови страницу.");
-        }
+        if (mode === "register") {
+          if (!/^[a-z0-9_]{3,24}$/.test(nickname)) {
+            throw new Error(
+              "Ник: 3–24 символа, только латинские буквы, цифры и _."
+            );
+          }
 
-        if (
-          SUPABASE_URL.includes("ВСТАВЬ_") ||
-          SUPABASE_PUBLIC_KEY.includes("ВСТАВЬ_")
-        ) {
-          throw new Error("Вставь URL и публичный ключ своего проекта Supabase.");
-        }
+          // Предварительно проверяем занятость ника.
+          const { data: existing, error: checkError } = await supabase
+            .from("user_profiles")
+            .select("id")
+            .ilike("nickname", nickname)
+            .limit(1);
 
-        supabaseClient = window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_PUBLIC_KEY
-        );
-      } catch (error) {
-        message(error.message);
-      }
+          if (checkError) {
+            throw new Error(
+              "Не удалось проверить ник. Проверь таблицу user_profiles в Supabase."
+            );
+          }
 
-      authForm.addEventListener("submit", async event => {
-        event.preventDefault();
-        clearMessage();
+          if (existing && existing.length > 0) {
+            throw new Error("Этот ник уже занят. Придумай другой.");
+          }
 
-        if (!supabaseClient) {
-          message("Проверь URL и публичный ключ Supabase в коде страницы.");
-          return;
-        }
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { nickname },
+              emailRedirectTo: location.origin + "/login.html"
+            }
+          });
 
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
+          if (error) throw error;
 
-        submitButton.disabled = true;
-
-        try {
-          if (recoveryMode) {
-            const { error } =
-              await supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: location.origin + "/login.html"
-              });
-
-            if (error) throw error;
-
-            message("Проверь почту и открой ссылку для сброса пароля.");
+          if (data.session) {
+            location.replace("/");
             return;
           }
 
-          if (mode === "signup") {
-            const { data, error } = await supabaseClient.auth.signUp({
+          showMessage(
+            "Аккаунт создан. Проверь почту и подтверди регистрацию, затем войди."
+          );
+        } else {
+          const { data, error } =
+            await supabase.auth.signInWithPassword({
               email,
-              password,
-              options: {
-                emailRedirectTo: location.origin + "/login.html"
-              }
+              password
             });
 
-            if (error) throw error;
-
-            if (data.session) {
-              message("Регистрация успешна. Переходим к эфирам...");
-              location.replace("/");
-            } else {
-              message("Проверь почту и подтверди регистрацию, затем войди.");
-            }
-          } else {
-            const { error } =
-              await supabaseClient.auth.signInWithPassword({
-                email,
-                password
-              });
-
-            if (error) throw error;
-
-            message("Вход выполнен. Переходим к эфирам...");
-            location.replace("/");
-          }
-        } catch (error) {
-          message("Ошибка: " + (error.message || "Попробуй ещё раз."));
-        } finally {
-          submitButton.disabled = false;
-        }
-      });
-
-      newPasswordForm.addEventListener("submit", async event => {
-        event.preventDefault();
-        clearMessage();
-
-        if (!supabaseClient) {
-          message("Не удалось подключиться к Supabase.");
-          return;
-        }
-
-        const password = $("newPassword").value;
-        const repeat = $("repeatPassword").value;
-
-        if (password.length < 6) {
-          message("Пароль должен содержать минимум 6 символов.");
-          return;
-        }
-
-        if (password !== repeat) {
-          message("Пароли не совпадают.");
-          return;
-        }
-
-        const button = newPasswordForm.querySelector("button");
-        button.disabled = true;
-
-        try {
-          const { error } = await supabaseClient.auth.updateUser({ password });
           if (error) throw error;
 
-          newPasswordForm.classList.add("hidden");
-          message("Пароль изменён. Теперь вернись ко входу.");
-          backButton.classList.remove("hidden");
-        } catch (error) {
-          message("Ошибка смены пароля: " + error.message);
-        } finally {
-          button.disabled = false;
-        }
-      });
+          if (!data.session) {
+            throw new Error("Не удалось создать сессию. Попробуй ещё раз.");
+          }
 
-      async function initRecovery() {
-        if (!supabaseClient) return;
-
-        const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-        const query = new URLSearchParams(location.search);
-
-        if (hash.get("type") === "recovery" ||
-            query.get("type") === "recovery") {
-          showNewPassword();
+          location.replace("/");
           return;
         }
+      } catch (error) {
+        showMessage(friendlyError(error));
+      } finally {
+        setBusy(false);
+      }
+    });
 
-        const { data } = await supabaseClient.auth.getSession();
+    $("recoveryForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
 
-        if (data.session &&
-            (hash.has("access_token") || query.has("code"))) {
-          showNewPassword();
+      clearMessage();
+      setBusy(true);
+
+      try {
+        const email = $("recoveryEmail").value.trim();
+
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          email,
+          { redirectTo: location.origin + "/login.html" }
+        );
+
+        if (error) throw error;
+
+        showMessage(
+          "Если для этой почты существует аккаунт, инструкция по восстановлению будет отправлена на неё."
+        );
+      } catch (error) {
+        showMessage(friendlyError(error));
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    $("resetForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
+
+      clearMessage();
+      setBusy(true);
+
+      try {
+        const newPassword = $("newPassword").value;
+
+        if (newPassword.length < 6) {
+          throw new Error("Пароль должен содержать минимум 6 символов.");
         }
+
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+
+        if (error) throw error;
+
+        showMessage("Пароль изменён. Теперь можешь войти.");
+
+        $("resetForm").hidden = true;
+        $("tabs").hidden = false;
+        setMode("login");
+      } catch (error) {
+        showMessage(friendlyError(error));
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    async function initializePage() {
+      const hash = new URLSearchParams(
+        location.hash.replace(/^#/, "")
+      );
+
+      const query = new URLSearchParams(location.search);
+
+      const recovery =
+        hash.get("type") === "recovery" ||
+        query.get("type") === "recovery";
+
+      if (recovery) {
+        $("authForm").hidden = true;
+        $("tabs").hidden = true;
+        $("forgotButton").hidden = true;
+        $("recoveryForm").hidden = true;
+        $("resetForm").hidden = false;
+
+        const { error } = await supabase.auth.getSession();
+
+        if (error) {
+          showMessage("Не удалось проверить сессию восстановления. Запроси новую ссылку.");
+        }
+
+        return;
       }
 
-      setMode("login");
-      initRecovery();
-    })();
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        showMessage("Не удалось проверить вход. Попробуй обновить страницу.");
+        return;
+      }
+
+      if (data.session) {
+        location.replace("/");
+      }
+    }
+
+    initializePage();
   </script>
 </body>
 </html>
