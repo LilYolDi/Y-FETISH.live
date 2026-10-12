@@ -269,7 +269,7 @@
 
     let mode = "login";
     let busy = false;
-    let supabase = null;
+    let supabaseClient = null;
 
     function showMessage(text) {
       $("message").textContent = text;
@@ -314,7 +314,7 @@
       $("forgotButton").hidden = registering;
     }
 
-    // Переключение вкладок подключается один раз.
+    // Каждый переключатель подключён ровно один раз.
     $("loginTab").addEventListener("click", () => setMode("login"));
     $("registerTab").addEventListener("click", () => setMode("register"));
 
@@ -335,12 +335,15 @@
       if (/user_profiles_nickname_lower_unique|duplicate key|unique constraint/i.test(text)) {
         return "Этот ник уже занят. Придумай другой.";
       }
+
       if (/invalid login credentials/i.test(text)) {
         return "Неверная почта или пароль.";
       }
+
       if (/email not confirmed/i.test(text)) {
         return "Подтверди электронную почту по ссылке из письма.";
       }
+
       if (/user already registered/i.test(text)) {
         return "Этот email уже зарегистрирован. Попробуй войти.";
       }
@@ -349,7 +352,7 @@
     }
 
     async function requireSupabase() {
-      if (supabase) return supabase;
+      if (supabaseClient) return supabaseClient;
 
       if (!window.supabase || !window.supabase.createClient) {
         throw new Error(
@@ -357,12 +360,12 @@
         );
       }
 
-      supabase = window.supabase.createClient(
+      supabaseClient = window.supabase.createClient(
         "https://cdyuxiicllnfrwssigsr.supabase.co",
         "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0"
       );
 
-      return supabase;
+      return supabaseClient;
     }
 
     $("authForm").addEventListener("submit", async (event) => {
@@ -533,7 +536,6 @@
         return;
       }
 
-      // Если SDK не загрузился, вкладки всё равно остаются рабочими.
       try {
         const client = await requireSupabase();
         const { data, error } = await client.auth.getSession();
