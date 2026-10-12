@@ -34,10 +34,6 @@ const supabase = createClient(
 
 const GUEST_COOKIE = "yfetish_live_guest";
 
-const GUEST_SESSION_SECRET =
-  process.env.GUEST_SESSION_SECRET ||
-  crypto.randomBytes(32).toString("hex");
-
 const HOST_TIMEOUT_MS = 60 * 1000;
 const OLD_STREAM_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 const hostActivity = new Map();
@@ -55,7 +51,10 @@ function validRoomName(value) {
 
 function sendError(res, error, message = "Ошибка сервера") {
   console.error(message, error);
-  return res.status(500).json({ error: message });
+
+  return res.status(500).json({
+    error: message
+  });
 }
 
 function getCookie(req, name) {
@@ -91,6 +90,7 @@ function guestId(req, res) {
   }
 
   const id = crypto.randomUUID();
+
   setGuestCookie(res, id);
 
   return id;
@@ -122,10 +122,64 @@ async function requireUser(req, res, next) {
     }
 
     req.user = user;
+
     next();
   } catch (error) {
     sendError(res, error, "Не удалось проверить аккаунт");
   }
+}
+
+/*
+ * ИСПРАВЛЕНИЕ:
+ * Перед запуском эфира проверяем наличие профиля в profiles.
+ * live_streams.host_id ссылается на profiles.id.
+ */
+
+async function ensureHostProfile(user) {
+  const { data: profile, error: checkError } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (checkError) {
+    throw checkError;
+  }
+
+  if (profile) {
+    return;
+  }
+
+  const emailName = user.email
+    ? user.email.split("@")[0]
+    : "";
+
+  const username = cleanText(
+    user.user_metadata?.username ||
+    user.user_metadata?.nickname ||
+    emailName ||
+    `user_${user.id.replace(/-/g, "").slice(0, 12)}`,
+    50
+  );
+
+  const { error: insertError } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        id: user.id,
+        username
+      },
+      {
+        onConflict: "id",
+        ignoreDuplicates: true
+      }
+    );
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  console.log("Профиль ведущего проверен:", user.id);
 }
 
 async function getNickname(user) {
@@ -444,6 +498,13 @@ app.post("/api/streams/start", requireUser, async (req, res) => {
       });
     }
 
+    /*
+     * Сначала создаём или проверяем профиль ведущего.
+     * Это предотвращает ошибку внешнего ключа host_id.
+     */
+
+    await ensureHostProfile(req.user);
+
     await cleanupOldStreams();
 
     const { data: existing, error: checkError } = await supabase
@@ -678,7 +739,7 @@ app.get("/api/gifts", async (req, res) => {
   }
 });
 
-/* Кошелёк гостя — оставлен без изменений */
+/* Кошелёк гостя — без изменений */
 
 app.get("/api/wallet", async (req, res) => {
   try {
@@ -701,7 +762,7 @@ app.get("/api/wallet", async (req, res) => {
   }
 });
 
-/* Отправка подарка — оставлена без изменений */
+/* Отправка подарка — без изменений */
 
 app.post("/api/gifts/send", async (req, res) => {
   try {
