@@ -1,6 +1,10 @@
+
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+
+const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
 
 const loginPanel = $("loginPanel");
 const studioPanel = $("studioPanel");
@@ -19,6 +23,8 @@ const statusText = $("status");
 const watchLink = $("watchLink");
 const cameraButton = $("cameraButton");
 
+let supabaseClient = null;
+let currentUser = null;
 let room = null;
 let localTracks = [];
 let activeRoomName = "";
@@ -33,19 +39,75 @@ function status(message) {
   if (statusText) statusText.textContent = message;
 }
 
+function setStudioVisible(authenticated) {
+  if (loginPanel) loginPanel.hidden = authenticated;
+  if (studioPanel) studioPanel.hidden = !authenticated;
+  document.body.classList.toggle("studio-active", authenticated);
+}
+
+async function loadSupabase() {
+  if (window.supabase?.createClient) {
+    supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Не удалось загрузить Supabase"));
+    document.head.appendChild(script);
+  });
+
+  supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+}
+
+async function getAccessToken() {
+  if (!supabaseClient) await loadSupabase();
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) throw error;
+
+  const session = data?.session;
+  if (!session?.access_token) return null;
+
+  currentUser = session.user;
+  return session.access_token;
+}
+
+async function apiFetch(url, options = {}) {
+  const token = await getAccessToken();
+
+  const headers = new Headers(options.headers || {});
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: "same-origin",
+    cache: "no-store"
+  });
+}
+
 async function loadSDK() {
   if (window.LivekitClient) return window.LivekitClient;
 
   await new Promise((resolve, reject) => {
     const script = document.createElement("script");
-
     script.src =
       "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
-
     script.onload = resolve;
-    script.onerror = () =>
-      reject(new Error("Не удалось загрузить LiveKit"));
-
+    script.onerror = () => reject(new Error("Не удалось загрузить LiveKit"));
     document.head.appendChild(script);
   });
 
@@ -56,15 +118,8 @@ async function loadSDK() {
   return window.LivekitClient;
 }
 
-function setStudioVisible(authenticated) {
-  if (loginPanel) loginPanel.hidden = authenticated;
-  if (studioPanel) studioPanel.hidden = !authenticated;
-
-  document.body.classList.toggle("studio-active", authenticated);
-}
-
 function getCameraTrack() {
-  return localTracks.find((track) => track.kind === "video") || null;
+  return localTracks.find(track => track.kind === "video") || null;
 }
 
 async function prepareCamera() {
@@ -76,7 +131,7 @@ async function prepareCamera() {
   try {
     sdk = await loadSDK();
 
-    const tracks = await sdk.createLocalTracks({
+    localTracks = await sdk.createLocalTracks({
       audio: true,
       video: {
         resolution: sdk.VideoPresets.h720.resolution,
@@ -84,26 +139,20 @@ async function prepareCamera() {
       }
     });
 
-    localTracks = tracks;
-
     const cameraTrack = getCameraTrack();
 
     if (cameraTrack && preview) {
       preview.srcObject = new MediaStream([
         cameraTrack.mediaStreamTrack
       ]);
-
       preview.hidden = false;
       await preview.play().catch(() => {});
     }
 
     status("Камера включена. Введи название и начинай эфир.");
   } catch (error) {
-    console.error("Camera preview error:", error);
-    status(
-      error.message ||
-      "Не удалось включить камеру. Проверь разрешения браузера."
-    );
+    console.error("Camera preview:", error);
+    status(error.message || "Не удалось включить камеру.");
   } finally {
     previewStarting = false;
   }
@@ -111,62 +160,50 @@ async function prepareCamera() {
 
 async function checkLogin() {
   try {
-    const response = await fetch("/api/host/status", {
-      credentials: "same-origin",
-      cache: "no-store"
-    });
+    await loadSupabase();
 
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+
+    if (!data?.session) {
+      currentUser = null;
+      setStudioVisible(false);
+      status("Сначала войди в свой аккаунт.");
+      return;
+    }
+
+    currentUser = data.session.user;
+
+    const response = await apiFetch("/api/host/status");
     const result = await response.json();
 
     if (!response.ok) {
-      throw new Error(result.error || "Ошибка проверки входа");
+      throw new Error(result.error || "Не удалось проверить аккаунт");
     }
 
-    setStudioVisible(Boolean(result.authenticated));
+    setStudioVisible(true);
+    status(
+      `Вход выполнен${result.nickname ? ": " + result.nickname : ""}. Подготавливаем камеру...`
+    );
 
-    if (result.authenticated) {
-      status("Вход выполнен. Подготавливаем камеру...");
-      await prepareCamera();
-    } else {
-      status("Войди, чтобы начать.");
-    }
+    await prepareCamera();
   } catch (error) {
-    status(error.message || "Не удалось проверить вход. Обнови страницу.");
+    console.error("Auth check:", error);
+    setStudioVisible(false);
+    status(error.message || "Не удалось проверить вход.");
   }
 }
 
+/* Старая форма пароля больше не используется */
+
 if (loginForm) {
-  loginForm.addEventListener("submit", async (event) => {
+  loginForm.addEventListener("submit", async event => {
     event.preventDefault();
+    status("Войди через страницу аккаунта.");
 
-    if (loginButton) loginButton.disabled = true;
+    if (passwordInput) passwordInput.value = "";
 
-    try {
-      const response = await fetch("/api/host/login", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: passwordInput ? passwordInput.value : ""
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Ошибка входа");
-      }
-
-      if (passwordInput) passwordInput.value = "";
-
-      setStudioVisible(true);
-      status("Вход выполнен. Подготавливаем камеру...");
-      await prepareCamera();
-    } catch (error) {
-      status(error.message || "Ошибка входа");
-    } finally {
-      if (loginButton) loginButton.disabled = false;
-    }
+    location.href = "/login.html";
   });
 }
 
@@ -179,71 +216,48 @@ async function switchCamera() {
     if (!cameraTrack) {
       await prepareCamera();
       cameraTrack = getCameraTrack();
-
       if (!cameraTrack) return;
     }
 
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(
-      (device) => device.kind === "videoinput"
-    );
+    const cameras = devices.filter(device => device.kind === "videoinput");
 
     if (cameras.length < 2) {
       currentFacingMode =
         currentFacingMode === "user" ? "environment" : "user";
 
-      if (typeof cameraTrack.restartTrack === "function") {
-        await cameraTrack.restartTrack({
-          facingMode: currentFacingMode
-        });
-
-        if (preview) {
-          preview.srcObject = new MediaStream([
-            cameraTrack.mediaStreamTrack
-          ]);
-
-          await preview.play().catch(() => {});
-        }
-
-        status("Камера переключена.");
-      } else {
-        status("Вторая камера на устройстве не найдена.");
+      if (typeof cameraTrack.restartTrack !== "function") {
+        status("Переключение камеры не поддерживается.");
+        return;
       }
 
-      return;
-    }
-
-    const currentDeviceId =
-      cameraTrack.mediaStreamTrack.getSettings().deviceId;
-
-    const currentIndex = cameras.findIndex(
-      (device) => device.deviceId === currentDeviceId
-    );
-
-    const nextCamera = cameras[(currentIndex + 1) % cameras.length];
-
-    if (typeof cameraTrack.switchCamera === "function") {
-      await cameraTrack.switchCamera(nextCamera.deviceId);
-    } else if (typeof cameraTrack.restartTrack === "function") {
-      await cameraTrack.restartTrack({
-        deviceId: nextCamera.deviceId
-      });
+      await cameraTrack.restartTrack({ facingMode: currentFacingMode });
     } else {
-      status("Переключение камеры не поддерживается этим браузером.");
-      return;
+      const currentId =
+        cameraTrack.mediaStreamTrack.getSettings().deviceId;
+      const index = cameras.findIndex(device => device.deviceId === currentId);
+      const nextCamera = cameras[(index + 1) % cameras.length];
+
+      if (typeof cameraTrack.switchCamera === "function") {
+        await cameraTrack.switchCamera(nextCamera.deviceId);
+      } else if (typeof cameraTrack.restartTrack === "function") {
+        await cameraTrack.restartTrack({ deviceId: nextCamera.deviceId });
+      } else {
+        status("Переключение камеры не поддерживается.");
+        return;
+      }
     }
 
     if (preview) {
       preview.srcObject = new MediaStream([
         cameraTrack.mediaStreamTrack
       ]);
-
       await preview.play().catch(() => {});
     }
 
     status("Камера переключена.");
   } catch (error) {
-    console.error("Camera switch error:", error);
+    console.error("Camera switch:", error);
     status("Не удалось переключить камеру.");
   }
 }
@@ -260,30 +274,21 @@ function stopHeartbeat() {
 }
 
 async function sendHeartbeat() {
-  const roomName = activeRoomName;
-
-  if (!roomName || !room) return;
+  if (!activeRoomName || !room) return;
 
   try {
-    const response = await fetch("/api/streams/heartbeat", {
+    const response = await apiFetch("/api/streams/heartbeat", {
       method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomName })
+      body: JSON.stringify({ roomName: activeRoomName })
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 || response.status === 403 ||
+        response.status === 404) {
       stopHeartbeat();
-      status("Сессия ведущего завершена. Войди снова.");
-      return;
-    }
-
-    if (response.status === 404) {
-      stopHeartbeat();
-      status("Эфир больше не активен на сервере.");
+      status("Сервер завершил сессию эфира. Проверь вход.");
     }
   } catch (error) {
-    console.error("Heartbeat error:", error);
+    console.error("Heartbeat:", error);
   }
 }
 
@@ -304,26 +309,18 @@ async function stopStream(message = "Эфир завершён.") {
 
   try {
     if (roomNameToStop) {
-      const response = await fetch("/api/streams/stop", {
+      const response = await apiFetch("/api/streams/stop", {
         method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomName: roomNameToStop
-        })
+        body: JSON.stringify({ roomName: roomNameToStop })
       });
 
-      const result = await response.json().catch(() => ({}));
-
       if (!response.ok) {
-        console.error(
-          "Ошибка завершения эфира в базе:",
-          result.error || response.status
-        );
+        const result = await response.json().catch(() => ({}));
+        console.error("Stream stop:", result.error || response.status);
       }
     }
   } catch (error) {
-    console.error("Stream stop request:", error);
+    console.error("Stop request:", error);
   }
 
   const oldRoom = room;
@@ -337,14 +334,9 @@ async function stopStream(message = "Эфир завершён.") {
     }
   }
 
-  localTracks.forEach((track) => {
-    try {
-      track.stop();
-    } catch (error) {
-      console.error("Track stop:", error);
-    }
+  localTracks.forEach(track => {
+    try { track.stop(); } catch {}
   });
-
   localTracks = [];
 
   if (preview) {
@@ -366,30 +358,38 @@ async function stopStream(message = "Эфир завершён.") {
 }
 
 if (streamForm) {
-  streamForm.addEventListener("submit", async (event) => {
+  streamForm.addEventListener("submit", async event => {
     event.preventDefault();
 
     if (room || isStopping || isStarting) return;
 
     const title = titleInput ? titleInput.value.trim() : "";
-    const roomName = roomInput ? roomInput.value.trim() : "";
+    const baseRoomName = roomInput ? roomInput.value.trim() : "live";
     const country = countryInput ? countryInput.value : "Украина";
 
-    if (!title || !/^[A-Za-z0-9_-]{1,80}$/.test(roomName)) {
+    if (!title || !/^[A-Za-z0-9_-]{1,80}$/.test(baseRoomName)) {
       status("Укажи название и корректное имя комнаты.");
       return;
     }
 
     isStarting = true;
-
     if (startButton) startButton.disabled = true;
 
-    status("Регистрируем эфир...");
+    status("Проверяем аккаунт...");
 
-    let newRoom = null;
     let streamRegistered = false;
 
     try {
+      const accessToken = await getAccessToken();
+
+      if (!accessToken || !currentUser) {
+        throw new Error("Войди в свой аккаунт на странице входа.");
+      }
+
+      // Уникальная комната для каждого аккаунта.
+      const suffix = currentUser.id.replace(/-/g, "").slice(0, 12);
+      const roomName = `${baseRoomName}_${suffix}`;
+
       sdk = sdk || await loadSDK();
 
       if (!localTracks.length) {
@@ -402,50 +402,35 @@ if (streamForm) {
         });
       }
 
-      // Сначала создаём запись эфира в Supabase.
-      const saveResponse = await fetch("/api/streams/start", {
+      status("Регистрируем эфир...");
+
+      const saveResponse = await apiFetch("/api/streams/start", {
         method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          roomName,
-          country
-        })
+        body: JSON.stringify({ title, roomName, country })
       });
 
       const saved = await saveResponse.json();
 
       if (!saveResponse.ok) {
-        throw new Error(
-          saved.error || "Не удалось зарегистрировать эфир"
-        );
+        throw new Error(saved.error || "Не удалось зарегистрировать эфир");
       }
 
       streamRegistered = true;
       activeRoomName = roomName;
 
-      // Затем запрашиваем токен LiveKit для созданного эфира.
       status("Подключаемся к LiveKit...");
 
-      const tokenUrl =
-        `/api/livekit/token?roomName=${encodeURIComponent(roomName)}`;
-
-      const tokenResponse = await fetch(tokenUrl, {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store"
-      });
+      const tokenResponse = await apiFetch(
+        `/api/livekit/token?roomName=${encodeURIComponent(roomName)}`
+      );
 
       const credentials = await tokenResponse.json();
 
       if (!tokenResponse.ok) {
-        throw new Error(
-          credentials.error || "Не удалось получить права ведущего"
-        );
+        throw new Error(credentials.error || "Не удалось получить токен LiveKit");
       }
 
-      newRoom = new sdk.Room({
+      const newRoom = new sdk.Room({
         adaptiveStream: true,
         dynacast: true
       });
@@ -457,7 +442,6 @@ if (streamForm) {
         credentials.token
       );
 
-      // Публикуем камеру и микрофон.
       for (const track of localTracks) {
         await newRoom.localParticipant.publishTrack(track);
       }
@@ -468,7 +452,6 @@ if (streamForm) {
         preview.srcObject = new MediaStream([
           cameraTrack.mediaStreamTrack
         ]);
-
         preview.hidden = false;
         await preview.play().catch(() => {});
       }
@@ -499,28 +482,20 @@ if (streamForm) {
       console.error("Host stream error:", error);
 
       if (streamRegistered && activeRoomName) {
-        await stopStream(
-          error.message || "Не удалось запустить эфир."
-        );
+        await stopStream(error.message || "Не удалось запустить эфир.");
       } else {
         stopHeartbeat();
 
-        const failedRoom = room;
+        if (room) {
+          try { await room.disconnect(); } catch {}
+        }
+
         room = null;
         activeRoomName = "";
 
-        if (failedRoom) {
-          try {
-            await failedRoom.disconnect();
-          } catch {}
-        }
-
-        localTracks.forEach((track) => {
-          try {
-            track.stop();
-          } catch {}
+        localTracks.forEach(track => {
+          try { track.stop(); } catch {}
         });
-
         localTracks = [];
 
         if (preview) {
@@ -529,16 +504,12 @@ if (streamForm) {
         }
 
         if (stopButton) stopButton.hidden = true;
-
         if (startButton) {
           startButton.hidden = false;
           startButton.disabled = false;
         }
 
-        status(
-          error.message ||
-          "Не удалось начать эфир. Проверь разрешения камеры и микрофона."
-        );
+        status(error.message || "Не удалось начать эфир.");
       }
     } finally {
       isStarting = false;
@@ -558,43 +529,38 @@ if (logoutButton) {
     await stopStream("Ты вышел из панели ведущего.");
 
     try {
-      await fetch("/api/host/logout", {
-        method: "POST",
-        credentials: "same-origin"
-      });
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
     } catch (error) {
       console.error("Logout:", error);
-    } finally {
-      localTracks.forEach((track) => {
-        try {
-          track.stop();
-        } catch {}
-      });
-
-      localTracks = [];
-
-      if (preview) {
-        preview.srcObject = null;
-        preview.hidden = true;
-      }
-
-      setStudioVisible(false);
-      status("Ты вышел из панели ведущего.");
     }
+
+    currentUser = null;
+
+    localTracks.forEach(track => {
+      try { track.stop(); } catch {}
+    });
+    localTracks = [];
+
+    if (preview) {
+      preview.srcObject = null;
+      preview.hidden = true;
+    }
+
+    setStudioVisible(false);
+    status("Ты вышел из аккаунта.");
+    location.href = "/login.html";
   });
 }
 
 window.addEventListener("beforeunload", () => {
   stopHeartbeat();
 
-  if (room) {
-    room.disconnect();
-  }
+  if (room) room.disconnect();
 
-  localTracks.forEach((track) => {
-    try {
-      track.stop();
-    } catch {}
+  localTracks.forEach(track => {
+    try { track.stop(); } catch {}
   });
 });
 
