@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -49,10 +48,19 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
 
     .header-title {
       color: #ddd;
+    }
+
+    .account-info {
+      color: #fff;
+      font-size: 13px;
+      font-weight: bold;
+      max-width: 180px;
+      overflow-wrap: anywhere;
     }
 
     .start-live,
@@ -83,6 +91,15 @@
 
     .login-button:hover {
       background: #444;
+    }
+
+    button.login-button {
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     main {
@@ -229,6 +246,11 @@
         display: none;
       }
 
+      .account-info {
+        max-width: 110px;
+        font-size: 11px;
+      }
+
       .start-live,
       .login-button {
         padding: 10px 11px;
@@ -266,6 +288,11 @@
         gap: 5px;
       }
 
+      .account-info {
+        max-width: 90px;
+        font-size: 10px;
+      }
+
       .start-live,
       .login-button {
         padding: 9px 8px;
@@ -279,13 +306,13 @@
   <header>
     <div class="logo"><span>Y</span>-FETISH LIVE</div>
 
-<div class="header-right">
-  <div class="header-title">Прямые эфиры</div>
-  <span id="accountInfo" class="account-info" hidden></span>
-  <a class="login-button" id="loginLink" href="/login.html">Войти</a>
-  <button class="login-button" id="logoutButton" type="button" hidden>Выйти</button>
-  <a class="start-live" href="/host.html">Начать эфир</a>
-</div>
+    <div class="header-right">
+      <div class="header-title">Прямые эфиры</div>
+      <span id="accountInfo" class="account-info" hidden></span>
+      <a class="login-button" id="loginLink" href="/login.html">Войти</a>
+      <button class="login-button" id="logoutButton" type="button" hidden>Выйти</button>
+      <a class="start-live" href="/host.html">Начать эфир</a>
+    </div>
   </header>
 
   <main>
@@ -317,9 +344,106 @@
     Y-FETISH LIVE — прямые эфиры
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
     "use strict";
 
+    // Авторизация и отображение аккаунта
+    const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+
+    const accountInfo = document.getElementById("accountInfo");
+    const loginLink = document.getElementById("loginLink");
+    const logoutButton = document.getElementById("logoutButton");
+
+    let authClient = null;
+
+    async function updateAccountDisplay() {
+      try {
+        if (!window.supabase || !window.supabase.createClient) {
+          console.error("Библиотека Supabase не загрузилась.");
+          return;
+        }
+
+        authClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_KEY
+        );
+
+        const { data, error } = await authClient.auth.getSession();
+
+        if (error) {
+          console.error("Ошибка проверки аккаунта:", error);
+          return;
+        }
+
+        if (!data.session) {
+          accountInfo.hidden = true;
+          loginLink.hidden = false;
+          logoutButton.hidden = true;
+          return;
+        }
+
+        const user = data.session.user;
+        let nickname = user.user_metadata?.nickname || "";
+
+        const { data: profile, error: profileError } = await authClient
+          .from("user_profiles")
+          .select("nickname")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!profileError && profile?.nickname) {
+          nickname = profile.nickname;
+        }
+
+        accountInfo.textContent =
+          "Аккаунт: " + (nickname || user.email || "Пользователь");
+
+        accountInfo.hidden = false;
+        loginLink.hidden = true;
+        logoutButton.hidden = false;
+      } catch (error) {
+        console.error("Ошибка отображения аккаунта:", error);
+      }
+    }
+
+    logoutButton.addEventListener("click", async () => {
+      if (!authClient) return;
+
+      logoutButton.disabled = true;
+
+      try {
+        const { error } = await authClient.auth.signOut();
+
+        if (error) {
+          alert("Не удалось выйти из аккаунта. Попробуй ещё раз.");
+          return;
+        }
+
+        location.reload();
+      } catch (error) {
+        console.error("Ошибка выхода:", error);
+        alert("Не удалось выйти из аккаунта. Попробуй ещё раз.");
+      } finally {
+        logoutButton.disabled = false;
+      }
+    });
+
+    authClient = window.supabase?.createClient
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
+    if (authClient) {
+      authClient.auth.onAuthStateChange(() => {
+        updateAccountDisplay();
+      });
+    }
+
+    updateAccountDisplay();
+
+    // Фильтр стран и загрузка эфиров — сохранены
     const countryButton = document.getElementById("countryButton");
     const countryMenu = document.getElementById("countryMenu");
     const streamsContainer = document.getElementById("streams");
