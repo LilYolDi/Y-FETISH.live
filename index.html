@@ -194,6 +194,49 @@
         min-height: 170px;
       }
     }
+
+    .country-filter {
+      position: relative;
+      margin: 16px 0;
+    }
+
+    #countryButton {
+      background: #202020;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    #countryMenu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      z-index: 999;
+      min-width: 190px;
+      padding: 6px;
+      background: #151515;
+      border: 1px solid #444;
+      border-radius: 10px;
+    }
+
+    #countryMenu button {
+      display: block;
+      width: 100%;
+      padding: 11px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: white;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    #countryMenu button:hover {
+      background: #303030;
+    }
   </style>
 </head>
 
@@ -214,94 +257,20 @@
       Смотри прямые эфиры, общайся со зрителями и отправляй подарки ведущим.
     </p>
 
+    <!-- Фильтр стран -->
+    <div class="country-filter">
+      <button id="countryButton" type="button">🌍 Все страны ▼</button>
 
-    
-<!-- Кнопка выбора страны -->
-<div class="country-filter">
-  <button id="countryButton" type="button">🌍 Выбор страны ▼</button>
+      <div id="countryMenu" hidden>
+        <button type="button" data-country="all">🌐 Все страны</button>
+        <button type="button" data-country="Украина">🇺🇦 Украина</button>
+        <button type="button" data-country="Россия">🇷🇺 Россия</button>
+        <button type="button" data-country="Польша">🇵🇱 Польша</button>
+        <button type="button" data-country="Германия">🇩🇪 Германия</button>
+        <button type="button" data-country="Другие">🌐 Другие</button>
+      </div>
+    </div>
 
-  <div id="countryMenu" hidden>
-    <button type="button" data-country="all">🌐 Все страны</button>
-    <button type="button" data-country="Украина">🇺🇦 Украина</button>
-    <button type="button" data-country="Россия">🇷🇺 Россия</button>
-    <button type="button" data-country="Польша">🇵🇱 Польша</button>
-    <button type="button" data-country="Германия">🇩🇪 Германия</button>
-    <button type="button" data-country="Другие">🌐 Другие</button>
-  </div>
-</div>
-
-<style>
-.country-filter {
-  position: relative;
-  margin: 16px 0;
-}
-
-#countryButton {
-  background: #202020;
-  color: white;
-  border: 1px solid #444;
-  border-radius: 10px;
-  padding: 12px 16px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-#countryMenu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 999;
-  min-width: 190px;
-  padding: 6px;
-  background: #151515;
-  border: 1px solid #444;
-  border-radius: 10px;
-}
-
-#countryMenu button {
-  display: block;
-  width: 100%;
-  padding: 11px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: white;
-  text-align: left;
-  cursor: pointer;
-}
-
-#countryMenu button:hover {
-  background: #303030;
-}
-</style>
-
-<script>
-const countryButton = document.getElementById('countryButton');
-const countryMenu = document.getElementById('countryMenu');
-
-countryButton.addEventListener('click', () => {
-  countryMenu.hidden = !countryMenu.hidden;
-});
-
-countryMenu.querySelectorAll('button').forEach(button => {
-  button.addEventListener('click', () => {
-    countryButton.textContent =
-      button.dataset.country === 'all'
-        ? '🌍 Все страны ▼'
-        : button.textContent + ' ▼';
-
-    countryMenu.hidden = true;
-  });
-});
-
-document.addEventListener('click', event => {
-  if (!event.target.closest('.country-filter')) {
-    countryMenu.hidden = true;
-  }
-});
-</script>
-
-    
     <div id="streams" class="streams" aria-live="polite">
       <div class="empty">Загружаем эфиры...</div>
     </div>
@@ -314,9 +283,108 @@ document.addEventListener('click', event => {
   <script>
     "use strict";
 
-    async function loadStreams() {
-      const container = document.getElementById("streams");
+    const countryButton = document.getElementById("countryButton");
+    const countryMenu = document.getElementById("countryMenu");
+    const streamsContainer = document.getElementById("streams");
 
+    let selectedCountry = "all";
+    let allStreams = [];
+
+    // Открытие и закрытие меню стран.
+    countryButton.addEventListener("click", () => {
+      countryMenu.hidden = !countryMenu.hidden;
+    });
+
+    // Выбор страны и применение фильтра.
+    countryMenu.querySelectorAll("button").forEach(button => {
+      button.addEventListener("click", () => {
+        selectedCountry = button.dataset.country;
+
+        countryButton.textContent =
+          (selectedCountry === "all"
+            ? "🌍 Все страны"
+            : button.textContent.trim()) + " ▼";
+
+        countryMenu.hidden = true;
+        renderStreams();
+      });
+    });
+
+    // Закрытие меню при нажатии за его пределами.
+    document.addEventListener("click", event => {
+      if (!event.target.closest(".country-filter")) {
+        countryMenu.hidden = true;
+      }
+    });
+
+    // Отображение эфиров с учётом выбранной страны.
+    function renderStreams() {
+      streamsContainer.replaceChildren();
+
+      const filteredStreams = allStreams.filter(stream => {
+        if (selectedCountry === "all") {
+          return true;
+        }
+
+        return stream.country === selectedCountry;
+      });
+
+      if (!filteredStreams.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+
+        empty.textContent = allStreams.length
+          ? "В выбранной стране сейчас активных эфиров нет."
+          : "Сейчас активных эфиров нет. Загляни позже!";
+
+        streamsContainer.appendChild(empty);
+        return;
+      }
+
+      filteredStreams.forEach(stream => {
+        const card = document.createElement("article");
+        card.className = "stream";
+
+        const preview = document.createElement("div");
+        preview.className = "preview";
+        preview.textContent = "▶";
+        preview.setAttribute("aria-hidden", "true");
+
+        const status = document.createElement("p");
+        status.className = "live";
+        status.textContent = "● LIVE";
+
+        const title = document.createElement("h2");
+        title.textContent = stream.title || "Прямой эфир";
+
+        const host = document.createElement("p");
+        host.className = "muted";
+        host.textContent =
+          stream.host_name ||
+          stream.profiles?.username ||
+          "Ведущий";
+
+        const watchLink = document.createElement("a");
+        watchLink.className = "watch-button";
+        watchLink.href =
+          "/live.html?room=" +
+          encodeURIComponent(stream.room_name);
+        watchLink.textContent = "Смотреть эфир";
+
+        card.append(
+          preview,
+          status,
+          title,
+          host,
+          watchLink
+        );
+
+        streamsContainer.appendChild(card);
+      });
+    }
+
+    // Загрузка активных эфиров.
+    async function loadStreams() {
       try {
         const response = await fetch("/api/streams", {
           cache: "no-store"
@@ -331,64 +399,11 @@ document.addEventListener('click', event => {
           ? result
           : result.streams || [];
 
-        const activeStreams = streams.filter(
+        allStreams = streams.filter(
           stream => stream.status === "live" && stream.room_name
         );
 
-        if (!activeStreams.length) {
-          container.replaceChildren();
-
-          const empty = document.createElement("div");
-          empty.className = "empty";
-          empty.textContent =
-            "Сейчас активных эфиров нет. Загляни позже!";
-
-          container.appendChild(empty);
-          return;
-        }
-
-        container.replaceChildren();
-
-        activeStreams.forEach(stream => {
-          const card = document.createElement("article");
-          card.className = "stream";
-
-          const preview = document.createElement("div");
-          preview.className = "preview";
-          preview.textContent = "▶";
-          preview.setAttribute("aria-hidden", "true");
-
-          const status = document.createElement("p");
-          status.className = "live";
-          status.textContent = "● LIVE";
-
-          const title = document.createElement("h2");
-          title.textContent = stream.title || "Прямой эфир";
-
-          const host = document.createElement("p");
-          host.className = "muted";
-          host.textContent =
-            stream.host_name ||
-            stream.profiles?.username ||
-            "Ведущий";
-
-          const watchLink = document.createElement("a");
-          watchLink.className = "watch-button";
-          watchLink.href =
-            "/live.html?room=" +
-            encodeURIComponent(stream.room_name);
-          watchLink.textContent = "Смотреть эфир";
-
-          card.append(
-            preview,
-            status,
-            title,
-            host,
-            watchLink
-          );
-
-          container.appendChild(card);
-        });
+        renderStreams();
       } catch (error) {
         console.error("Ошибка загрузки эфиров:", error);
 
@@ -397,7 +412,7 @@ document.addEventListener('click', event => {
         message.textContent =
           "Не удалось загрузить эфиры. Обнови страницу позже.";
 
-        container.replaceChildren(message);
+        streamsContainer.replaceChildren(message);
       }
     }
 
