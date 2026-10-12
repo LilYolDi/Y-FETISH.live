@@ -56,9 +56,7 @@
       margin-bottom: 20px;
     }
 
-    button, input {
-      font: inherit;
-    }
+    button, input { font: inherit; }
 
     .tabs button {
       flex: 1;
@@ -76,9 +74,7 @@
       border-color: #ff1744;
     }
 
-    .field {
-      margin-bottom: 14px;
-    }
+    .field { margin-bottom: 14px; }
 
     label {
       display: block;
@@ -98,9 +94,7 @@
       outline: none;
     }
 
-    input:focus {
-      border-color: #ff1744;
-    }
+    input:focus { border-color: #ff1744; }
 
     .hint {
       margin: 6px 0 0;
@@ -222,9 +216,7 @@
         >
       </div>
 
-      <button class="primary" id="submitButton" type="submit">
-        Войти
-      </button>
+      <button class="primary" id="submitButton" type="submit">Войти</button>
     </form>
 
     <button type="button" class="secondary" id="forgotButton">
@@ -245,9 +237,7 @@
       <button class="primary" type="submit" id="recoveryButton">
         Отправить ссылку восстановления
       </button>
-      <button type="button" class="secondary" id="backButton">
-        Назад
-      </button>
+      <button type="button" class="secondary" id="backButton">Назад</button>
     </form>
 
     <form id="resetForm" hidden>
@@ -267,7 +257,6 @@
     </form>
 
     <div class="message" id="message" role="status" aria-live="polite"></div>
-
     <a class="back" href="/">← Вернуться на главную</a>
   </main>
 
@@ -276,21 +265,11 @@
   <script>
     "use strict";
 
-    const SUPABASE_URL =
-      "https://cdyuxiicllnfrwssigsr.supabase.co";
-
-    const SUPABASE_KEY =
-      "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
-
-    const supabase = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY
-    );
-
     const $ = (id) => document.getElementById(id);
 
     let mode = "login";
     let busy = false;
+    let supabase = null;
 
     function showMessage(text) {
       $("message").textContent = text;
@@ -335,13 +314,8 @@
       $("forgotButton").hidden = registering;
     }
 
-$("loginTab").onclick = function () {
-  setMode("login");
-};
-
-$("registerTab").onclick = function () {
-  setMode("register");
-};
+    // Переключение вкладок подключается один раз.
+    $("loginTab").addEventListener("click", () => setMode("login"));
     $("registerTab").addEventListener("click", () => setMode("register"));
 
     $("forgotButton").addEventListener("click", () => {
@@ -361,20 +335,34 @@ $("registerTab").onclick = function () {
       if (/user_profiles_nickname_lower_unique|duplicate key|unique constraint/i.test(text)) {
         return "Этот ник уже занят. Придумай другой.";
       }
-
       if (/invalid login credentials/i.test(text)) {
         return "Неверная почта или пароль.";
       }
-
       if (/email not confirmed/i.test(text)) {
         return "Подтверди электронную почту по ссылке из письма.";
       }
-
       if (/user already registered/i.test(text)) {
         return "Этот email уже зарегистрирован. Попробуй войти.";
       }
 
       return text || "Произошла ошибка. Попробуй ещё раз.";
+    }
+
+    async function requireSupabase() {
+      if (supabase) return supabase;
+
+      if (!window.supabase || !window.supabase.createClient) {
+        throw new Error(
+          "Не загрузился модуль авторизации. Обнови страницу и попробуй ещё раз."
+        );
+      }
+
+      supabase = window.supabase.createClient(
+        "https://cdyuxiicllnfrwssigsr.supabase.co",
+        "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0"
+      );
+
+      return supabase;
     }
 
     $("authForm").addEventListener("submit", async (event) => {
@@ -389,6 +377,8 @@ $("registerTab").onclick = function () {
       const nickname = $("registerNickname").value.trim().toLowerCase();
 
       try {
+        const client = await requireSupabase();
+
         if (mode === "register") {
           if (!/^[a-z0-9_]{3,24}$/.test(nickname)) {
             throw new Error(
@@ -396,8 +386,7 @@ $("registerTab").onclick = function () {
             );
           }
 
-          // Предварительно проверяем занятость ника.
-          const { data: existing, error: checkError } = await supabase
+          const { data: existing, error: checkError } = await client
             .from("user_profiles")
             .select("id")
             .ilike("nickname", nickname)
@@ -413,7 +402,7 @@ $("registerTab").onclick = function () {
             throw new Error("Этот ник уже занят. Придумай другой.");
           }
 
-          const { data, error } = await supabase.auth.signUp({
+          const { data, error } = await client.auth.signUp({
             email,
             password,
             options: {
@@ -433,11 +422,10 @@ $("registerTab").onclick = function () {
             "Аккаунт создан. Проверь почту и подтверди регистрацию, затем войди."
           );
         } else {
-          const { data, error } =
-            await supabase.auth.signInWithPassword({
-              email,
-              password
-            });
+          const { data, error } = await client.auth.signInWithPassword({
+            email,
+            password
+          });
 
           if (error) throw error;
 
@@ -463,12 +451,12 @@ $("registerTab").onclick = function () {
       setBusy(true);
 
       try {
+        const client = await requireSupabase();
         const email = $("recoveryEmail").value.trim();
 
-        const { error } = await supabase.auth.resetPasswordForEmail(
-          email,
-          { redirectTo: location.origin + "/login.html" }
-        );
+        const { error } = await client.auth.resetPasswordForEmail(email, {
+          redirectTo: location.origin + "/login.html"
+        });
 
         if (error) throw error;
 
@@ -490,23 +478,23 @@ $("registerTab").onclick = function () {
       setBusy(true);
 
       try {
+        const client = await requireSupabase();
         const newPassword = $("newPassword").value;
 
         if (newPassword.length < 6) {
           throw new Error("Пароль должен содержать минимум 6 символов.");
         }
 
-        const { error } = await supabase.auth.updateUser({
+        const { error } = await client.auth.updateUser({
           password: newPassword
         });
 
         if (error) throw error;
 
-        showMessage("Пароль изменён. Теперь можешь войти.");
-
         $("resetForm").hidden = true;
         $("tabs").hidden = false;
         setMode("login");
+        showMessage("Пароль изменён. Теперь можешь войти.");
       } catch (error) {
         showMessage(friendlyError(error));
       } finally {
@@ -515,10 +503,7 @@ $("registerTab").onclick = function () {
     });
 
     async function initializePage() {
-      const hash = new URLSearchParams(
-        location.hash.replace(/^#/, "")
-      );
-
+      const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
       const query = new URLSearchParams(location.search);
 
       const recovery =
@@ -532,24 +517,37 @@ $("registerTab").onclick = function () {
         $("recoveryForm").hidden = true;
         $("resetForm").hidden = false;
 
-        const { error } = await supabase.auth.getSession();
+        try {
+          const client = await requireSupabase();
+          const { error } = await client.auth.getSession();
 
-        if (error) {
-          showMessage("Не удалось проверить сессию восстановления. Запроси новую ссылку.");
+          if (error) {
+            showMessage(
+              "Не удалось проверить сессию восстановления. Запроси новую ссылку."
+            );
+          }
+        } catch (error) {
+          showMessage(friendlyError(error));
         }
 
         return;
       }
 
-      const { data, error } = await supabase.auth.getSession();
+      // Если SDK не загрузился, вкладки всё равно остаются рабочими.
+      try {
+        const client = await requireSupabase();
+        const { data, error } = await client.auth.getSession();
 
-      if (error) {
-        showMessage("Не удалось проверить вход. Попробуй обновить страницу.");
-        return;
-      }
+        if (error) {
+          showMessage("Не удалось проверить вход. Попробуй обновить страницу.");
+          return;
+        }
 
-      if (data.session) {
-        location.replace("/");
+        if (data.session) {
+          location.replace("/");
+        }
+      } catch (error) {
+        showMessage(friendlyError(error));
       }
     }
 
