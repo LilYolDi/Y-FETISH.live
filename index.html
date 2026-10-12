@@ -7,7 +7,6 @@
 
   <title>Y-FETISH LIVE — Прямые эфиры</title>
   <meta name="description" content="Смотри прямые эфиры Y-FETISH LIVE, общайся со зрителями и отправляй виртуальные подарки ведущим.">
-
   <link rel="canonical" href="https://y-fetish-live.onrender.com/">
 
   <style>
@@ -55,14 +54,6 @@
       color: #ddd;
     }
 
-    .account-info {
-      color: #fff;
-      font-size: 13px;
-      font-weight: bold;
-      max-width: 180px;
-      overflow-wrap: anywhere;
-    }
-
     .start-live,
     .login-button {
       display: inline-block;
@@ -93,9 +84,125 @@
       background: #444;
     }
 
-    button.login-button {
+    .account-wrap {
+      position: relative;
+    }
+
+    .profile-circle {
+      width: 42px;
+      height: 42px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      border: 1px solid #555;
+      background: #292929;
+      color: #fff;
+      font-size: 20px;
       cursor: pointer;
+    }
+
+    .profile-circle:hover,
+    .profile-circle[aria-expanded="true"] {
+      background: #3a3a3a;
+      border-color: #e5222e;
+    }
+
+    .account-panel {
+      position: absolute;
+      z-index: 1200;
+      top: calc(100% + 10px);
+      right: 0;
+      width: min(290px, calc(100vw - 24px));
+      padding: 18px;
+      background: #1c1c1c;
+      border: 1px solid #414141;
+      border-radius: 16px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, .55);
+      color: #fff;
+    }
+
+    .account-panel-title {
+      color: #aaa;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 8px;
+    }
+
+    .account-nickname {
+      font-size: 18px;
+      font-weight: bold;
+      overflow-wrap: anywhere;
+    }
+
+    .account-email {
+      color: #aaa;
+      font-size: 12px;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+    }
+
+    .coin-balance {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 16px 0 12px;
+      padding: 12px;
+      background: #292929;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
+    #coinBalance {
+      font-size: 20px;
+      color: #ffd45c;
+    }
+
+    .panel-button {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 11px 12px;
+      border: 1px solid #414141;
+      border-radius: 9px;
+      background: #292929;
+      color: #fff;
+      text-align: left;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: bold;
       font-family: inherit;
+      cursor: pointer;
+    }
+
+    .panel-button:hover {
+      background: #383838;
+    }
+
+    .topup-button {
+      background: #e5222e;
+      border-color: #e5222e;
+      text-align: center;
+    }
+
+    .topup-button:hover {
+      background: #c91824;
+    }
+
+    .logout-panel-button {
+      color: #ff7777;
+    }
+
+    .profile-details {
+      padding: 10px;
+      margin-top: 8px;
+      background: #111;
+      border-radius: 8px;
+      color: #ccc;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
     }
 
     [hidden] {
@@ -246,9 +353,10 @@
         display: none;
       }
 
-      .account-info {
-        max-width: 110px;
-        font-size: 11px;
+      .profile-circle {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
       }
 
       .start-live,
@@ -288,11 +396,6 @@
         gap: 5px;
       }
 
-      .account-info {
-        max-width: 90px;
-        font-size: 10px;
-      }
-
       .start-live,
       .login-button {
         padding: 9px 8px;
@@ -308,9 +411,48 @@
 
     <div class="header-right">
       <div class="header-title">Прямые эфиры</div>
-      <span id="accountInfo" class="account-info" hidden></span>
+
       <a class="login-button" id="loginLink" href="/login.html">Войти</a>
-      <button class="login-button" id="logoutButton" type="button" hidden>Выйти</button>
+
+      <div class="account-wrap" id="accountWrap" hidden>
+        <button
+          class="profile-circle"
+          id="profileButton"
+          type="button"
+          aria-label="Открыть аккаунт"
+          aria-expanded="false"
+          aria-controls="accountPanel"
+        >👤</button>
+
+        <section class="account-panel" id="accountPanel" hidden>
+          <div class="account-panel-title">Мой аккаунт</div>
+          <div class="account-nickname" id="accountNickname">Пользователь</div>
+          <div class="account-email" id="accountEmail"></div>
+
+          <div class="coin-balance">
+            <span>🪙</span>
+            <span id="coinBalance">0</span>
+            <span>монет</span>
+          </div>
+
+          <button class="panel-button topup-button" id="topupButton" type="button">
+            ＋ Пополнить
+          </button>
+
+          <button class="panel-button" id="profileDetailsButton" type="button">
+            Мой профиль
+          </button>
+
+          <div class="profile-details" id="profileDetails" hidden></div>
+
+          <a class="panel-button panel-link" href="/host.html">Мои эфиры</a>
+
+          <button class="panel-button logout-panel-button" id="logoutButton" type="button">
+            Выйти
+          </button>
+        </section>
+      </div>
+
       <a class="start-live" href="/host.html">Начать эфир</a>
     </div>
   </header>
@@ -353,39 +495,73 @@
     const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
     const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
 
-    const accountInfo = document.getElementById("accountInfo");
     const loginLink = document.getElementById("loginLink");
+    const accountWrap = document.getElementById("accountWrap");
+    const profileButton = document.getElementById("profileButton");
+    const accountPanel = document.getElementById("accountPanel");
+    const accountNickname = document.getElementById("accountNickname");
+    const accountEmail = document.getElementById("accountEmail");
+    const coinBalance = document.getElementById("coinBalance");
     const logoutButton = document.getElementById("logoutButton");
+    const topupButton = document.getElementById("topupButton");
+    const profileDetailsButton = document.getElementById("profileDetailsButton");
+    const profileDetails = document.getElementById("profileDetails");
 
-    let authClient = null;
+    const authClient = window.supabase?.createClient
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
+    async function loadAccountBalance(session) {
+      if (!session?.access_token) {
+        coinBalance.textContent = "0";
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/account/wallet", {
+          headers: {
+            Authorization: "Bearer " + session.access_token
+          },
+          cache: "no-store"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Не удалось загрузить баланс");
+        }
+
+        coinBalance.textContent =
+          Number(result.balance || 0).toLocaleString("ru-RU");
+      } catch (error) {
+        console.error("Ошибка загрузки баланса монет:", error);
+        coinBalance.textContent = "—";
+      }
+    }
 
     async function updateAccountDisplay() {
       try {
-        if (!window.supabase || !window.supabase.createClient) {
+        if (!authClient) {
           console.error("Библиотека Supabase не загрузилась.");
           return;
         }
 
-        authClient = window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_KEY
-        );
-
         const { data, error } = await authClient.auth.getSession();
 
-        if (error) {
-          console.error("Ошибка проверки аккаунта:", error);
-          return;
-        }
+        if (error) throw error;
 
-        if (!data.session) {
-          accountInfo.hidden = true;
+        const session = data.session;
+
+        if (!session) {
+          accountWrap.hidden = true;
+          accountPanel.hidden = true;
+          profileButton.setAttribute("aria-expanded", "false");
           loginLink.hidden = false;
-          logoutButton.hidden = true;
+          coinBalance.textContent = "0";
           return;
         }
 
-        const user = data.session.user;
+        const user = session.user;
         let nickname = user.user_metadata?.nickname || "";
 
         const { data: profile, error: profileError } = await authClient
@@ -398,16 +574,48 @@
           nickname = profile.nickname;
         }
 
-        accountInfo.textContent =
-          "Аккаунт: " + (nickname || user.email || "Пользователь");
+        accountNickname.textContent = nickname || "Пользователь";
+        accountEmail.textContent = user.email || "";
 
-        accountInfo.hidden = false;
+        profileDetails.textContent =
+          "Никнейм: " + (nickname || "Пользователь") +
+          (user.email ? "\nEmail: " + user.email : "");
+
+        profileDetails.style.whiteSpace = "pre-line";
+
+        accountWrap.hidden = false;
         loginLink.hidden = true;
-        logoutButton.hidden = false;
+
+        await loadAccountBalance(session);
       } catch (error) {
         console.error("Ошибка отображения аккаунта:", error);
       }
     }
+
+    profileButton.addEventListener("click", () => {
+      const opening = accountPanel.hidden;
+      accountPanel.hidden = !opening;
+      profileButton.setAttribute("aria-expanded", String(opening));
+    });
+
+    document.addEventListener("click", event => {
+      if (!event.target.closest("#accountWrap")) {
+        accountPanel.hidden = true;
+        profileButton.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    topupButton.addEventListener("click", () => {
+      alert("Пополнение монет пока не подключено.");
+    });
+
+    profileDetailsButton.addEventListener("click", () => {
+      profileDetails.hidden = !profileDetails.hidden;
+
+      profileDetailsButton.textContent = profileDetails.hidden
+        ? "Мой профиль"
+        : "Скрыть профиль";
+    });
 
     logoutButton.addEventListener("click", async () => {
       if (!authClient) return;
@@ -430,10 +638,6 @@
         logoutButton.disabled = false;
       }
     });
-
-    authClient = window.supabase?.createClient
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
-      : null;
 
     if (authClient) {
       authClient.auth.onAuthStateChange(() => {
