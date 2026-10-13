@@ -6,7 +6,10 @@ const crypto = require("crypto");
 require("dotenv").config();
 
 const { createClient } = require("@supabase/supabase-js");
-const { AccessToken } = require("livekit-server-sdk");
+const {
+  AccessToken,
+  RoomServiceClient
+} = require("livekit-server-sdk");
 
 const app = express();
 app.use(express.json({ limit: "1mb" }));
@@ -34,6 +37,18 @@ if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
 const supabase = createClient(
   SUPABASE_URL,
   SUPABASE_SERVICE_ROLE_KEY
+);
+
+/* Подключение к LiveKit для подсчёта зрителей */
+
+const livekitHttpUrl = LIVEKIT_URL
+  .replace(/^wss:/i, "https:")
+  .replace(/^ws:/i, "http:");
+
+const livekitRooms = new RoomServiceClient(
+  livekitHttpUrl,
+  LIVEKIT_API_KEY,
+  LIVEKIT_API_SECRET
 );
 
 const GUEST_COOKIE = "yfetish_live_guest";
@@ -628,7 +643,7 @@ app.post("/api/streams/heartbeat", requireHostAccess, async (req, res) => {
   }
 });
 
-/* Список эфиров */
+/* Список эфиров с реальным количеством зрителей */
 
 app.get("/api/streams", async (req, res) => {
   try {
@@ -641,6 +656,7 @@ app.get("/api/streams", async (req, res) => {
     if (error) throw error;
 
     const streams = data || [];
+
     const ids = [
       ...new Set(streams.map(s => s.host_id).filter(Boolean))
     ];
@@ -662,10 +678,35 @@ app.get("/api/streams", async (req, res) => {
       profiles.map(p => [p.id, p.nickname])
     );
 
-    res.json(streams.map(stream => ({
-      ...stream,
-      nickname: names.get(stream.host_id) || "Ведущий"
-    })));
+    const resultStreams = await Promise.all(
+      streams.map(async (stream) => {
+        let viewerCount = null;
+
+        try {
+          const participants =
+            await livekitRooms.listParticipants(stream.room_name);
+
+          viewerCount = (participants || []).filter(
+            participant =>
+              typeof participant.identity === "string" &&
+              participant.identity.startsWith("viewer-")
+          ).length;
+        } catch (error) {
+          console.error(
+            `Не удалось получить зрителей комнаты ${stream.room_name}:`,
+            error.message
+          );
+        }
+
+        return {
+          ...stream,
+          nickname: names.get(stream.host_id) || "Ведущий",
+          viewer_count: viewerCount
+        };
+      })
+    );
+
+    res.json(resultStreams);
   } catch (error) {
     sendError(res, error, "Не удалось загрузить эфиры");
   }
