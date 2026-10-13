@@ -33,7 +33,7 @@
       flex-wrap: wrap;
     }
 
-    /* Логотип */
+    /* Новый логотип */
     .logo {
       display: inline-flex;
       align-items: center;
@@ -437,48 +437,6 @@
         font-size: 11px;
       }
     }
-
-    /* Круглая кнопка камеры внизу экрана телефона */
-    @media (max-width: 600px) {
-      .start-live.tango-camera {
-        position: fixed;
-        left: 50%;
-        bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-        transform: translateX(-50%);
-        z-index: 1500;
-
-        width: 70px;
-        height: 70px;
-        min-width: 70px;
-        padding: 17px;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        border: 3px solid #fff;
-        border-radius: 50%;
-        background: #ff1744;
-        box-shadow: 0 0 0 5px rgba(255, 255, 255, .15);
-
-        flex-shrink: 0;
-      }
-
-      .start-live.tango-camera:hover {
-        background: #e5222e;
-      }
-
-      .start-live.tango-camera svg {
-        display: block;
-        width: 30px;
-        height: 30px;
-        fill: none;
-        stroke: #fff;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-    }
   </style>
 </head>
 
@@ -532,17 +490,14 @@
         </section>
       </div>
 
-      <a
-        class="start-live tango-camera"
-        href="/host.html"
-        aria-label="Начать эфир"
-        title="Начать эфир"
-      >
+      
+        <a class="start-live tango-camera" href="/host.html" aria-label="Начать эфир" title="Начать эфир">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="3" y="6" width="13" height="12" rx="2"></rect>
-          <path d="m16 10 5-3v10l-5-3z"></path>
-        </svg>
-      </a>
+        <rect x="3" y="6" width="13" height="12" rx="2"></rect>
+        <path d="m16 10 5-3v10l-5-3z"></path>
+      </svg>
+     </a>
+
     </div>
   </header>
 
