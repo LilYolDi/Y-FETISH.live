@@ -33,7 +33,6 @@
       flex-wrap: wrap;
     }
 
-    /* Новый логотип */
     .logo {
       display: inline-flex;
       align-items: center;
@@ -437,6 +436,62 @@
         font-size: 11px;
       }
     }
+
+    /* Кнопка камеры: только мобильные экраны */
+    @media screen and (max-width: 600px) {
+      body a.start-live.tango-camera {
+        position: fixed !important;
+        left: 50% !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+        transform: translate3d(-50%, 0, 0) !important;
+
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        width: 70px !important;
+        min-width: 70px !important;
+        max-width: 70px !important;
+        height: 70px !important;
+        min-height: 70px !important;
+        max-height: 70px !important;
+
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 3px solid #fff !important;
+        border-radius: 50% !important;
+
+        background: #ff1744 !important;
+        box-shadow: 0 0 0 5px rgba(255, 255, 255, .15) !important;
+
+        z-index: 99999 !important;
+        float: none !important;
+        line-height: 1 !important;
+        text-align: center !important;
+      }
+
+      body a.start-live.tango-camera:hover,
+      body a.start-live.tango-camera:focus {
+        background: #e5222e !important;
+      }
+
+      body a.start-live.tango-camera svg {
+        display: block !important;
+        flex: 0 0 30px !important;
+        width: 30px !important;
+        min-width: 30px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+
+        fill: none !important;
+        stroke: #fff !important;
+        stroke-width: 2 !important;
+        stroke-linecap: round !important;
+        stroke-linejoin: round !important;
+      }
+    }
   </style>
 </head>
 
@@ -490,14 +545,17 @@
         </section>
       </div>
 
-      
-        <a class="start-live tango-camera" href="/host.html" aria-label="Начать эфир" title="Начать эфир">
+      <a
+        class="start-live tango-camera"
+        href="/host.html"
+        aria-label="Начать эфир"
+        title="Начать эфир"
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="3" y="6" width="13" height="12" rx="2"></rect>
-        <path d="m16 10 5-3v10l-5-3z"></path>
-      </svg>
-     </a>
-
+          <rect x="3" y="6" width="13" height="12" rx="2"></rect>
+          <path d="m16 10 5-3v10l-5-3z"></path>
+        </svg>
+      </a>
     </div>
   </header>
 
