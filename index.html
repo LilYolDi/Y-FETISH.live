@@ -320,14 +320,35 @@
       margin: 16px 0;
     }
 
-    #countryButton {
+    /* Фильтр стран и кнопка топа в одной строке */
+    #countryFilterControls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #countryButton,
+    #topStreamsButton {
       background: #202020;
-      color: white;
+      color: #fff;
       border: 1px solid #444;
       border-radius: 10px;
       padding: 12px 16px;
       font-size: 14px;
       cursor: pointer;
+    }
+
+    #topStreamsButton {
+      background: #451719;
+      border-color: #e5222e;
+      font-weight: bold;
+    }
+
+    #topStreamsButton:hover,
+    #topStreamsButton.active {
+      background: #e5222e;
+      border-color: #e5222e;
     }
 
     #countryMenu {
@@ -408,6 +429,16 @@
 
       .preview {
         min-height: 170px;
+      }
+
+      #countryFilterControls {
+        gap: 7px;
+      }
+
+      #countryButton,
+      #topStreamsButton {
+        padding: 11px 10px;
+        font-size: 12px;
       }
     }
 
@@ -593,7 +624,14 @@
     </p>
 
     <div class="country-filter">
-      <button id="countryButton" type="button">🌍 Все страны ▼</button>
+      <div id="countryFilterControls">
+        <button id="countryButton" type="button">🌍 Все страны ▼</button>
+        <button
+          id="topStreamsButton"
+          type="button"
+          aria-pressed="false"
+        >🔥 Топ стримы</button>
+      </div>
 
       <div id="countryMenu" hidden>
         <button type="button" data-country="all">🌐 Все страны</button>
@@ -775,13 +813,60 @@
 
     updateAccountDisplay();
 
-    // Фильтр стран и загрузка эфиров — сохранены
+    // Фильтр стран и сортировка топа
     const countryButton = document.getElementById("countryButton");
     const countryMenu = document.getElementById("countryMenu");
     const streamsContainer = document.getElementById("streams");
+    const topStreamsButton = document.getElementById("topStreamsButton");
 
     let selectedCountry = "all";
     let allStreams = [];
+    let topStreamsEnabled = false;
+
+    /*
+      Поддерживаем несколько распространённых названий поля.
+      Если API не передаёт число зрителей, возвращаем null,
+      а не выдаём выдуманное число за реальное.
+    */
+    function getViewerCount(stream) {
+      const fields = [
+        "viewer_count",
+        "viewerCount",
+        "viewers",
+        "num_viewers",
+        "participant_count",
+        "participantCount",
+        "numParticipants",
+        "audience_count",
+        "audience"
+      ];
+
+      for (const field of fields) {
+        const value = stream[field];
+
+        if (value !== null && value !== undefined && value !== "") {
+          const count = Number(value);
+
+          if (Number.isFinite(count) && count >= 0) {
+            return count;
+          }
+        }
+      }
+
+      return null;
+    }
+
+    topStreamsButton.addEventListener("click", () => {
+      topStreamsEnabled = !topStreamsEnabled;
+
+      topStreamsButton.classList.toggle("active", topStreamsEnabled);
+      topStreamsButton.setAttribute(
+        "aria-pressed",
+        String(topStreamsEnabled)
+      );
+
+      renderStreams();
+    });
 
     countryButton.addEventListener("click", () => {
       countryMenu.hidden = !countryMenu.hidden;
@@ -810,13 +895,30 @@
     function renderStreams() {
       streamsContainer.replaceChildren();
 
-      const filteredStreams = allStreams.filter(stream => {
+      let filteredStreams = allStreams.filter(stream => {
         if (selectedCountry === "all") {
           return true;
         }
 
         return stream.country === selectedCountry;
       });
+
+      if (topStreamsEnabled) {
+        /*
+          Эфиры с известным числом зрителей идут первыми.
+          Неизвестное число не подменяем нулём.
+        */
+        filteredStreams.sort((a, b) => {
+          const viewersA = getViewerCount(a);
+          const viewersB = getViewerCount(b);
+
+          if (viewersA === null && viewersB === null) return 0;
+          if (viewersA === null) return 1;
+          if (viewersB === null) return -1;
+
+          return viewersB - viewersA;
+        });
+      }
 
       if (!filteredStreams.length) {
         const empty = document.createElement("div");
@@ -841,7 +943,12 @@
 
         const status = document.createElement("p");
         status.className = "live";
-        status.textContent = "● LIVE";
+
+        const viewerCount = getViewerCount(stream);
+
+        status.textContent = viewerCount === null
+          ? "● LIVE"
+          : "● LIVE · " + viewerCount.toLocaleString("ru-RU") + " зрителей";
 
         const title = document.createElement("h2");
         title.textContent = stream.title || "Прямой эфир";
