@@ -437,68 +437,62 @@
       }
     }
 
-    /* Камера: стабильное положение на телефоне */
-    @media screen and (max-width: 600px) {
-      body a.start-live.tango-camera {
-        position: fixed !important;
-        left: 50% !important;
-        right: auto !important;
-        top: auto !important;
-        bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
-        transform: translate3d(-50%, 0, 0) !important;
+    /* Кнопка камеры: компьютер и телефон */
+    body a.start-live.tango-camera {
+      position: fixed !important;
+      left: 50% !important;
+      right: auto !important;
+      top: auto !important;
+      bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+      transform: translateX(-50%) !important;
 
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
 
-        width: 64px !important;
-        min-width: 64px !important;
-        max-width: 64px !important;
-        height: 64px !important;
-        min-height: 64px !important;
-        max-height: 64px !important;
+      width: 64px !important;
+      min-width: 64px !important;
+      max-width: 64px !important;
+      height: 64px !important;
+      min-height: 64px !important;
+      max-height: 64px !important;
 
-        margin: 0 !important;
-        padding: 0 !important;
-        border: 3px solid #fff !important;
-        border-radius: 50% !important;
-        background: #ff1744 !important;
-        box-shadow: 0 0 0 4px rgba(255, 255, 255, .15) !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 3px solid #fff !important;
+      border-radius: 50% !important;
+      background: #ff1744 !important;
+      box-shadow: 0 0 0 4px rgba(255, 255, 255, .15) !important;
 
-        z-index: 99999 !important;
-        float: none !important;
-        line-height: 1 !important;
-        text-align: center !important;
-      }
+      z-index: 99999 !important;
+      float: none !important;
+      line-height: 1 !important;
+      text-align: center !important;
+    }
 
-      body a.start-live.tango-camera:hover,
-      body a.start-live.tango-camera:focus {
-        background: #e5222e !important;
-      }
+    body a.start-live.tango-camera:hover,
+    body a.start-live.tango-camera:focus {
+      background: #e5222e !important;
+    }
 
-      body a.start-live.tango-camera svg {
-        display: block !important;
-        flex: 0 0 28px !important;
-        width: 28px !important;
-        min-width: 28px !important;
-        height: 28px !important;
-        min-height: 28px !important;
-        fill: none !important;
-        stroke: #fff !important;
-        stroke-width: 2 !important;
-        stroke-linecap: round !important;
-        stroke-linejoin: round !important;
-      }
+    body a.start-live.tango-camera svg {
+      display: block !important;
+      flex: 0 0 28px !important;
+      width: 28px !important;
+      min-width: 28px !important;
+      height: 28px !important;
+      min-height: 28px !important;
+      fill: none !important;
+      stroke: #fff !important;
+      stroke-width: 2 !important;
+      stroke-linecap: round !important;
+      stroke-linejoin: round !important;
     }
 
     /* Горизонтальный режим телефона */
     @media screen and (max-width: 900px) and (orientation: landscape) {
       body a.start-live.tango-camera {
-        left: 50% !important;
-        right: auto !important;
-        top: auto !important;
         bottom: calc(6px + env(safe-area-inset-bottom, 0px)) !important;
-        transform: translate3d(-50%, 0, 0) !important;
 
         width: 54px !important;
         min-width: 54px !important;
