@@ -435,6 +435,7 @@ for (const page of [
   "live.html",
   "host.html",
   "login.html",
+  "coins.html",
   "app.js",
   "host.js",
   "style.css"
