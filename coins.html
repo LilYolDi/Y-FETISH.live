@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+
+  <title>Монеты — Y-FETISH LIVE</title>
+  <meta name="description" content="Пополнение баланса монет Y-FETISH LIVE. Выберите подходящий пакет монет.">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      color-scheme: dark;
+      --gold: #f5c451;
+      --gold-light: #ffe9a0;
+      --background: #080808;
+      --card: #151515;
+      --border: #343027;
+      --muted: #aaa59a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--background);
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    button, a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(8, 8, 8, .96);
+      border-bottom: 1px solid #28251e;
+    }
+
+    .logo {
+      color: var(--gold);
+      font-weight: 900;
+      font-size: 19px;
+      letter-spacing: .5px;
+      text-decoration: none;
+    }
+
+    .back {
+      padding: 9px 12px;
+      color: #fff;
+      background: #202020;
+      border: 1px solid #383838;
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 14px 40px;
+    }
+
+    h1 {
+      margin: 0 0 9px;
+      color: var(--gold-light);
+      font-size: 28px;
+      text-align: center;
+    }
+
+    .subtitle {
+      margin: 0 auto 20px;
+      max-width: 440px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .balance {
+      margin-bottom: 23px;
+      padding: 15px;
+      background: linear-gradient(135deg, #211b0c, #15130e);
+      border: 1px solid #6e5727;
+      border-radius: 15px;
+      text-align: center;
+    }
+
+    .balance-label {
+      color: #d0c5a9;
+      font-size: 13px;
+    }
+
+    .balance-value {
+      margin-top: 7px;
+      color: var(--gold-light);
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .packages {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .package {
+      position: relative;
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 9px 13px;
+      background: linear-gradient(160deg, #1b1b1b, #111);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      text-align: center;
+    }
+
+    .coin {
+      position: relative;
+      width: 70px;
+      height: 57px;
+      margin-bottom: 9px;
+    }
+
+    .coin span {
+      position: absolute;
+      left: 50%;
+      width: 49px;
+      height: 17px;
+      transform: translateX(-50%);
+      border: 2px solid #a97818;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #fff0a0 0%, #f5c451 45%, #b67b17 100%);
+      box-shadow: inset 0 2px 2px rgba(255,255,255,.65);
+    }
+
+    .coin span:nth-child(1) { top: 34px; }
+    .coin span:nth-child(2) { top: 26px; }
+    .coin span:nth-child(3) { top: 18px; }
+    .coin span:nth-child(4) { top: 10px; }
+    .coin span:nth-child(5) { top: 2px; }
+
+    .coin span:nth-child(5)::after {
+      content: "Y";
+      position: absolute;
+      inset: 0;
+      color: #8a5c0b;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 13px;
+    }
+
+    .amount {
+      color: var(--gold-light);
+      font-size: clamp(17px, 4.5vw, 23px);
+      font-weight: 900;
+      overflow-wrap: anywhere;
+    }
+
+    .coin-label {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .price {
+      margin: 12px 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .buy {
+      width: 100%;
+      margin-top: auto;
+      padding: 11px 5px;
+      border: 0;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #ffe79a, #e9ad2e);
+      color: #171108;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .buy:active {
+      transform: scale(.98);
+    }
+
+    .notice {
+      margin-top: 22px;
+      padding: 15px;
+      color: #c6c0b3;
+      background: #121212;
+      border: 1px solid #292929;
+      border-radius: 13px;
+      font-size: 12px;
+      line-height: 1.65;
+      text-align: center;
+    }
+
+    .notice strong {
+      color: var(--gold-light);
+    }
+
+    .status {
+      min-height: 18px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media (max-width: 360px) {
+      main {
+        padding-right: 10px;
+        padding-left: 10px;
+      }
+
+      .packages {
+        gap: 8px;
+      }
+
+      .package {
+        padding-right: 7px;
+        padding-left: 7px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="logo" href="/">Y-FETISH LIVE</a>
+    <a class="back" href="/">← Назад</a>
+  </header>
+
+  <main>
+    <h1>Золотые монеты</h1>
+    <p class="subtitle">
+      Пополняй баланс и отправляй подарки ведущим во время прямых эфиров.
+    </p>
+
+    <section class="balance">
+      <div class="balance-label">Твой баланс</div>
+      <div class="balance-value" id="coinBalance">Загрузка...</div>
+    </section>
+
+    <section class="packages">
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">200</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$2</div>
+        <button class="buy" data-coins="200" data-price="2">Купить</button>
+      </article>
+
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">400</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$10</div>
+        <button class="buy" data-coins="400" data-price="10">Купить</button>
+      </article>
+
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">1 000</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$20</div>
+        <button class="buy" data-coins="1000" data-price="20">Купить</button>
+      </article>
+
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">2 500</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$50</div>
+        <button class="buy" data-coins="2500" data-price="50">Купить</button>
+      </article>
+
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">5 000</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$100</div>
+        <button class="buy" data-coins="5000" data-price="100">Купить</button>
+      </article>
+
+      <article class="package">
+        <div class="coin"><span></span><span></span><span></span><span></span><span></span></div>
+        <div class="amount">10 000</div>
+        <div class="coin-label">монет</div>
+        <div class="price">$180</div>
+        <button class="buy" data-coins="10000" data-price="180">Купить</button>
+      </article>
+    </section>
+
+    <div class="notice">
+      <strong>Пополнение баланса</strong><br>
+      Монеты предназначены для отправки подарков ведущим Y-FETISH LIVE.<br><br>
+      <strong>Безопасная оплата</strong><br>
+      Оплата ещё не подключена. Кнопки покупки пока не списывают деньги и не начисляют монеты.
+    </div>
+
+    <div class="status" id="pageStatus"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+
+    const balanceElement = document.getElementById("coinBalance");
+    const statusElement = document.getElementById("pageStatus");
+
+    let authClient = null;
+
+    if (window.supabase && window.supabase.createClient) {
+      authClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
+    }
+
+    async function loadBalance() {
+      try {
+        if (!authClient) {
+          balanceElement.textContent = "—";
+          statusElement.textContent = "Не удалось подключить сервис аккаунта.";
+          return;
+        }
+
+        const { data, error } = await authClient.auth.getSession();
+
+        if (error || !data.session) {
+          balanceElement.textContent = "Войди в аккаунт";
+          statusElement.textContent = "Для просмотра баланса войди в аккаунт на главной странице.";
+          return;
+        }
+
+        const response = await fetch("/api/account/wallet", {
+          headers: {
+            Authorization: "Bearer " + data.session.access_token
+          }
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Не удалось загрузить баланс");
+        }
+
+        const balance = Number(
+          result.coins ?? result.balance ?? result.wallet?.coins ?? 0
+        );
+
+        balanceElement.textContent =
+          Number.isFinite(balance) ? balance.toLocaleString("ru-RU") : "—";
+
+        statusElement.textContent = "";
+      } catch (error) {
+        console.error("Ошибка загрузки баланса:", error);
+        balanceElement.textContent = "—";
+        statusElement.textContent = "Не удалось загрузить баланс. Попробуй обновить страницу.";
+      }
+    }
+
+    document.querySelectorAll(".buy").forEach(button => {
+      button.addEventListener("click", () => {
+        const coins = button.dataset.coins;
+        const price = button.dataset.price;
+
+        alert(
+          "Пакет: " + Number(coins).toLocaleString("ru-RU") +
+          " монет за $" + price +
+          ". Оплата пока не подключена. Деньги не списаны, монеты не начислены."
+        );
+      });
+    });
+
+    loadBalance();
+  </script>
+</body>
+</html>
