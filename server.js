@@ -1,3 +1,4 @@
+
 "use strict";
 
 const express = require("express");
@@ -1011,6 +1012,29 @@ app.get("/api/wallet", async (req, res) => {
   }
 });
 
+/* Игра «Кубик»: подключение дополнительных маршрутов */
+
+let diceGame = null;
+
+try {
+  diceGame = require("./dice")(app, {
+    supabase,
+    requireHostAccess,
+    cleanText,
+    validRoomName,
+    getLiveStream,
+    guestId,
+    sendError
+  });
+
+  console.log("Игра «Кубик» подключена");
+} catch (error) {
+  console.error(
+    "Игра «Кубик» не подключена. Проверь файл dice.js:",
+    error.message
+  );
+}
+
 /* Отправка подарка */
 
 app.post("/api/gifts/send", async (req, res) => {
@@ -1047,9 +1071,30 @@ app.post("/api/gifts/send", async (req, res) => {
       });
     }
 
+    /* Если подарок является игровым, запускаем раунд.
+       Ошибка игры не отменяет уже успешно отправленный подарок. */
+
+    let dice = null;
+
+    if (diceGame && typeof diceGame.handleDiceGift === "function") {
+      try {
+        dice = await diceGame.handleDiceGift(
+          roomName,
+          giftId,
+          id
+        );
+      } catch (diceError) {
+        console.error(
+          "Кубик: подарок отправлен, но раунд не запущен:",
+          diceError
+        );
+      }
+    }
+
     res.json({
       success: true,
-      result: data
+      result: data,
+      dice
     });
   } catch (error) {
     sendError(res, error, "Не удалось отправить подарок");
