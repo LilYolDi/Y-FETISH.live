@@ -21,6 +21,7 @@ const preview = $("preview");
 const statusText = $("status");
 const watchLink = $("watchLink");
 const cameraButton = $("cameraButton");
+const maskSelect = $("maskSelect");
 
 let supabaseClient = null;
 let currentUser = null;
@@ -34,6 +35,19 @@ let previewStarting = false;
 let currentFacingMode = "user";
 let heartbeatTimer = null;
 let isSwitchingCamera = false;
+
+/* AR pipeline */
+let maskCanvas = null;
+let maskContext = null;
+let canvasStream = null;
+let processedVideoTrack = null;
+let faceMeshInstance = null;
+let faceLandmarks = null;
+let renderFrameId = null;
+let faceMeshBusy = false;
+let faceMeshLoading = false;
+let lastFaceMeshTime = 0;
+let maskLoadPromise = null;
 
 function status(message) {
   if (statusText) statusText.textContent = message;
@@ -58,7 +72,8 @@ async function loadSupabase() {
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Не удалось загрузить Supabase"));
+    script.onerror = () =>
+      reject(new Error("Не удалось загрузить Supabase"));
     document.head.appendChild(script);
   });
 
@@ -83,8 +98,8 @@ async function getAccessToken() {
 
 async function apiFetch(url, options = {}) {
   const token = await getAccessToken();
-
   const headers = new Headers(options.headers || {});
+
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   if (options.body && !headers.has("Content-Type")) {
@@ -107,7 +122,8 @@ async function loadSDK() {
     script.src =
       "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
     script.onload = resolve;
-    script.onerror = () => reject(new Error("Не удалось загрузить LiveKit"));
+    script.onerror = () =>
+      reject(new Error("Не удалось загрузить LiveKit"));
     document.head.appendChild(script);
   });
 
@@ -120,6 +136,417 @@ async function loadSDK() {
 
 function getCameraTrack() {
   return localTracks.find(track => track.kind === "video") || null;
+}
+
+/* Загрузка MediaPipe Face Mesh только при выборе маски */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const existing = [...document.scripts].find(s => s.src === src);
+
+    if (existing) {
+      if (existing.dataset.loaded === "true") {
+        resolve();
+      } else {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", () => {
+          reject(new Error("Не удалось загрузить библиотеку масок"));
+        }, { once: true });
+      }
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => {
+      script.dataset.loaded = "true";
+      resolve();
+    };
+    script.onerror = () =>
+      reject(new Error("Не удалось загрузить библиотеку масок"));
+    document.head.appendChild(script);
+  });
+}
+
+async function loadFaceMesh() {
+  if (faceMeshInstance) return faceMeshInstance;
+  if (maskLoadPromise) return maskLoadPromise;
+
+  maskLoadPromise = (async () => {
+    await loadScript(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"
+    );
+
+    if (!window.FaceMesh) {
+      throw new Error("Библиотека распознавания лица недоступна");
+    }
+
+    const mesh = new window.FaceMesh({
+      locateFile: file =>
+        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+
+    mesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    mesh.onResults(results => {
+      faceLandmarks = results.multiFaceLandmarks?.[0] || null;
+    });
+
+    faceMeshInstance = mesh;
+    return mesh;
+  })();
+
+  try {
+    return await maskLoadPromise;
+  } catch (error) {
+    maskLoadPromise = null;
+    throw error;
+  }
+}
+
+function point(index) {
+  if (!faceLandmarks || !maskCanvas) return null;
+
+  const p = faceLandmarks[index];
+  if (!p) return null;
+
+  return {
+    x: p.x * maskCanvas.width,
+    y: p.y * maskCanvas.height
+  };
+}
+
+function drawCatMask(ctx) {
+  const left = point(234);
+  const right = point(454);
+  const forehead = point(10);
+  const nose = point(1);
+  const chin = point(152);
+
+  if (!left || !right || !forehead || !nose || !chin) return;
+
+  const width = Math.hypot(right.x - left.x, right.y - left.y);
+  if (!Number.isFinite(width) || width < 10) return;
+
+  const angle = Math.atan2(right.y - left.y, right.x - left.x);
+  const earHeight = width * 0.24;
+  const earWidth = width * 0.22;
+
+  ctx.save();
+  ctx.translate(forehead.x, forehead.y + width * 0.04);
+  ctx.rotate(angle);
+
+  /* Левое ушко */
+  ctx.beginPath();
+  ctx.moveTo(-width * 0.34, 0);
+  ctx.lineTo(-width * 0.31 - earWidth * 0.15, -earHeight);
+  ctx.lineTo(-width * 0.13, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#202020";
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, width * 0.018);
+  ctx.strokeStyle = "#fff";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-width * 0.30, -earHeight * 0.22);
+  ctx.lineTo(-width * 0.30 - earWidth * 0.08, -earHeight * 0.78);
+  ctx.lineTo(-width * 0.19, -earHeight * 0.18);
+  ctx.closePath();
+  ctx.fillStyle = "#ff8297";
+  ctx.fill();
+
+  /* Правое ушко */
+  ctx.beginPath();
+  ctx.moveTo(width * 0.13, 0);
+  ctx.lineTo(width * 0.31 + earWidth * 0.15, -earHeight);
+  ctx.lineTo(width * 0.34, 0);
+  ctx.closePath();
+  ctx.fillStyle = "#202020";
+  ctx.fill();
+  ctx.strokeStyle = "#fff";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(width * 0.19, -earHeight * 0.18);
+  ctx.lineTo(width * 0.30 + earWidth * 0.08, -earHeight * 0.78);
+  ctx.lineTo(width * 0.30, -earHeight * 0.22);
+  ctx.closePath();
+  ctx.fillStyle = "#ff8297";
+  ctx.fill();
+
+  ctx.restore();
+
+  /* Розовый нос */
+  const noseSize = width * 0.045;
+  ctx.beginPath();
+  ctx.moveTo(nose.x - noseSize, nose.y - noseSize * 0.3);
+  ctx.lineTo(nose.x + noseSize, nose.y - noseSize * 0.3);
+  ctx.lineTo(nose.x, nose.y + noseSize * 0.7);
+  ctx.closePath();
+  ctx.fillStyle = "#ff7892";
+  ctx.fill();
+  ctx.strokeStyle = "#642536";
+  ctx.lineWidth = Math.max(1, width * 0.006);
+  ctx.stroke();
+
+  /* Усы */
+  const whiskerY = nose.y + noseSize * 0.5;
+  const whiskerX = nose.x + width * 0.045;
+  ctx.beginPath();
+  ctx.moveTo(nose.x - width * 0.025, whiskerY);
+  ctx.lineTo(nose.x - width * 0.30, whiskerY - width * 0.055);
+  ctx.moveTo(nose.x - width * 0.025, whiskerY + width * 0.025);
+  ctx.lineTo(nose.x - width * 0.32, whiskerY + width * 0.045);
+  ctx.moveTo(nose.x + width * 0.025, whiskerY);
+  ctx.lineTo(nose.x + width * 0.30, whiskerY - width * 0.055);
+  ctx.moveTo(nose.x + width * 0.025, whiskerY + width * 0.025);
+  ctx.lineTo(nose.x + width * 0.32, whiskerY + width * 0.045);
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.max(1.5, width * 0.009);
+  ctx.stroke();
+}
+
+function drawGlasses(ctx) {
+  const leftOuter = point(33);
+  const leftInner = point(133);
+  const rightInner = point(362);
+  const rightOuter = point(263);
+  const nose = point(1);
+
+  if (!leftOuter || !leftInner || !rightInner || !rightOuter || !nose) {
+    return;
+  }
+
+  const width = Math.hypot(
+    rightOuter.x - leftOuter.x,
+    rightOuter.y - leftOuter.y
+  );
+  if (width < 10) return;
+
+  const angle = Math.atan2(
+    rightOuter.y - leftOuter.y,
+    rightOuter.x - leftOuter.x
+  );
+
+  ctx.save();
+  ctx.translate(nose.x, nose.y - width * 0.045);
+  ctx.rotate(angle);
+
+  const eyeWidth = width * 0.27;
+  const eyeHeight = width * 0.17;
+  const gap = width * 0.035;
+
+  ctx.lineWidth = Math.max(2, width * 0.018);
+  ctx.strokeStyle = "#111";
+  ctx.fillStyle = "rgba(25,180,255,0.24)";
+
+  for (const side of [-1, 1]) {
+    const x = side * (eyeWidth / 2 + gap / 2);
+
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(
+        x - eyeWidth / 2,
+        -eyeHeight / 2,
+        eyeWidth,
+        eyeHeight,
+        eyeHeight * 0.25
+      );
+    } else {
+      ctx.rect(
+        x - eyeWidth / 2,
+        -eyeHeight / 2,
+        eyeWidth,
+        eyeHeight
+      );
+    }
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(-gap / 2, 0);
+  ctx.lineTo(gap / 2, 0);
+  ctx.moveTo(-width * 0.48, -width * 0.02);
+  ctx.lineTo(-width * 0.58, -width * 0.045);
+  ctx.moveTo(width * 0.48, -width * 0.02);
+  ctx.lineTo(width * 0.58, -width * 0.045);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawCrown(ctx) {
+  const left = point(234);
+  const right = point(454);
+  const forehead = point(10);
+
+  if (!left || !right || !forehead) return;
+
+  const width = Math.hypot(right.x - left.x, right.y - left.y);
+  if (width < 10) return;
+
+  const angle = Math.atan2(right.y - left.y, right.x - left.x);
+  const crownWidth = width * 0.58;
+  const crownHeight = width * 0.22;
+
+  ctx.save();
+  ctx.translate(forehead.x, forehead.y + width * 0.015);
+  ctx.rotate(angle);
+
+  ctx.beginPath();
+  ctx.moveTo(-crownWidth / 2, 0);
+  ctx.lineTo(-crownWidth / 2, -crownHeight * 0.72);
+  ctx.lineTo(-crownWidth * 0.23, -crownHeight * 0.35);
+  ctx.lineTo(0, -crownHeight);
+  ctx.lineTo(crownWidth * 0.23, -crownHeight * 0.35);
+  ctx.lineTo(crownWidth / 2, -crownHeight * 0.72);
+  ctx.lineTo(crownWidth / 2, 0);
+  ctx.closePath();
+
+  ctx.fillStyle = "#ffcc29";
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, width * 0.014);
+  ctx.strokeStyle = "#fff1a6";
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(0, -crownHeight * 0.53, width * 0.025, 0, Math.PI * 2);
+  ctx.fillStyle = "#e21b2d";
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawSelectedMask() {
+  if (!maskContext || !maskCanvas || !faceLandmarks) return;
+
+  const selected = maskSelect?.value || "none";
+
+  if (selected === "cat") drawCatMask(maskContext);
+  if (selected === "glasses") drawGlasses(maskContext);
+  if (selected === "crown") drawCrown(maskContext);
+}
+
+function renderFrame() {
+  if (!preview || !maskCanvas || !maskContext) return;
+
+  if (preview.readyState >= 2 && preview.videoWidth > 0) {
+    if (
+      maskCanvas.width !== preview.videoWidth ||
+      maskCanvas.height !== preview.videoHeight
+    ) {
+      maskCanvas.width = preview.videoWidth;
+      maskCanvas.height = preview.videoHeight;
+    }
+
+    maskContext.drawImage(
+      preview,
+      0,
+      0,
+      maskCanvas.width,
+      maskCanvas.height
+    );
+
+    drawSelectedMask();
+
+    const selected = maskSelect?.value || "none";
+    const now = performance.now();
+
+    if (
+      selected !== "none" &&
+      faceMeshInstance &&
+      !faceMeshBusy &&
+      now - lastFaceMeshTime > 65
+    ) {
+      faceMeshBusy = true;
+      lastFaceMeshTime = now;
+
+      faceMeshInstance.send({ image: preview })
+        .catch(error => console.error("Face Mesh:", error))
+        .finally(() => { faceMeshBusy = false; });
+    }
+  }
+
+  renderFrameId = requestAnimationFrame(renderFrame);
+}
+
+async function ensureProcessedVideoTrack() {
+  if (processedVideoTrack) return processedVideoTrack;
+
+  sdk = sdk || await loadSDK();
+
+  const cameraTrack = getCameraTrack();
+  if (!cameraTrack) {
+    throw new Error("Камера не готова. Разреши доступ к камере.");
+  }
+
+  if (!preview.srcObject) {
+    preview.srcObject = new MediaStream([
+      cameraTrack.mediaStreamTrack
+    ]);
+  }
+
+  preview.hidden = false;
+  await preview.play().catch(() => {});
+
+  /* Ждём готовности видеокадра */
+  for (let i = 0; i < 80; i++) {
+    if (preview.videoWidth > 0 && preview.videoHeight > 0) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  if (!preview.videoWidth || !preview.videoHeight) {
+    throw new Error("Камера не передаёт изображение. Попробуй ещё раз.");
+  }
+
+  maskCanvas = document.createElement("canvas");
+  maskCanvas.width = preview.videoWidth;
+  maskCanvas.height = preview.videoHeight;
+
+  maskContext = maskCanvas.getContext("2d", {
+    alpha: false,
+    desynchronized: true
+  });
+
+  if (!maskContext) {
+    throw new Error("Не удалось подготовить обработку видео.");
+  }
+
+  maskContext.fillStyle = "#000";
+  maskContext.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+
+  if (typeof maskCanvas.captureStream !== "function") {
+    throw new Error(
+      "Этот браузер не поддерживает передачу видео с масками. Попробуй обновить браузер."
+    );
+  }
+
+  canvasStream = maskCanvas.captureStream(24);
+  const canvasTrack = canvasStream.getVideoTracks()[0];
+
+  if (!canvasTrack || !sdk.LocalVideoTrack) {
+    throw new Error("Не удалось подготовить видео для LiveKit.");
+  }
+
+  processedVideoTrack = new sdk.LocalVideoTrack(canvasTrack);
+
+  if (renderFrameId !== null) {
+    cancelAnimationFrame(renderFrameId);
+  }
+  renderFrameId = requestAnimationFrame(renderFrame);
+
+  if (maskSelect?.value && maskSelect.value !== "none") {
+    await loadFaceMesh();
+  }
+
+  return processedVideoTrack;
 }
 
 async function prepareCamera() {
@@ -147,9 +574,10 @@ async function prepareCamera() {
       ]);
       preview.hidden = false;
       await preview.play().catch(() => {});
+      await ensureProcessedVideoTrack();
     }
 
-    status("Камера включена. Введи название и начинай эфир.");
+    status("Камера включена. Выбери маску или начинай эфир.");
   } catch (error) {
     console.error("Camera preview:", error);
     status(error.message || "Не удалось включить камеру.");
@@ -194,10 +622,7 @@ async function checkLogin() {
   }
 }
 
-/*
- * Вход через аккаунт сайта.
- * Пароль из этой формы не отправляем на сервер как отдельный пароль ведущего.
- */
+/* Вход через существующую страницу авторизации */
 if (loginForm) {
   loginForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -206,9 +631,7 @@ if (loginForm) {
 
     try {
       status("Открываем страницу входа...");
-
       if (passwordInput) passwordInput.value = "";
-
       location.href = "/login.html?next=%2Fhost.html";
     } finally {
       if (loginButton) loginButton.disabled = false;
@@ -216,10 +639,31 @@ if (loginForm) {
   });
 }
 
-/*
- * Переключение строго по кругу:
- * передняя -> задняя -> передняя -> задняя.
- */
+/* Выбор маски */
+if (maskSelect) {
+  maskSelect.addEventListener("change", async () => {
+    if (maskSelect.value === "none") {
+      faceLandmarks = null;
+      status("Маска отключена.");
+      return;
+    }
+
+    try {
+      status("Загружаем распознавание лица...");
+      await loadFaceMesh();
+      status("Маска включена. Поверни голову, чтобы проверить отслеживание.");
+    } catch (error) {
+      console.error("Mask loading:", error);
+      maskSelect.value = "none";
+      faceLandmarks = null;
+      status(
+        "Не удалось загрузить маски. Проверь интернет и попробуй ещё раз."
+      );
+    }
+  });
+}
+
+/* Переключение передней и задней камеры */
 async function switchCamera() {
   if (isSwitchingCamera) return;
 
@@ -247,10 +691,7 @@ async function switchCamera() {
     const nextFacingMode =
       currentFacingMode === "user" ? "environment" : "user";
 
-    await cameraTrack.restartTrack({
-      facingMode: nextFacingMode
-    });
-
+    await cameraTrack.restartTrack({ facingMode: nextFacingMode });
     currentFacingMode = nextFacingMode;
 
     if (preview) {
@@ -314,6 +755,39 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(sendHeartbeat, 15000);
 }
 
+async function cleanupEffectsPipeline() {
+  if (renderFrameId !== null) {
+    cancelAnimationFrame(renderFrameId);
+    renderFrameId = null;
+  }
+
+  faceLandmarks = null;
+  faceMeshBusy = false;
+
+  if (processedVideoTrack) {
+    try {
+      processedVideoTrack.stop();
+    } catch {}
+    processedVideoTrack = null;
+  }
+
+  if (canvasStream) {
+    canvasStream.getTracks().forEach(track => {
+      try { track.stop(); } catch {}
+    });
+    canvasStream = null;
+  }
+
+  if (faceMeshInstance) {
+    try { await faceMeshInstance.close(); } catch {}
+    faceMeshInstance = null;
+  }
+
+  maskCanvas = null;
+  maskContext = null;
+  maskLoadPromise = null;
+}
+
 async function stopStream(message = "Эфир завершён.") {
   if (isStopping) return;
 
@@ -350,10 +824,10 @@ async function stopStream(message = "Эфир завершён.") {
     }
   }
 
+  await cleanupEffectsPipeline();
+
   localTracks.forEach(track => {
-    try {
-      track.stop();
-    } catch {}
+    try { track.stop(); } catch {}
   });
   localTracks = [];
 
@@ -394,7 +868,6 @@ if (streamForm) {
     if (startButton) startButton.disabled = true;
 
     status("Проверяем аккаунт...");
-
     let streamRegistered = false;
 
     try {
@@ -420,6 +893,19 @@ if (streamForm) {
           }
         });
       }
+
+      const cameraTrack = getCameraTrack();
+      if (!cameraTrack) {
+        throw new Error("Камера не готова. Разреши доступ к камере.");
+      }
+
+      if (preview && !preview.srcObject) {
+        preview.srcObject = new MediaStream([
+          cameraTrack.mediaStreamTrack
+        ]);
+      }
+
+      const outputVideoTrack = await ensureProcessedVideoTrack();
 
       status("Регистрируем эфир...");
 
@@ -463,16 +949,17 @@ if (streamForm) {
         credentials.token
       );
 
+      /* Публикуем аудио как раньше, но вместо сырой камеры —
+         видеотрек с обработанного canvas. */
       for (const track of localTracks) {
-        await newRoom.localParticipant.publishTrack(track);
+        if (track.kind === "audio") {
+          await newRoom.localParticipant.publishTrack(track);
+        }
       }
 
-      const cameraTrack = getCameraTrack();
+      await newRoom.localParticipant.publishTrack(outputVideoTrack);
 
-      if (cameraTrack && preview) {
-        preview.srcObject = new MediaStream([
-          cameraTrack.mediaStreamTrack
-        ]);
+      if (preview) {
         preview.hidden = false;
         await preview.play().catch(() => {});
       }
@@ -508,18 +995,16 @@ if (streamForm) {
         stopHeartbeat();
 
         if (room) {
-          try {
-            await room.disconnect();
-          } catch {}
+          try { await room.disconnect(); } catch {}
         }
 
         room = null;
         activeRoomName = "";
 
+        await cleanupEffectsPipeline();
+
         localTracks.forEach(track => {
-          try {
-            track.stop();
-          } catch {}
+          try { track.stop(); } catch {}
         });
         localTracks = [];
 
@@ -529,6 +1014,7 @@ if (streamForm) {
         }
 
         if (stopButton) stopButton.hidden = true;
+
         if (startButton) {
           startButton.hidden = false;
           startButton.disabled = false;
@@ -564,11 +1050,11 @@ if (logoutButton) {
     currentUser = null;
 
     localTracks.forEach(track => {
-      try {
-        track.stop();
-      } catch {}
+      try { track.stop(); } catch {}
     });
     localTracks = [];
+
+    await cleanupEffectsPipeline();
 
     if (preview) {
       preview.srcObject = null;
@@ -587,10 +1073,26 @@ window.addEventListener("beforeunload", () => {
   if (room) room.disconnect();
 
   localTracks.forEach(track => {
-    try {
-      track.stop();
-    } catch {}
+    try { track.stop(); } catch {}
   });
+
+  if (renderFrameId !== null) {
+    cancelAnimationFrame(renderFrameId);
+  }
+
+  if (canvasStream) {
+    canvasStream.getTracks().forEach(track => {
+      try { track.stop(); } catch {}
+    });
+  }
+
+  if (processedVideoTrack) {
+    try { processedVideoTrack.stop(); } catch {}
+  }
+
+  if (faceMeshInstance) {
+    try { faceMeshInstance.close(); } catch {}
+  }
 });
 
 checkLogin();
