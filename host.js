@@ -241,7 +241,6 @@ function drawCatMask(ctx) {
   ctx.translate(forehead.x, forehead.y + width * 0.04);
   ctx.rotate(angle);
 
-  /* Левое ушко */
   ctx.beginPath();
   ctx.moveTo(-width * 0.34, 0);
   ctx.lineTo(-width * 0.31 - earWidth * 0.15, -earHeight);
@@ -261,7 +260,6 @@ function drawCatMask(ctx) {
   ctx.fillStyle = "#ff8297";
   ctx.fill();
 
-  /* Правое ушко */
   ctx.beginPath();
   ctx.moveTo(width * 0.13, 0);
   ctx.lineTo(width * 0.31 + earWidth * 0.15, -earHeight);
@@ -282,7 +280,6 @@ function drawCatMask(ctx) {
 
   ctx.restore();
 
-  /* Розовый нос */
   const noseSize = width * 0.045;
   ctx.beginPath();
   ctx.moveTo(nose.x - noseSize, nose.y - noseSize * 0.3);
@@ -295,9 +292,7 @@ function drawCatMask(ctx) {
   ctx.lineWidth = Math.max(1, width * 0.006);
   ctx.stroke();
 
-  /* Усы */
   const whiskerY = nose.y + noseSize * 0.5;
-  const whiskerX = nose.x + width * 0.045;
   ctx.beginPath();
   ctx.moveTo(nose.x - width * 0.025, whiskerY);
   ctx.lineTo(nose.x - width * 0.30, whiskerY - width * 0.055);
@@ -312,6 +307,7 @@ function drawCatMask(ctx) {
   ctx.stroke();
 }
 
+/* Увеличенные очки: закрывают оба глаза и область вокруг них */
 function drawGlasses(ctx) {
   const leftOuter = point(33);
   const leftInner = point(133);
@@ -327,7 +323,8 @@ function drawGlasses(ctx) {
     rightOuter.x - leftOuter.x,
     rightOuter.y - leftOuter.y
   );
-  if (width < 10) return;
+
+  if (!Number.isFinite(width) || width < 10) return;
 
   const angle = Math.atan2(
     rightOuter.y - leftOuter.y,
@@ -338,45 +335,60 @@ function drawGlasses(ctx) {
   ctx.translate(nose.x, nose.y - width * 0.045);
   ctx.rotate(angle);
 
-  const eyeWidth = width * 0.27;
-  const eyeHeight = width * 0.17;
-  const gap = width * 0.035;
+  const lensWidth = width * 0.43;
+  const lensHeight = width * 0.29;
+  const gap = width * 0.025;
+  const centerOffset = lensWidth / 2 + gap / 2;
 
-  ctx.lineWidth = Math.max(2, width * 0.018);
-  ctx.strokeStyle = "#111";
-  ctx.fillStyle = "rgba(25,180,255,0.24)";
+  ctx.fillStyle = "rgba(12, 15, 24, 0.96)";
+  ctx.strokeStyle = "#08090d";
+  ctx.lineWidth = Math.max(3, width * 0.022);
 
   for (const side of [-1, 1]) {
-    const x = side * (eyeWidth / 2 + gap / 2);
+    const x = side * centerOffset;
 
     ctx.beginPath();
+
     if (typeof ctx.roundRect === "function") {
       ctx.roundRect(
-        x - eyeWidth / 2,
-        -eyeHeight / 2,
-        eyeWidth,
-        eyeHeight,
-        eyeHeight * 0.25
+        x - lensWidth / 2,
+        -lensHeight / 2,
+        lensWidth,
+        lensHeight,
+        lensHeight * 0.22
       );
     } else {
       ctx.rect(
-        x - eyeWidth / 2,
-        -eyeHeight / 2,
-        eyeWidth,
-        eyeHeight
+        x - lensWidth / 2,
+        -lensHeight / 2,
+        lensWidth,
+        lensHeight
       );
     }
+
     ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x - lensWidth * 0.30, -lensHeight * 0.25);
+    ctx.lineTo(x - lensWidth * 0.08, -lensHeight * 0.25);
+    ctx.strokeStyle = "rgba(255,255,255,0.65)";
+    ctx.lineWidth = Math.max(1.5, width * 0.009);
     ctx.stroke();
   }
 
   ctx.beginPath();
   ctx.moveTo(-gap / 2, 0);
   ctx.lineTo(gap / 2, 0);
-  ctx.moveTo(-width * 0.48, -width * 0.02);
-  ctx.lineTo(-width * 0.58, -width * 0.045);
-  ctx.moveTo(width * 0.48, -width * 0.02);
-  ctx.lineTo(width * 0.58, -width * 0.045);
+
+  ctx.moveTo(-lensWidth - gap / 2, -lensHeight * 0.12);
+  ctx.lineTo(-width * 0.52, -lensHeight * 0.05);
+
+  ctx.moveTo(lensWidth + gap / 2, -lensHeight * 0.12);
+  ctx.lineTo(width * 0.52, -lensHeight * 0.05);
+
+  ctx.strokeStyle = "#08090d";
+  ctx.lineWidth = Math.max(3, width * 0.022);
   ctx.stroke();
 
   ctx.restore();
@@ -496,7 +508,6 @@ async function ensureProcessedVideoTrack() {
   preview.hidden = false;
   await preview.play().catch(() => {});
 
-  /* Ждём готовности видеокадра */
   for (let i = 0; i < 80; i++) {
     if (preview.videoWidth > 0 && preview.videoHeight > 0) break;
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -622,7 +633,6 @@ async function checkLogin() {
   }
 }
 
-/* Вход через существующую страницу авторизации */
 if (loginForm) {
   loginForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -663,7 +673,6 @@ if (maskSelect) {
   });
 }
 
-/* Переключение передней и задней камеры */
 async function switchCamera() {
   if (isSwitchingCamera) return;
 
@@ -949,8 +958,6 @@ if (streamForm) {
         credentials.token
       );
 
-      /* Публикуем аудио как раньше, но вместо сырой камеры —
-         видеотрек с обработанного canvas. */
       for (const track of localTracks) {
         if (track.kind === "audio") {
           await newRoom.localParticipant.publishTrack(track);
