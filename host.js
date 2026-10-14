@@ -1,4 +1,3 @@
-
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -48,6 +47,37 @@ let renderFrameId = null;
 let faceMeshBusy = false;
 let lastFaceMeshTime = 0;
 let maskLoadPromise = null;
+
+/*
+ * Отдельное видео для исходной камеры.
+ * Важно: preview показывает обработанный результат,
+ * а sourceVideo остаётся источником для обработки.
+ */
+let sourceVideo = null;
+
+function getSourceVideo() {
+  if (sourceVideo) return sourceVideo;
+
+  sourceVideo = document.createElement("video");
+  sourceVideo.autoplay = true;
+  sourceVideo.muted = true;
+  sourceVideo.playsInline = true;
+  sourceVideo.setAttribute("aria-hidden", "true");
+
+  Object.assign(sourceVideo.style, {
+    position: "fixed",
+    left: "-10px",
+    top: "-10px",
+    width: "1px",
+    height: "1px",
+    opacity: "0",
+    pointerEvents: "none",
+    zIndex: "-1"
+  });
+
+  document.body.appendChild(sourceVideo);
+  return sourceVideo;
+}
 
 function status(message) {
   if (statusText) statusText.textContent = message;
@@ -426,20 +456,27 @@ function drawBeautyFilter() {
   );
 }
 
+/*
+ * Обрабатываем исходную камеру, а не preview.
+ * Поэтому canvas не захватывает собственное изображение.
+ */
 function renderFrame() {
-  if (!preview || !maskCanvas || !maskContext) return;
+  if (!sourceVideo || !maskCanvas || !maskContext) return;
 
-  if (preview.readyState >= 2 && preview.videoWidth > 0) {
+  if (sourceVideo.readyState >= 2 &&
+      sourceVideo.videoWidth > 0 &&
+      sourceVideo.videoHeight > 0) {
+
     if (
-      maskCanvas.width !== preview.videoWidth ||
-      maskCanvas.height !== preview.videoHeight
+      maskCanvas.width !== sourceVideo.videoWidth ||
+      maskCanvas.height !== sourceVideo.videoHeight
     ) {
-      maskCanvas.width = preview.videoWidth;
-      maskCanvas.height = preview.videoHeight;
+      maskCanvas.width = sourceVideo.videoWidth;
+      maskCanvas.height = sourceVideo.videoHeight;
     }
 
     maskContext.drawImage(
-      preview,
+      sourceVideo,
       0,
       0,
       maskCanvas.width,
@@ -460,7 +497,7 @@ function renderFrame() {
       faceMeshBusy = true;
       lastFaceMeshTime = now;
 
-      faceMeshInstance.send({ image: preview })
+      faceMeshInstance.send({ image: sourceVideo })
         .catch(error => console.error("Face Mesh:", error))
         .finally(() => {
           faceMeshBusy = false;
@@ -481,27 +518,30 @@ async function ensureProcessedVideoTrack() {
     throw new Error("Камера не готова. Разреши доступ к камере.");
   }
 
-  if (!preview.srcObject) {
-    preview.srcObject = new MediaStream([
-      cameraTrack.mediaStreamTrack
-    ]);
-  }
+  const inputVideo = getSourceVideo();
 
-  preview.hidden = false;
-  await preview.play().catch(() => {});
+  inputVideo.srcObject = new MediaStream([
+    cameraTrack.mediaStreamTrack
+  ]);
+
+  await inputVideo.play().catch(() => {});
 
   for (let i = 0; i < 80; i++) {
-    if (preview.videoWidth > 0 && preview.videoHeight > 0) break;
+    if (inputVideo.videoWidth > 0 &&
+        inputVideo.videoHeight > 0) {
+      break;
+    }
+
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
-  if (!preview.videoWidth || !preview.videoHeight) {
+  if (!inputVideo.videoWidth || !inputVideo.videoHeight) {
     throw new Error("Камера не передаёт изображение. Попробуй ещё раз.");
   }
 
   maskCanvas = document.createElement("canvas");
-  maskCanvas.width = preview.videoWidth;
-  maskCanvas.height = preview.videoHeight;
+  maskCanvas.width = inputVideo.videoWidth;
+  maskCanvas.height = inputVideo.videoHeight;
 
   maskContext = maskCanvas.getContext("2d", {
     alpha: false,
@@ -540,6 +580,19 @@ async function ensureProcessedVideoTrack() {
     await loadFaceMesh();
   }
 
+  /*
+   * Показываем ведущему обработанное видео.
+   * Исходная камера остаётся в inputVideo,
+   * поэтому обработка не зацикливается.
+   */
+  if (preview) {
+    preview.srcObject = canvasStream;
+    preview.muted = true;
+    preview.playsInline = true;
+    preview.hidden = false;
+    await preview.play().catch(() => {});
+  }
+
   return processedVideoTrack;
 }
 
@@ -563,11 +616,6 @@ async function prepareCamera() {
     const cameraTrack = getCameraTrack();
 
     if (cameraTrack && preview) {
-      preview.srcObject = new MediaStream([
-        cameraTrack.mediaStreamTrack
-      ]);
-      preview.hidden = false;
-      await preview.play().catch(() => {});
       await ensureProcessedVideoTrack();
     }
 
@@ -686,10 +734,19 @@ async function switchCamera() {
     await cameraTrack.restartTrack({ facingMode: nextFacingMode });
     currentFacingMode = nextFacingMode;
 
-    if (preview) {
-      preview.srcObject = new MediaStream([
-        cameraTrack.mediaStreamTrack
-      ]);
+    /*
+     * Обновляем исходное видео, не заменяя обработанный preview.
+     */
+    const inputVideo = getSourceVideo();
+
+    inputVideo.srcObject = new MediaStream([
+      cameraTrack.mediaStreamTrack
+    ]);
+
+    await inputVideo.play().catch(() => {});
+
+    if (!processedVideoTrack && preview) {
+      preview.srcObject = inputVideo.srcObject;
       preview.hidden = false;
       await preview.play().catch(() => {});
     }
@@ -829,6 +886,9 @@ async function stopStream(message = "Эфир завершён.") {
   });
   localTracks = [];
 
+  const inputVideo = getSourceVideo();
+  inputVideo.srcObject = null;
+
   if (preview) {
     preview.srcObject = null;
     preview.hidden = true;
@@ -897,8 +957,10 @@ if (streamForm) {
         throw new Error("Камера не готова. Разреши доступ к камере.");
       }
 
-      if (preview && !preview.srcObject) {
-        preview.srcObject = new MediaStream([
+      const inputVideo = getSourceVideo();
+
+      if (!inputVideo.srcObject) {
+        inputVideo.srcObject = new MediaStream([
           cameraTrack.mediaStreamTrack
         ]);
       }
@@ -957,6 +1019,7 @@ if (streamForm) {
       await newRoom.localParticipant.publishTrack(outputVideoTrack);
 
       if (preview) {
+        preview.srcObject = canvasStream;
         preview.hidden = false;
         await preview.play().catch(() => {});
       }
@@ -1009,6 +1072,9 @@ if (streamForm) {
         });
         localTracks = [];
 
+        const inputVideo = getSourceVideo();
+        inputVideo.srcObject = null;
+
         if (preview) {
           preview.srcObject = null;
           preview.hidden = true;
@@ -1059,6 +1125,9 @@ if (logoutButton) {
 
     await cleanupEffectsPipeline();
 
+    const inputVideo = getSourceVideo();
+    inputVideo.srcObject = null;
+
     if (preview) {
       preview.srcObject = null;
       preview.hidden = true;
@@ -1103,6 +1172,10 @@ window.addEventListener("beforeunload", () => {
     try {
       faceMeshInstance.close();
     } catch {}
+  }
+
+  if (sourceVideo) {
+    sourceVideo.srcObject = null;
   }
 });
 
