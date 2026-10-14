@@ -137,10 +137,11 @@
     .camera-controls button,
     .camera-controls .watch-link { flex: 1 1 130px; }
 
-    #cameraButton {
+    /* Круглая кнопка переключения камеры */
+    #cameraButton,
+    #beautyButton {
       position: absolute;
       right: 12px;
-      bottom: 95px;
       z-index: 125;
       display: flex;
       align-items: center;
@@ -152,20 +153,43 @@
       padding: 0;
       border: 1px solid rgba(255,255,255,.22);
       border-radius: 50%;
-      background: rgba(35,35,35,.84);
+      background: rgba(35,35,35,.88);
       color: #fff;
       box-shadow: 0 3px 12px rgba(0,0,0,.25);
       -webkit-tap-highlight-color: transparent;
     }
 
-    #cameraButton svg { display: block; width: 23px; height: 23px; }
+    #cameraButton {
+      bottom: 95px;
+    }
 
-    #cameraButton:active {
-      background: rgba(75,75,75,.95);
+    #beautyButton {
+      bottom: 38px;
+      background: rgba(226,27,45,.92);
+      border-color: rgba(255,255,255,.3);
+    }
+
+    #cameraButton svg,
+    #beautyButton svg {
+      display: block;
+      width: 23px;
+      height: 23px;
+    }
+
+    #cameraButton:active,
+    #beautyButton:active {
       transform: scale(.96);
     }
 
-    /* Выбор AR-маски */
+    #cameraButton:active {
+      background: rgba(75,75,75,.95);
+    }
+
+    #beautyButton:active {
+      background: #ff3038;
+    }
+
+    /* Выбор Beauty-фильтра */
     .mask-control {
       display: flex;
       flex-direction: column;
@@ -186,6 +210,19 @@
       border-radius: 10px;
       background: rgba(20,20,20,.94);
       color: #fff;
+    }
+
+    /* Панель выбора открывается круглой кнопкой */
+    body:not(.studio-active) #beautyButton {
+      display: none;
+    }
+
+    body.studio-active .mask-control {
+      display: none;
+    }
+
+    body.studio-active .mask-control.beauty-open {
+      display: flex;
     }
 
     #status {
@@ -329,12 +366,12 @@
         overflow-wrap: anywhere;
       }
 
-      body.studio-active #cameraButton {
+      body.studio-active #cameraButton,
+      body.studio-active #beautyButton {
         position: fixed;
         top: auto;
         left: auto;
         right: 14px;
-        bottom: calc(190px + env(safe-area-inset-bottom, 0px));
         z-index: 125;
         width: 48px;
         height: 48px;
@@ -342,19 +379,29 @@
         min-height: 48px;
         padding: 0;
         border-radius: 50%;
-        background: rgba(35,35,35,.84);
-        border: 1px solid rgba(255,255,255,.22);
       }
 
-      body.studio-active .mask-control {
+      body.studio-active #cameraButton {
+        bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+      }
+
+      body.studio-active #beautyButton {
+        bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+      }
+
+      body.studio-active .mask-control.beauty-open {
         position: fixed;
         left: 12px;
-        right: auto;
+        right: 12px;
         bottom: calc(245px + env(safe-area-inset-bottom, 0px));
         z-index: 126;
-        width: min(190px, calc(100vw - 24px));
+        width: min(220px, calc(100vw - 24px));
         max-width: none;
         gap: 4px;
+        padding: 10px;
+        border: 1px solid rgba(255,255,255,.2);
+        border-radius: 12px;
+        background: rgba(15,15,15,.94);
       }
 
       body.studio-active .mask-control label {
@@ -410,7 +457,10 @@
         font-size: 11px;
       }
 
-      body.studio-active #cameraButton { right: 12px; }
+      body.studio-active #cameraButton,
+      body.studio-active #beautyButton {
+        right: 12px;
+      }
     }
 
     @media (max-height: 500px) and (max-width: 800px) {
@@ -431,7 +481,11 @@
         bottom: calc(160px + env(safe-area-inset-bottom, 0px));
       }
 
-      body.studio-active .mask-control {
+      body.studio-active #beautyButton {
+        bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+      }
+
+      body.studio-active .mask-control.beauty-open {
         bottom: calc(210px + env(safe-area-inset-bottom, 0px));
       }
     }
@@ -493,18 +547,30 @@
           </svg>
         </button>
 
+        <button id="beautyButton" type="button"
+          aria-label="Открыть Beauty-фильтры"
+          title="Beauty-фильтры"
+          aria-expanded="false"
+          aria-controls="maskSelect">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            aria-hidden="true">
+            <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"/>
+            <path d="m19 14 .9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z"/>
+            <path d="m5 15 .7 1.3L7 17l-1.3.7L5 19l-.7-1.3L3 17l1.3-.7L5 15Z"/>
+          </svg>
+        </button>
 
-<div class="mask-control">
-  <label for="maskSelect">Beauty-фильтры</label>
-  <select id="maskSelect">
-    <option value="none">Без фильтра</option>
-    <option value="beauty">✨ Beauty</option>
-    <option value="glamour">💄 Glamour</option>
-    <option value="makeup">💋 Макияж</option>
-    <option value="pink">🩷 Pink</option>
-  </select>
-</div>
-
+        <div class="mask-control">
+          <label for="maskSelect">Beauty-фильтры</label>
+          <select id="maskSelect">
+            <option value="none">Без фильтра</option>
+            <option value="beauty">✨ Beauty</option>
+            <option value="glamour">💄 Glamour</option>
+            <option value="makeup">💋 Макияж</option>
+            <option value="pink">🩷 Pink</option>
+          </select>
+        </div>
 
         <div class="camera-controls">
           <button id="stopButton" type="button" hidden>Завершить эфир</button>
@@ -517,6 +583,25 @@
       </div>
     </section>
   </main>
+
+  <script>
+    (() => {
+      const beautyButton = document.getElementById('beautyButton');
+      const maskControl = document.querySelector('.mask-control');
+
+      if (!beautyButton || !maskControl) return;
+
+      beautyButton.addEventListener('click', () => {
+        const isOpen = maskControl.classList.toggle('beauty-open');
+        beautyButton.setAttribute('aria-expanded', String(isOpen));
+      });
+
+      document.getElementById('maskSelect')?.addEventListener('change', () => {
+        maskControl.classList.remove('beauty-open');
+        beautyButton.setAttribute('aria-expanded', 'false');
+      });
+    })();
+  </script>
 
   <script src="/host.js" defer></script>
 </body>
