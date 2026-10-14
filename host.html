@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -72,8 +73,8 @@
       color: #fff;
     }
 
-    .logo-y { color: #ff3038; font-weight: 900; }
-    .logo-name { color: #fff; font-weight: 900; }
+    .logo-y { color: #fff; font-weight: 900; }
+    .logo-name { color: #ff3038; font-weight: 900; }
 
     .logo-live {
       margin-left: 7px;
@@ -137,7 +138,7 @@
     .camera-controls button,
     .camera-controls .watch-link { flex: 1 1 130px; }
 
-    /* Круглая кнопка переключения камеры */
+    /* Кнопки камеры: вертикально справа сверху */
     #cameraButton,
     #beautyButton {
       position: absolute;
@@ -159,12 +160,10 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    #cameraButton {
-      bottom: 95px;
-    }
+    #cameraButton { top: 12px; }
 
     #beautyButton {
-      bottom: 38px;
+      top: 68px;
       background: rgba(226,27,45,.92);
       border-color: rgba(255,255,255,.3);
     }
@@ -181,13 +180,8 @@
       transform: scale(.96);
     }
 
-    #cameraButton:active {
-      background: rgba(75,75,75,.95);
-    }
-
-    #beautyButton:active {
-      background: #ff3038;
-    }
+    #cameraButton:active { background: rgba(75,75,75,.95); }
+    #beautyButton:active { background: #ff3038; }
 
     /* Выбор Beauty-фильтра */
     .mask-control {
@@ -212,7 +206,6 @@
       color: #fff;
     }
 
-    /* Панель выбора открывается круглой кнопкой */
     body:not(.studio-active) #beautyButton {
       display: none;
     }
@@ -287,11 +280,12 @@
         background: #080808;
       }
 
+      /* Верхняя панель оставляет место для круглых кнопок справа */
       body.studio-active .studio-top {
         position: fixed;
         top: calc(12px + env(safe-area-inset-top, 0px));
         left: 12px;
-        right: 12px;
+        right: 76px;
         z-index: 110;
         gap: 7px;
       }
@@ -302,18 +296,21 @@
         text-shadow: 0 1px 4px #000;
       }
 
-      body.studio-active #streamForm { gap: 0; width: 100%; }
+      body.studio-active #streamForm {
+        gap: 7px;
+        width: 100%;
+      }
 
       body.studio-active #streamTitle,
       body.studio-active #streamCountry {
         width: 100%;
-        min-height: 46px;
-        padding: 11px 12px;
+        min-height: 42px;
+        padding: 9px 10px;
         border: 1px solid #555;
-        border-radius: 10px;
+        border-radius: 9px;
         background: rgba(15,15,15,.9);
         color: #fff;
-        font-size: 16px;
+        font-size: 15px;
       }
 
       body.studio-active #startButton {
@@ -339,6 +336,7 @@
         box-shadow: 0 4px 18px rgba(226,27,45,.35);
       }
 
+      /* Нижние действия остаются внизу */
       body.studio-active .camera-controls {
         position: fixed;
         left: 10px;
@@ -366,10 +364,10 @@
         overflow-wrap: anywhere;
       }
 
+      /* Кнопки камеры и Beauty: вертикальный столбик справа сверху */
       body.studio-active #cameraButton,
       body.studio-active #beautyButton {
         position: fixed;
-        top: auto;
         left: auto;
         right: 14px;
         z-index: 125;
@@ -382,21 +380,25 @@
       }
 
       body.studio-active #cameraButton {
-        bottom: calc(190px + env(safe-area-inset-bottom, 0px));
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        bottom: auto;
       }
 
       body.studio-active #beautyButton {
-        bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+        top: calc(68px + env(safe-area-inset-top, 0px));
+        bottom: auto;
       }
 
+      /* Панель фильтров открывается слева от кнопок */
       body.studio-active .mask-control.beauty-open {
         position: fixed;
         left: 12px;
-        right: 12px;
-        bottom: calc(245px + env(safe-area-inset-bottom, 0px));
+        right: 74px;
+        top: calc(126px + env(safe-area-inset-top, 0px));
+        bottom: auto;
         z-index: 126;
-        width: min(220px, calc(100vw - 24px));
-        max-width: none;
+        width: auto;
+        max-width: 260px;
         gap: 4px;
         padding: 10px;
         border: 1px solid rgba(255,255,255,.2);
@@ -430,6 +432,7 @@
 
     @media (max-width: 600px) {
       .logo { font-size: 23px; }
+
       .logo-live {
         font-size: 12px;
         padding: 3px 6px;
@@ -439,6 +442,7 @@
 
     @media (max-width: 380px) {
       .logo { font-size: 21px; }
+
       .logo-live {
         font-size: 11px;
         padding: 3px 5px;
@@ -459,7 +463,11 @@
 
       body.studio-active #cameraButton,
       body.studio-active #beautyButton {
-        right: 12px;
+        right: 14px;
+      }
+
+      body.studio-active .studio-top {
+        right: 72px;
       }
     }
 
@@ -478,15 +486,18 @@
       }
 
       body.studio-active #cameraButton {
-        bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        bottom: auto;
       }
 
       body.studio-active #beautyButton {
-        bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+        top: calc(62px + env(safe-area-inset-top, 0px));
+        bottom: auto;
       }
 
       body.studio-active .mask-control.beauty-open {
-        bottom: calc(210px + env(safe-area-inset-bottom, 0px));
+        top: calc(118px + env(safe-area-inset-top, 0px));
+        bottom: auto;
       }
     }
   </style>
