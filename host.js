@@ -33,6 +33,7 @@ let isStarting = false;
 let previewStarting = false;
 let currentFacingMode = "user";
 let heartbeatTimer = null;
+let isSwitchingCamera = false;
 
 function status(message) {
   if (statusText) statusText.textContent = message;
@@ -168,9 +169,6 @@ async function checkLogin() {
       currentUser = null;
       setStudioVisible(false);
       status("Войди в аккаунт, чтобы открыть студию.");
-
-      // Не перенаправляем автоматически:
-      // пользователь может войти через форму на этой странице.
       return;
     }
 
@@ -218,7 +216,16 @@ if (loginForm) {
   });
 }
 
+/*
+ * Переключение строго по кругу:
+ * передняя -> задняя -> передняя -> задняя.
+ */
 async function switchCamera() {
+  if (isSwitchingCamera) return;
+
+  isSwitchingCamera = true;
+  if (cameraButton) cameraButton.disabled = true;
+
   try {
     sdk = sdk || await loadSDK();
 
@@ -227,49 +234,44 @@ async function switchCamera() {
     if (!cameraTrack) {
       await prepareCamera();
       cameraTrack = getCameraTrack();
-      if (!cameraTrack) return;
-    }
 
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(device => device.kind === "videoinput");
-
-    if (cameras.length < 2) {
-      currentFacingMode =
-        currentFacingMode === "user" ? "environment" : "user";
-
-      if (typeof cameraTrack.restartTrack !== "function") {
-        status("Переключение камеры не поддерживается.");
-        return;
-      }
-
-      await cameraTrack.restartTrack({ facingMode: currentFacingMode });
-    } else {
-      const currentId =
-        cameraTrack.mediaStreamTrack.getSettings().deviceId;
-      const index = cameras.findIndex(device => device.deviceId === currentId);
-      const nextCamera = cameras[(index + 1) % cameras.length];
-
-      if (typeof cameraTrack.switchCamera === "function") {
-        await cameraTrack.switchCamera(nextCamera.deviceId);
-      } else if (typeof cameraTrack.restartTrack === "function") {
-        await cameraTrack.restartTrack({ deviceId: nextCamera.deviceId });
-      } else {
-        status("Переключение камеры не поддерживается.");
-        return;
+      if (!cameraTrack) {
+        throw new Error("Камера ещё не готова. Попробуй ещё раз.");
       }
     }
+
+    if (typeof cameraTrack.restartTrack !== "function") {
+      throw new Error("Переключение камеры не поддерживается.");
+    }
+
+    const nextFacingMode =
+      currentFacingMode === "user" ? "environment" : "user";
+
+    await cameraTrack.restartTrack({
+      facingMode: nextFacingMode
+    });
+
+    currentFacingMode = nextFacingMode;
 
     if (preview) {
       preview.srcObject = new MediaStream([
         cameraTrack.mediaStreamTrack
       ]);
+      preview.hidden = false;
       await preview.play().catch(() => {});
     }
 
-    status("Камера переключена.");
+    status(
+      currentFacingMode === "environment"
+        ? "Включена задняя камера."
+        : "Включена передняя камера."
+    );
   } catch (error) {
     console.error("Camera switch:", error);
-    status("Не удалось переключить камеру.");
+    status(error.message || "Не удалось переключить камеру.");
+  } finally {
+    isSwitchingCamera = false;
+    if (cameraButton) cameraButton.disabled = false;
   }
 }
 
