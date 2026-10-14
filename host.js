@@ -1,3 +1,4 @@
+
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -36,7 +37,7 @@ let currentFacingMode = "user";
 let heartbeatTimer = null;
 let isSwitchingCamera = false;
 
-/* AR pipeline */
+/* Beauty effects pipeline */
 let maskCanvas = null;
 let maskContext = null;
 let canvasStream = null;
@@ -45,7 +46,6 @@ let faceMeshInstance = null;
 let faceLandmarks = null;
 let renderFrameId = null;
 let faceMeshBusy = false;
-let faceMeshLoading = false;
 let lastFaceMeshTime = 0;
 let maskLoadPromise = null;
 
@@ -138,7 +138,7 @@ function getCameraTrack() {
   return localTracks.find(track => track.kind === "video") || null;
 }
 
-/* Загрузка MediaPipe Face Mesh только при выборе маски */
+/* Загрузка MediaPipe для отслеживания лица */
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const existing = [...document.scripts].find(s => s.src === src);
@@ -149,7 +149,7 @@ function loadScript(src) {
       } else {
         existing.addEventListener("load", resolve, { once: true });
         existing.addEventListener("error", () => {
-          reject(new Error("Не удалось загрузить библиотеку масок"));
+          reject(new Error("Не удалось загрузить библиотеку эффектов"));
         }, { once: true });
       }
       return;
@@ -163,7 +163,7 @@ function loadScript(src) {
       resolve();
     };
     script.onerror = () =>
-      reject(new Error("Не удалось загрузить библиотеку масок"));
+      reject(new Error("Не удалось загрузить библиотеку эффектов"));
     document.head.appendChild(script);
   });
 }
@@ -221,229 +221,209 @@ function point(index) {
   };
 }
 
-function drawCatMask(ctx) {
+function faceWidth() {
   const left = point(234);
   const right = point(454);
-  const forehead = point(10);
-  const nose = point(1);
-  const chin = point(152);
 
-  if (!left || !right || !forehead || !nose || !chin) return;
+  if (!left || !right) return 0;
 
-  const width = Math.hypot(right.x - left.x, right.y - left.y);
-  if (!Number.isFinite(width) || width < 10) return;
-
-  const angle = Math.atan2(right.y - left.y, right.x - left.x);
-  const earHeight = width * 0.24;
-  const earWidth = width * 0.22;
-
-  ctx.save();
-  ctx.translate(forehead.x, forehead.y + width * 0.04);
-  ctx.rotate(angle);
-
-  ctx.beginPath();
-  ctx.moveTo(-width * 0.34, 0);
-  ctx.lineTo(-width * 0.31 - earWidth * 0.15, -earHeight);
-  ctx.lineTo(-width * 0.13, 0);
-  ctx.closePath();
-  ctx.fillStyle = "#202020";
-  ctx.fill();
-  ctx.lineWidth = Math.max(2, width * 0.018);
-  ctx.strokeStyle = "#fff";
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(-width * 0.30, -earHeight * 0.22);
-  ctx.lineTo(-width * 0.30 - earWidth * 0.08, -earHeight * 0.78);
-  ctx.lineTo(-width * 0.19, -earHeight * 0.18);
-  ctx.closePath();
-  ctx.fillStyle = "#ff8297";
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.moveTo(width * 0.13, 0);
-  ctx.lineTo(width * 0.31 + earWidth * 0.15, -earHeight);
-  ctx.lineTo(width * 0.34, 0);
-  ctx.closePath();
-  ctx.fillStyle = "#202020";
-  ctx.fill();
-  ctx.strokeStyle = "#fff";
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(width * 0.19, -earHeight * 0.18);
-  ctx.lineTo(width * 0.30 + earWidth * 0.08, -earHeight * 0.78);
-  ctx.lineTo(width * 0.30, -earHeight * 0.22);
-  ctx.closePath();
-  ctx.fillStyle = "#ff8297";
-  ctx.fill();
-
-  ctx.restore();
-
-  const noseSize = width * 0.045;
-  ctx.beginPath();
-  ctx.moveTo(nose.x - noseSize, nose.y - noseSize * 0.3);
-  ctx.lineTo(nose.x + noseSize, nose.y - noseSize * 0.3);
-  ctx.lineTo(nose.x, nose.y + noseSize * 0.7);
-  ctx.closePath();
-  ctx.fillStyle = "#ff7892";
-  ctx.fill();
-  ctx.strokeStyle = "#642536";
-  ctx.lineWidth = Math.max(1, width * 0.006);
-  ctx.stroke();
-
-  const whiskerY = nose.y + noseSize * 0.5;
-  ctx.beginPath();
-  ctx.moveTo(nose.x - width * 0.025, whiskerY);
-  ctx.lineTo(nose.x - width * 0.30, whiskerY - width * 0.055);
-  ctx.moveTo(nose.x - width * 0.025, whiskerY + width * 0.025);
-  ctx.lineTo(nose.x - width * 0.32, whiskerY + width * 0.045);
-  ctx.moveTo(nose.x + width * 0.025, whiskerY);
-  ctx.lineTo(nose.x + width * 0.30, whiskerY - width * 0.055);
-  ctx.moveTo(nose.x + width * 0.025, whiskerY + width * 0.025);
-  ctx.lineTo(nose.x + width * 0.32, whiskerY + width * 0.045);
-  ctx.strokeStyle = "#fff";
-  ctx.lineWidth = Math.max(1.5, width * 0.009);
-  ctx.stroke();
+  return Math.hypot(right.x - left.x, right.y - left.y);
 }
 
-/* Увеличенные очки: закрывают оба глаза и область вокруг них */
-function drawGlasses(ctx) {
-  const leftOuter = point(33);
-  const leftInner = point(133);
-  const rightInner = point(362);
-  const rightOuter = point(263);
-  const nose = point(1);
+/* Румянец */
+function drawCheekBlush(ctx, width, opacity, color) {
+  const left = point(205);
+  const right = point(425);
 
-  if (!leftOuter || !leftInner || !rightInner || !rightOuter || !nose) {
-    return;
-  }
-
-  const width = Math.hypot(
-    rightOuter.x - leftOuter.x,
-    rightOuter.y - leftOuter.y
-  );
-
-  if (!Number.isFinite(width) || width < 10) return;
-
-  const angle = Math.atan2(
-    rightOuter.y - leftOuter.y,
-    rightOuter.x - leftOuter.x
-  );
+  if (!left || !right || width < 10) return;
 
   ctx.save();
-  ctx.translate(nose.x, nose.y - width * 0.045);
-  ctx.rotate(angle);
+  ctx.globalAlpha = opacity;
 
-  const lensWidth = width * 0.43;
-  const lensHeight = width * 0.29;
-  const gap = width * 0.025;
-  const centerOffset = lensWidth / 2 + gap / 2;
+  for (const p of [left, right]) {
+    const gradient = ctx.createRadialGradient(
+      p.x, p.y, width * 0.01,
+      p.x, p.y, width * 0.13
+    );
 
-  ctx.fillStyle = "rgba(12, 15, 24, 0.96)";
-  ctx.strokeStyle = "#08090d";
-  ctx.lineWidth = Math.max(3, width * 0.022);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, "rgba(255,100,150,0)");
 
-  for (const side of [-1, 1]) {
-    const x = side * centerOffset;
-
+    ctx.fillStyle = gradient;
     ctx.beginPath();
-
-    if (typeof ctx.roundRect === "function") {
-      ctx.roundRect(
-        x - lensWidth / 2,
-        -lensHeight / 2,
-        lensWidth,
-        lensHeight,
-        lensHeight * 0.22
-      );
-    } else {
-      ctx.rect(
-        x - lensWidth / 2,
-        -lensHeight / 2,
-        lensWidth,
-        lensHeight
-      );
-    }
-
+    ctx.ellipse(
+      p.x, p.y,
+      width * 0.12, width * 0.065,
+      0, 0, Math.PI * 2
+    );
     ctx.fill();
-    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+/* Цвет губ */
+function drawLipColor(ctx, width, color, opacity) {
+  const upper = point(13);
+  const lower = point(14);
+  const left = point(61);
+  const right = point(291);
+
+  if (!upper || !lower || !left || !right || width < 10) return;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = color;
+
+  ctx.beginPath();
+  ctx.moveTo(left.x, left.y);
+
+  ctx.quadraticCurveTo(
+    upper.x - width * 0.035,
+    upper.y - width * 0.025,
+    upper.x,
+    upper.y
+  );
+
+  ctx.quadraticCurveTo(
+    upper.x + width * 0.035,
+    upper.y - width * 0.025,
+    right.x,
+    right.y
+  );
+
+  ctx.quadraticCurveTo(
+    lower.x + width * 0.025,
+    lower.y + width * 0.02,
+    lower.x,
+    lower.y
+  );
+
+  ctx.quadraticCurveTo(
+    lower.x - width * 0.025,
+    lower.y + width * 0.02,
+    left.x,
+    left.y
+  );
+
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+/* Лёгкий макияж глаз */
+function drawEyeMakeup(ctx, width, color, opacity) {
+  const eyes = [
+    [33, 133, 159],
+    [362, 263, 386]
+  ];
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(1.5, width * 0.012);
+  ctx.lineCap = "round";
+
+  for (const [outerId, innerId, upperId] of eyes) {
+    const outer = point(outerId);
+    const inner = point(innerId);
+    const upper = point(upperId);
+
+    if (!outer || !inner || !upper) continue;
 
     ctx.beginPath();
-    ctx.moveTo(x - lensWidth * 0.30, -lensHeight * 0.25);
-    ctx.lineTo(x - lensWidth * 0.08, -lensHeight * 0.25);
-    ctx.strokeStyle = "rgba(255,255,255,0.65)";
-    ctx.lineWidth = Math.max(1.5, width * 0.009);
+    ctx.moveTo(outer.x, outer.y);
+    ctx.quadraticCurveTo(
+      upper.x,
+      upper.y - width * 0.012,
+      inner.x,
+      inner.y
+    );
     ctx.stroke();
   }
 
-  ctx.beginPath();
-  ctx.moveTo(-gap / 2, 0);
-  ctx.lineTo(gap / 2, 0);
-
-  ctx.moveTo(-lensWidth - gap / 2, -lensHeight * 0.12);
-  ctx.lineTo(-width * 0.52, -lensHeight * 0.05);
-
-  ctx.moveTo(lensWidth + gap / 2, -lensHeight * 0.12);
-  ctx.lineTo(width * 0.52, -lensHeight * 0.05);
-
-  ctx.strokeStyle = "#08090d";
-  ctx.lineWidth = Math.max(3, width * 0.022);
-  ctx.stroke();
-
   ctx.restore();
 }
 
-function drawCrown(ctx) {
-  const left = point(234);
-  const right = point(454);
-  const forehead = point(10);
-
-  if (!left || !right || !forehead) return;
-
-  const width = Math.hypot(right.x - left.x, right.y - left.y);
-  if (width < 10) return;
-
-  const angle = Math.atan2(right.y - left.y, right.x - left.x);
-  const crownWidth = width * 0.58;
-  const crownHeight = width * 0.22;
-
-  ctx.save();
-  ctx.translate(forehead.x, forehead.y + width * 0.015);
-  ctx.rotate(angle);
-
-  ctx.beginPath();
-  ctx.moveTo(-crownWidth / 2, 0);
-  ctx.lineTo(-crownWidth / 2, -crownHeight * 0.72);
-  ctx.lineTo(-crownWidth * 0.23, -crownHeight * 0.35);
-  ctx.lineTo(0, -crownHeight);
-  ctx.lineTo(crownWidth * 0.23, -crownHeight * 0.35);
-  ctx.lineTo(crownWidth / 2, -crownHeight * 0.72);
-  ctx.lineTo(crownWidth / 2, 0);
-  ctx.closePath();
-
-  ctx.fillStyle = "#ffcc29";
-  ctx.fill();
-  ctx.lineWidth = Math.max(2, width * 0.014);
-  ctx.strokeStyle = "#fff1a6";
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(0, -crownHeight * 0.53, width * 0.025, 0, Math.PI * 2);
-  ctx.fillStyle = "#e21b2d";
-  ctx.fill();
-
-  ctx.restore();
-}
-
-function drawSelectedMask() {
-  if (!maskContext || !maskCanvas || !faceLandmarks) return;
+/* Beauty / Glamour / Макияж / Pink */
+function drawBeautyFilter() {
+  if (!maskContext || !maskCanvas) return;
 
   const selected = maskSelect?.value || "none";
+  if (selected === "none") return;
 
-  if (selected === "cat") drawCatMask(maskContext);
-  if (selected === "glasses") drawGlasses(maskContext);
-  if (selected === "crown") drawCrown(maskContext);
+  const settingsByFilter = {
+    beauty: {
+      tint: "rgba(255,220,230,0.045)",
+      blush: 0.22,
+      blushColor: "#ff7799",
+      lips: "#e96b88",
+      lipOpacity: 0.24,
+      eyes: "#68404f",
+      eyeOpacity: 0.15
+    },
+    glamour: {
+      tint: "rgba(255,190,220,0.075)",
+      blush: 0.38,
+      blushColor: "#ff5688",
+      lips: "#d92862",
+      lipOpacity: 0.48,
+      eyes: "#442235",
+      eyeOpacity: 0.42
+    },
+    makeup: {
+      tint: "rgba(255,215,225,0.035)",
+      blush: 0.28,
+      blushColor: "#f45b86",
+      lips: "#d83255",
+      lipOpacity: 0.58,
+      eyes: "#301b2a",
+      eyeOpacity: 0.48
+    },
+    pink: {
+      tint: "rgba(255,105,180,0.085)",
+      blush: 0.42,
+      blushColor: "#ff69b4",
+      lips: "#ff3985",
+      lipOpacity: 0.48,
+      eyes: "#82365f",
+      eyeOpacity: 0.28
+    }
+  };
+
+  const settings = settingsByFilter[selected];
+  if (!settings) return;
+
+  const ctx = maskContext;
+
+  ctx.save();
+  ctx.fillStyle = settings.tint;
+  ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  ctx.restore();
+
+  const width = faceWidth();
+  if (width < 10 || !faceLandmarks) return;
+
+  drawCheekBlush(
+    ctx,
+    width,
+    settings.blush,
+    settings.blushColor
+  );
+
+  drawLipColor(
+    ctx,
+    width,
+    settings.lips,
+    settings.lipOpacity
+  );
+
+  drawEyeMakeup(
+    ctx,
+    width,
+    settings.eyes,
+    settings.eyeOpacity
+  );
 }
 
 function renderFrame() {
@@ -466,7 +446,7 @@ function renderFrame() {
       maskCanvas.height
     );
 
-    drawSelectedMask();
+    drawBeautyFilter();
 
     const selected = maskSelect?.value || "none";
     const now = performance.now();
@@ -482,7 +462,9 @@ function renderFrame() {
 
       faceMeshInstance.send({ image: preview })
         .catch(error => console.error("Face Mesh:", error))
-        .finally(() => { faceMeshBusy = false; });
+        .finally(() => {
+          faceMeshBusy = false;
+        });
     }
   }
 
@@ -535,7 +517,7 @@ async function ensureProcessedVideoTrack() {
 
   if (typeof maskCanvas.captureStream !== "function") {
     throw new Error(
-      "Этот браузер не поддерживает передачу видео с масками. Попробуй обновить браузер."
+      "Этот браузер не поддерживает передачу обработанного видео. Попробуй обновить браузер."
     );
   }
 
@@ -551,6 +533,7 @@ async function ensureProcessedVideoTrack() {
   if (renderFrameId !== null) {
     cancelAnimationFrame(renderFrameId);
   }
+
   renderFrameId = requestAnimationFrame(renderFrame);
 
   if (maskSelect?.value && maskSelect.value !== "none") {
@@ -588,7 +571,7 @@ async function prepareCamera() {
       await ensureProcessedVideoTrack();
     }
 
-    status("Камера включена. Выбери маску или начинай эфир.");
+    status("Камера включена. Выбери Beauty-фильтр или начинай эфир.");
   } catch (error) {
     console.error("Camera preview:", error);
     status(error.message || "Не удалось включить камеру.");
@@ -649,25 +632,25 @@ if (loginForm) {
   });
 }
 
-/* Выбор маски */
+/* Выбор Beauty-фильтра */
 if (maskSelect) {
   maskSelect.addEventListener("change", async () => {
     if (maskSelect.value === "none") {
       faceLandmarks = null;
-      status("Маска отключена.");
+      status("Эффект отключён.");
       return;
     }
 
     try {
       status("Загружаем распознавание лица...");
       await loadFaceMesh();
-      status("Маска включена. Поверни голову, чтобы проверить отслеживание.");
+      status("Эффект включён. Поверни голову, чтобы проверить отслеживание.");
     } catch (error) {
-      console.error("Mask loading:", error);
+      console.error("Beauty filter loading:", error);
       maskSelect.value = "none";
       faceLandmarks = null;
       status(
-        "Не удалось загрузить маски. Проверь интернет и попробуй ещё раз."
+        "Не удалось загрузить эффекты. Проверь интернет и попробуй ещё раз."
       );
     }
   });
@@ -782,13 +765,17 @@ async function cleanupEffectsPipeline() {
 
   if (canvasStream) {
     canvasStream.getTracks().forEach(track => {
-      try { track.stop(); } catch {}
+      try {
+        track.stop();
+      } catch {}
     });
     canvasStream = null;
   }
 
   if (faceMeshInstance) {
-    try { await faceMeshInstance.close(); } catch {}
+    try {
+      await faceMeshInstance.close();
+    } catch {}
     faceMeshInstance = null;
   }
 
@@ -836,7 +823,9 @@ async function stopStream(message = "Эфир завершён.") {
   await cleanupEffectsPipeline();
 
   localTracks.forEach(track => {
-    try { track.stop(); } catch {}
+    try {
+      track.stop();
+    } catch {}
   });
   localTracks = [];
 
@@ -964,6 +953,7 @@ if (streamForm) {
         }
       }
 
+      /* Зрителям публикуется видео с эффектами */
       await newRoom.localParticipant.publishTrack(outputVideoTrack);
 
       if (preview) {
@@ -1002,7 +992,9 @@ if (streamForm) {
         stopHeartbeat();
 
         if (room) {
-          try { await room.disconnect(); } catch {}
+          try {
+            await room.disconnect();
+          } catch {}
         }
 
         room = null;
@@ -1011,7 +1003,9 @@ if (streamForm) {
         await cleanupEffectsPipeline();
 
         localTracks.forEach(track => {
-          try { track.stop(); } catch {}
+          try {
+            track.stop();
+          } catch {}
         });
         localTracks = [];
 
@@ -1057,7 +1051,9 @@ if (logoutButton) {
     currentUser = null;
 
     localTracks.forEach(track => {
-      try { track.stop(); } catch {}
+      try {
+        track.stop();
+      } catch {}
     });
     localTracks = [];
 
@@ -1080,7 +1076,9 @@ window.addEventListener("beforeunload", () => {
   if (room) room.disconnect();
 
   localTracks.forEach(track => {
-    try { track.stop(); } catch {}
+    try {
+      track.stop();
+    } catch {}
   });
 
   if (renderFrameId !== null) {
@@ -1089,16 +1087,22 @@ window.addEventListener("beforeunload", () => {
 
   if (canvasStream) {
     canvasStream.getTracks().forEach(track => {
-      try { track.stop(); } catch {}
+      try {
+        track.stop();
+      } catch {}
     });
   }
 
   if (processedVideoTrack) {
-    try { processedVideoTrack.stop(); } catch {}
+    try {
+      processedVideoTrack.stop();
+    } catch {}
   }
 
   if (faceMeshInstance) {
-    try { faceMeshInstance.close(); } catch {}
+    try {
+      faceMeshInstance.close();
+    } catch {}
   }
 });
 
