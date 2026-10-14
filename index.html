@@ -10,9 +10,7 @@
   <link rel="canonical" href="https://y-fetish-live.onrender.com/">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -44,15 +42,8 @@
       white-space: nowrap;
     }
 
-    .logo-y {
-      color: #ff3038;
-      font-weight: 900;
-    }
-
-    .logo-name {
-      color: #fff;
-      font-weight: 900;
-    }
+    .logo-y { color: #ff3038; font-weight: 900; }
+    .logo-name { color: #fff; font-weight: 900; }
 
     .logo-live {
       margin-left: 7px;
@@ -72,9 +63,7 @@
       flex-wrap: wrap;
     }
 
-    .header-title {
-      color: #ddd;
-    }
+    .header-title { color: #ddd; }
 
     .start-live,
     .login-button {
@@ -89,26 +78,16 @@
       text-align: center;
     }
 
-    .start-live {
-      background: #e5222e;
-    }
-
-    .start-live:hover {
-      background: #c91824;
-    }
+    .start-live { background: #e5222e; }
+    .start-live:hover { background: #c91824; }
 
     .login-button {
       background: #303030;
       border: 1px solid #555;
     }
 
-    .login-button:hover {
-      background: #444;
-    }
-
-    .account-wrap {
-      position: relative;
-    }
+    .login-button:hover { background: #444; }
+    .account-wrap { position: relative; }
 
     .profile-circle {
       width: 42px;
@@ -176,10 +155,7 @@
       font-weight: bold;
     }
 
-    #coinBalance {
-      font-size: 20px;
-      color: #ffd45c;
-    }
+    #coinBalance { font-size: 20px; color: #ffd45c; }
 
     .panel-button {
       display: block;
@@ -198,9 +174,7 @@
       cursor: pointer;
     }
 
-    .panel-button:hover {
-      background: #383838;
-    }
+    .panel-button:hover { background: #383838; }
 
     .topup-button {
       background: #e5222e;
@@ -208,13 +182,8 @@
       text-align: center;
     }
 
-    .topup-button:hover {
-      background: #c91824;
-    }
-
-    .logout-panel-button {
-      color: #ff7777;
-    }
+    .topup-button:hover { background: #c91824; }
+    .logout-panel-button { color: #ff7777; }
 
     .profile-details {
       padding: 10px;
@@ -227,9 +196,7 @@
       overflow-wrap: anywhere;
     }
 
-    [hidden] {
-      display: none !important;
-    }
+    [hidden] { display: none !important; }
 
     main {
       max-width: 1100px;
@@ -237,14 +204,8 @@
       padding: 24px 16px;
     }
 
-    h1 {
-      font-size: 27px;
-    }
-
-    .muted {
-      color: #aaa;
-      line-height: 1.5;
-    }
+    h1 { font-size: 27px; }
+    .muted { color: #aaa; line-height: 1.5; }
 
     .streams {
       display: grid;
@@ -261,15 +222,41 @@
       overflow: hidden;
     }
 
+    /* Видеопревью эфира */
     .preview {
-      background: #090909;
-      border-radius: 8px;
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
       min-height: 150px;
+      overflow: hidden;
       display: grid;
       place-items: center;
-      font-size: 42px;
+      background: #090909;
+      border-radius: 8px;
       color: #e5222e;
     }
+
+    .preview video {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #090909;
+    }
+
+    .preview-placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #e5222e;
+      font-size: 42px;
+      pointer-events: none;
+    }
+
+    .preview.has-video .preview-placeholder { display: none; }
 
     .live {
       color: #ff4545;
@@ -304,9 +291,7 @@
       font-weight: bold;
     }
 
-    .watch-button:hover {
-      background: #c91824;
-    }
+    .watch-button:hover { background: #c91824; }
 
     footer {
       padding: 20px 16px;
@@ -315,12 +300,8 @@
       font-size: 13px;
     }
 
-    .country-filter {
-      position: relative;
-      margin: 16px 0;
-    }
+    .country-filter { position: relative; margin: 16px 0; }
 
-    /* Фильтр стран и кнопка топа в одной строке */
     #countryFilterControls {
       display: flex;
       align-items: center;
@@ -375,18 +356,11 @@
       cursor: pointer;
     }
 
-    #countryMenu button:hover {
-      background: #303030;
-    }
+    #countryMenu button:hover { background: #303030; }
 
     @media (max-width: 600px) {
-      header {
-        padding: 12px;
-      }
-
-      .logo {
-        font-size: 21px;
-      }
+      header { padding: 12px; }
+      .logo { font-size: 21px; }
 
       .logo-live {
         font-size: 12px;
@@ -394,13 +368,8 @@
         margin-left: 5px;
       }
 
-      .header-right {
-        gap: 7px;
-      }
-
-      .header-title {
-        display: none;
-      }
+      .header-right { gap: 7px; }
+      .header-title { display: none; }
 
       .profile-circle {
         width: 38px;
@@ -414,26 +383,16 @@
         font-size: 12px;
       }
 
-      main {
-        padding: 18px 12px;
-      }
-
-      h1 {
-        font-size: 24px;
-      }
+      main { padding: 18px 12px; }
+      h1 { font-size: 24px; }
 
       .streams {
         grid-template-columns: 1fr;
         gap: 14px;
       }
 
-      .preview {
-        min-height: 170px;
-      }
-
-      #countryFilterControls {
-        gap: 7px;
-      }
+      .preview { min-height: 170px; }
+      #countryFilterControls { gap: 7px; }
 
       #countryButton,
       #topStreamsButton {
@@ -443,13 +402,8 @@
     }
 
     @media (max-width: 370px) {
-      header {
-        gap: 8px;
-      }
-
-      .logo {
-        font-size: 19px;
-      }
+      header { gap: 8px; }
+      .logo { font-size: 19px; }
 
       .logo-live {
         font-size: 11px;
@@ -457,9 +411,7 @@
         margin-left: 4px;
       }
 
-      .header-right {
-        gap: 5px;
-      }
+      .header-right { gap: 5px; }
 
       .start-live,
       .login-button {
@@ -476,27 +428,22 @@
       bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
       left: 50% !important;
       transform: translateX(-50%) !important;
-
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-
       width: 66px !important;
       min-width: 66px !important;
       max-width: 66px !important;
       height: 66px !important;
       min-height: 66px !important;
       max-height: 66px !important;
-
       box-sizing: border-box !important;
       margin: 0 !important;
       padding: 0 !important;
-
       border: 3px solid #fff !important;
       border-radius: 50% !important;
       background: #ff1744 !important;
       box-shadow: 0 4px 16px rgba(0, 0, 0, .35) !important;
-
       z-index: 99999 !important;
       float: none !important;
       line-height: 1 !important;
@@ -516,7 +463,6 @@
       min-width: 29px !important;
       height: 29px !important;
       min-height: 29px !important;
-
       fill: none !important;
       stroke: #fff !important;
       stroke-width: 2 !important;
@@ -525,14 +471,12 @@
       pointer-events: none;
     }
 
-    /* Телефон в горизонтальном положении: центр сохраняется */
     @media screen and (max-height: 500px) and (orientation: landscape) {
       body a.start-live.tango-camera {
         left: 50% !important;
         right: auto !important;
         bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
         transform: translateX(-50%) !important;
-
         width: 50px !important;
         min-width: 50px !important;
         max-width: 50px !important;
@@ -626,11 +570,7 @@
     <div class="country-filter">
       <div id="countryFilterControls">
         <button id="countryButton" type="button">🌍 Все страны ▼</button>
-        <button
-          id="topStreamsButton"
-          type="button"
-          aria-pressed="false"
-        >🔥 Топ стримы</button>
+        <button id="topStreamsButton" type="button" aria-pressed="false">🔥 Топ стримы</button>
       </div>
 
       <div id="countryMenu" hidden>
@@ -648,11 +588,10 @@
     </div>
   </main>
 
-  <footer>
-    Y-FETISH LIVE — прямые эфиры
-  </footer>
+  <footer>Y-FETISH LIVE — прямые эфиры</footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js"></script>
 
   <script>
     "use strict";
@@ -685,9 +624,7 @@
 
       try {
         const response = await fetch("/api/account/wallet", {
-          headers: {
-            Authorization: "Bearer " + session.access_token
-          },
+          headers: { Authorization: "Bearer " + session.access_token },
           cache: "no-store"
         });
 
@@ -713,7 +650,6 @@
         }
 
         const { data, error } = await authClient.auth.getSession();
-
         if (error) throw error;
 
         const session = data.session;
@@ -748,7 +684,6 @@
           (user.email ? "\nEmail: " + user.email : "");
 
         profileDetails.style.whiteSpace = "pre-line";
-
         accountWrap.hidden = false;
         loginLink.hidden = true;
 
@@ -777,7 +712,6 @@
 
     profileDetailsButton.addEventListener("click", () => {
       profileDetails.hidden = !profileDetails.hidden;
-
       profileDetailsButton.textContent = profileDetails.hidden
         ? "Мой профиль"
         : "Скрыть профиль";
@@ -823,11 +757,6 @@
     let allStreams = [];
     let topStreamsEnabled = false;
 
-    /*
-      Поддерживаем несколько распространённых названий поля.
-      Если API не передаёт число зрителей, возвращаем null,
-      а не выдаём выдуманное число за реальное.
-    */
     function getViewerCount(stream) {
       const fields = [
         "viewer_count",
@@ -846,10 +775,7 @@
 
         if (value !== null && value !== undefined && value !== "") {
           const count = Number(value);
-
-          if (Number.isFinite(count) && count >= 0) {
-            return count;
-          }
+          if (Number.isFinite(count) && count >= 0) return count;
         }
       }
 
@@ -858,13 +784,8 @@
 
     topStreamsButton.addEventListener("click", () => {
       topStreamsEnabled = !topStreamsEnabled;
-
       topStreamsButton.classList.toggle("active", topStreamsEnabled);
-      topStreamsButton.setAttribute(
-        "aria-pressed",
-        String(topStreamsEnabled)
-      );
-
+      topStreamsButton.setAttribute("aria-pressed", String(topStreamsEnabled));
       renderStreams();
     });
 
@@ -892,22 +813,196 @@
       }
     });
 
+    // LiveKit: подключения для видеопревью на карточках
+    const previewConnections = new Map();
+
+    function showPreviewPlaceholder(preview, placeholder) {
+      preview.classList.remove("has-video");
+      placeholder.hidden = false;
+    }
+
+    function attachPreviewTrack(state, track) {
+      if (!state || !track || track.kind !== "video") return;
+
+      try {
+        if (state.track && state.track !== track && state.video) {
+          state.track.detach(state.video);
+        }
+
+        state.track = track;
+
+        track.attach(state.video);
+        state.video.muted = true;
+        state.video.autoplay = true;
+        state.video.playsInline = true;
+
+        const playResult = state.video.play();
+        if (playResult && typeof playResult.catch === "function") {
+          playResult.catch(() => {});
+        }
+
+        state.preview.classList.add("has-video");
+        state.placeholder.hidden = true;
+      } catch (error) {
+        console.error("Не удалось показать видеопревью:", error);
+        showPreviewPlaceholder(state.preview, state.placeholder);
+      }
+    }
+
+    async function connectPreview(roomName, preview, video, placeholder) {
+      let state = previewConnections.get(roomName);
+
+      if (state) {
+        // После перерисовки карточек подключение сохраняется,
+        // но видеодорожка привязывается к новому элементу video.
+        if (state.video !== video) {
+          if (state.track && state.video) {
+            try {
+              state.track.detach(state.video);
+            } catch (_) {}
+          }
+
+          state.preview = preview;
+          state.video = video;
+          state.placeholder = placeholder;
+
+          if (state.track) {
+            attachPreviewTrack(state, state.track);
+          } else {
+            showPreviewPlaceholder(preview, placeholder);
+          }
+        }
+
+        return;
+      }
+
+      state = {
+        roomName,
+        preview,
+        video,
+        placeholder,
+        room: null,
+        track: null,
+        connecting: true
+      };
+
+      previewConnections.set(roomName, state);
+
+      try {
+        if (!window.LivekitClient || !window.LivekitClient.Room) {
+          throw new Error("Библиотека LiveKit не загрузилась");
+        }
+
+        const response = await fetch(
+          "/api/livekit/token?roomName=" + encodeURIComponent(roomName),
+          { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+          throw new Error("Не удалось получить токен LiveKit");
+        }
+
+        const result = await response.json();
+        const serverUrl = result.serverUrl || result.url;
+
+        if (!result.token || !serverUrl) {
+          throw new Error("Сервер не вернул токен или URL LiveKit");
+        }
+
+        // Карточка могла исчезнуть, пока загружался токен.
+        if (previewConnections.get(roomName) !== state) return;
+
+        const room = new window.LivekitClient.Room({
+          adaptiveStream: true,
+          dynacast: true
+        });
+
+        state.room = room;
+
+        room.on(
+          window.LivekitClient.RoomEvent.TrackSubscribed,
+          (track) => {
+            if (track.kind === "video") {
+              attachPreviewTrack(state, track);
+            }
+          }
+        );
+
+        room.on(
+          window.LivekitClient.RoomEvent.TrackUnsubscribed,
+          (track) => {
+            if (track.kind === "video") {
+              try {
+                track.detach(state.video);
+              } catch (_) {}
+
+              if (state.track === track) {
+                state.track = null;
+                showPreviewPlaceholder(state.preview, state.placeholder);
+              }
+            }
+          }
+        );
+
+        room.on(
+          window.LivekitClient.RoomEvent.Disconnected,
+          () => {
+            state.track = null;
+            showPreviewPlaceholder(state.preview, state.placeholder);
+          }
+        );
+
+        await room.connect(serverUrl, result.token);
+
+        if (previewConnections.get(roomName) !== state) {
+          room.disconnect();
+          return;
+        }
+
+        state.connecting = false;
+
+        // На случай, если видеодорожка уже опубликована к моменту подключения.
+        room.remoteParticipants.forEach(participant => {
+          participant.trackPublications.forEach(publication => {
+            if (publication.track && publication.track.kind === "video") {
+              attachPreviewTrack(state, publication.track);
+            }
+          });
+        });
+      } catch (error) {
+        state.connecting = false;
+        console.error("Ошибка подключения превью:", roomName, error);
+        showPreviewPlaceholder(state.preview, state.placeholder);
+      }
+    }
+
+    function stopUnusedPreviewConnections(visibleRoomNames) {
+      for (const [roomName, state] of previewConnections) {
+        if (visibleRoomNames.has(roomName)) continue;
+
+        previewConnections.delete(roomName);
+
+        try {
+          if (state.track && state.video) {
+            state.track.detach(state.video);
+          }
+        } catch (_) {}
+
+        try {
+          state.room?.disconnect();
+        } catch (_) {}
+      }
+    }
+
     function renderStreams() {
       streamsContainer.replaceChildren();
 
       let filteredStreams = allStreams.filter(stream => {
-        if (selectedCountry === "all") {
-          return true;
-        }
-
+        if (selectedCountry === "all") return true;
         return stream.country === selectedCountry;
       });
 
       if (topStreamsEnabled) {
-        /*
-          Эфиры с известным числом зрителей идут первыми.
-          Неизвестное число не подменяем нулём.
-        */
         filteredStreams.sort((a, b) => {
           const viewersA = getViewerCount(a);
           const viewersB = getViewerCount(b);
@@ -929,8 +1024,11 @@
           : "Сейчас активных эфиров нет. Загляни позже!";
 
         streamsContainer.appendChild(empty);
+        stopUnusedPreviewConnections(new Set());
         return;
       }
+
+      const visibleRoomNames = new Set();
 
       filteredStreams.forEach(stream => {
         const card = document.createElement("article");
@@ -938,8 +1036,19 @@
 
         const preview = document.createElement("div");
         preview.className = "preview";
-        preview.textContent = "▶";
-        preview.setAttribute("aria-hidden", "true");
+
+        const video = document.createElement("video");
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("aria-label", "Предпросмотр прямого эфира");
+
+        const placeholder = document.createElement("div");
+        placeholder.className = "preview-placeholder";
+        placeholder.textContent = "▶";
+        placeholder.setAttribute("aria-hidden", "true");
+
+        preview.append(video, placeholder);
 
         const status = document.createElement("p");
         status.className = "live";
@@ -963,20 +1072,17 @@
         const watchLink = document.createElement("a");
         watchLink.className = "watch-button";
         watchLink.href =
-          "/live.html?room=" +
-          encodeURIComponent(stream.room_name);
+          "/live.html?room=" + encodeURIComponent(stream.room_name);
         watchLink.textContent = "Смотреть эфир";
 
-        card.append(
-          preview,
-          status,
-          title,
-          host,
-          watchLink
-        );
-
+        card.append(preview, status, title, host, watchLink);
         streamsContainer.appendChild(card);
+
+        visibleRoomNames.add(stream.room_name);
+        connectPreview(stream.room_name, preview, video, placeholder);
       });
+
+      stopUnusedPreviewConnections(visibleRoomNames);
     }
 
     async function loadStreams() {
