@@ -48,11 +48,7 @@ let faceMeshBusy = false;
 let lastFaceMeshTime = 0;
 let maskLoadPromise = null;
 
-/*
- * Отдельное видео для исходной камеры.
- * Важно: preview показывает обработанный результат,
- * а sourceVideo остаётся источником для обработки.
- */
+/* Отдельное видео для исходной камеры */
 let sourceVideo = null;
 
 function getSourceVideo() {
@@ -87,6 +83,11 @@ function setStudioVisible(authenticated) {
   if (loginPanel) loginPanel.hidden = authenticated;
   if (studioPanel) studioPanel.hidden = !authenticated;
   document.body.classList.toggle("studio-active", authenticated);
+
+  const studioTop = document.querySelector(".studio-top");
+  if (studioTop) {
+    studioTop.hidden = false;
+  }
 }
 
 async function loadSupabase() {
@@ -434,39 +435,20 @@ function drawBeautyFilter() {
   const width = faceWidth();
   if (width < 10 || !faceLandmarks) return;
 
-  drawCheekBlush(
-    ctx,
-    width,
-    settings.blush,
-    settings.blushColor
-  );
-
-  drawLipColor(
-    ctx,
-    width,
-    settings.lips,
-    settings.lipOpacity
-  );
-
-  drawEyeMakeup(
-    ctx,
-    width,
-    settings.eyes,
-    settings.eyeOpacity
-  );
+  drawCheekBlush(ctx, width, settings.blush, settings.blushColor);
+  drawLipColor(ctx, width, settings.lips, settings.lipOpacity);
+  drawEyeMakeup(ctx, width, settings.eyes, settings.eyeOpacity);
 }
 
-/*
- * Обрабатываем исходную камеру, а не preview.
- * Поэтому canvas не захватывает собственное изображение.
- */
+/* Обрабатываем исходную камеру, а не preview */
 function renderFrame() {
   if (!sourceVideo || !maskCanvas || !maskContext) return;
 
-  if (sourceVideo.readyState >= 2 &&
-      sourceVideo.videoWidth > 0 &&
-      sourceVideo.videoHeight > 0) {
-
+  if (
+    sourceVideo.readyState >= 2 &&
+    sourceVideo.videoWidth > 0 &&
+    sourceVideo.videoHeight > 0
+  ) {
     if (
       maskCanvas.width !== sourceVideo.videoWidth ||
       maskCanvas.height !== sourceVideo.videoHeight
@@ -527,8 +509,7 @@ async function ensureProcessedVideoTrack() {
   await inputVideo.play().catch(() => {});
 
   for (let i = 0; i < 80; i++) {
-    if (inputVideo.videoWidth > 0 &&
-        inputVideo.videoHeight > 0) {
+    if (inputVideo.videoWidth > 0 && inputVideo.videoHeight > 0) {
       break;
     }
 
@@ -580,11 +561,6 @@ async function ensureProcessedVideoTrack() {
     await loadFaceMesh();
   }
 
-  /*
-   * Показываем ведущему обработанное видео.
-   * Исходная камера остаётся в inputVideo,
-   * поэтому обработка не зацикливается.
-   */
   if (preview) {
     preview.srcObject = canvasStream;
     preview.muted = true;
@@ -734,9 +710,6 @@ async function switchCamera() {
     await cameraTrack.restartTrack({ facingMode: nextFacingMode });
     currentFacingMode = nextFacingMode;
 
-    /*
-     * Обновляем исходное видео, не заменяя обработанный preview.
-     */
     const inputVideo = getSourceVideo();
 
     inputVideo.srcObject = new MediaStream([
@@ -896,6 +869,10 @@ async function stopStream(message = "Эфир завершён.") {
 
   if (stopButton) stopButton.hidden = true;
 
+  /* ПОКАЗЫВАЕМ НАЗВАНИЕ И СТРАНУ ПОСЛЕ ОСТАНОВКИ ЭФИРА */
+  const studioTop = document.querySelector(".studio-top");
+  if (studioTop) studioTop.hidden = false;
+
   if (startButton) {
     startButton.hidden = false;
     startButton.disabled = false;
@@ -1033,6 +1010,10 @@ if (streamForm) {
       if (stopButton) stopButton.hidden = false;
       if (startButton) startButton.hidden = true;
 
+      /* СКРЫВАЕМ НАЗВАНИЕ И СТРАНУ ПОСЛЕ УСПЕШНОГО ЗАПУСКА */
+      const studioTop = document.querySelector(".studio-top");
+      if (studioTop) studioTop.hidden = true;
+
       startHeartbeat();
 
       status(
@@ -1081,6 +1062,10 @@ if (streamForm) {
         }
 
         if (stopButton) stopButton.hidden = true;
+
+        /* При ошибке поля остаются видимыми */
+        const studioTop = document.querySelector(".studio-top");
+        if (studioTop) studioTop.hidden = false;
 
         if (startButton) {
           startButton.hidden = false;
