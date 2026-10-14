@@ -253,7 +253,7 @@
       cursor: pointer;
     }
 
-    .gift-toggle, .gift-close { display: none; }
+    .gift-toggle, .sound-toggle, .gift-close { display: none; }
 
     @media (min-width: 801px) {
       .video-section {
@@ -405,11 +405,11 @@
 
       .chat-panel > .muted { display: none; }
 
-      .gift-toggle {
+      .gift-toggle,
+      .sound-toggle {
         position: fixed;
         z-index: 16;
         right: 14px;
-        bottom: calc(env(safe-area-inset-bottom) + 118px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -421,6 +421,20 @@
         color: #fff;
         font-size: 23px;
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .gift-toggle {
+        bottom: calc(env(safe-area-inset-bottom) + 118px);
+      }
+
+      .sound-toggle {
+        bottom: calc(env(safe-area-inset-bottom) + 174px);
+      }
+
+      .sound-toggle:active,
+      .gift-toggle:active {
+        transform: scale(.95);
       }
 
       .gift-panel {
@@ -532,6 +546,15 @@
       <p class="muted">Не указывай личные данные в сообщениях.</p>
     </aside>
   </main>
+
+  <button
+    id="soundToggle"
+    class="sound-toggle"
+    type="button"
+    aria-label="Включить звук"
+    aria-pressed="false"
+    title="Включить звук"
+  >🔇</button>
 
   <button
     id="giftToggle"
