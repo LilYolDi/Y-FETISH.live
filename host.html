@@ -137,7 +137,6 @@
     .camera-controls button,
     .camera-controls .watch-link { flex: 1 1 130px; }
 
-    /* Новая круглая кнопка камеры */
     #cameraButton {
       position: absolute;
       right: 12px;
@@ -159,15 +158,34 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    #cameraButton svg {
-      display: block;
-      width: 23px;
-      height: 23px;
-    }
+    #cameraButton svg { display: block; width: 23px; height: 23px; }
 
     #cameraButton:active {
       background: rgba(75,75,75,.95);
       transform: scale(.96);
+    }
+
+    /* Выбор AR-маски */
+    .mask-control {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 260px;
+    }
+
+    .mask-control label {
+      color: #eee;
+      font-size: 13px;
+    }
+
+    #maskSelect {
+      min-height: 42px;
+      padding: 9px 12px;
+      border: 1px solid #555;
+      border-radius: 10px;
+      background: rgba(20,20,20,.94);
+      color: #fff;
     }
 
     #status {
@@ -177,6 +195,7 @@
       font-size: 13px;
       text-align: center;
       overflow-wrap: anywhere;
+      white-space: pre-line;
     }
 
     @media (max-width: 800px) {
@@ -310,7 +329,6 @@
         overflow-wrap: anywhere;
       }
 
-      /* Круглая кнопка справа над нижними кнопками */
       body.studio-active #cameraButton {
         position: fixed;
         top: auto;
@@ -328,6 +346,28 @@
         border: 1px solid rgba(255,255,255,.22);
       }
 
+      body.studio-active .mask-control {
+        position: fixed;
+        left: 12px;
+        right: auto;
+        bottom: calc(245px + env(safe-area-inset-bottom, 0px));
+        z-index: 126;
+        width: min(190px, calc(100vw - 24px));
+        max-width: none;
+        gap: 4px;
+      }
+
+      body.studio-active .mask-control label {
+        color: #fff;
+        font-size: 12px;
+        text-shadow: 0 1px 4px #000;
+      }
+
+      body.studio-active #maskSelect {
+        min-height: 40px;
+        font-size: 14px;
+      }
+
       body.studio-active #status {
         position: fixed;
         left: 12px;
@@ -343,7 +383,6 @@
 
     @media (max-width: 600px) {
       .logo { font-size: 23px; }
-
       .logo-live {
         font-size: 12px;
         padding: 3px 6px;
@@ -353,7 +392,6 @@
 
     @media (max-width: 380px) {
       .logo { font-size: 21px; }
-
       .logo-live {
         font-size: 11px;
         padding: 3px 5px;
@@ -392,6 +430,10 @@
       body.studio-active #cameraButton {
         bottom: calc(160px + env(safe-area-inset-bottom, 0px));
       }
+
+      body.studio-active .mask-control {
+        bottom: calc(210px + env(safe-area-inset-bottom, 0px));
+      }
     }
   </style>
 </head>
@@ -406,17 +448,10 @@
   <main>
     <section id="loginPanel" class="panel">
       <h1>Вход ведущего</h1>
-
       <form id="loginForm">
         <label for="password">Пароль ведущего</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="Введите пароль"
-          required
-        >
+        <input id="password" name="password" type="password"
+          autocomplete="current-password" placeholder="Введите пароль" required>
         <button id="loginButton" type="submit">Войти</button>
       </form>
     </section>
@@ -427,16 +462,9 @@
 
         <div class="studio-top">
           <label for="streamTitle">Название эфира</label>
-
           <form id="streamForm">
-            <input
-              id="streamTitle"
-              name="title"
-              type="text"
-              placeholder="Например, Прямой эфир"
-              maxlength="100"
-              required
-            >
+            <input id="streamTitle" name="title" type="text"
+              placeholder="Например, Прямой эфир" maxlength="100" required>
 
             <label for="streamCountry">Страна эфира</label>
             <select id="streamCountry" name="country" required
@@ -453,15 +481,10 @@
           </form>
         </div>
 
-        <button
-          id="cameraButton"
-          type="button"
-          aria-label="Переключить камеру"
-          title="Переключить камеру"
-        >
-          <svg viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round"
+        <button id="cameraButton" type="button"
+          aria-label="Переключить камеру" title="Переключить камеру">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
             aria-hidden="true">
             <path d="M20 7v5h-5"/>
             <path d="M4 17v-5h5"/>
@@ -470,28 +493,24 @@
           </svg>
         </button>
 
-        <div class="camera-controls">
-          <button id="stopButton" type="button" hidden>
-            Завершить эфир
-          </button>
-
-          <a
-            id="watchLink"
-            class="watch-link"
-            href="/live.html"
-            target="_blank"
-            rel="noopener"
-            hidden
-          >Открыть эфир</a>
-
-          <button id="logoutButton" type="button" class="secondary">
-            Выйти
-          </button>
+        <div class="mask-control">
+          <label for="maskSelect">AR-маски</label>
+          <select id="maskSelect">
+            <option value="none">Без маски</option>
+            <option value="cat">🐱 Кошачья мордочка</option>
+            <option value="glasses">😎 Очки</option>
+            <option value="crown">👑 Корона</option>
+          </select>
         </div>
 
-        <p id="status" role="status" aria-live="polite">
-          Проверяем вход...
-        </p>
+        <div class="camera-controls">
+          <button id="stopButton" type="button" hidden>Завершить эфир</button>
+          <a id="watchLink" class="watch-link" href="/live.html"
+            target="_blank" rel="noopener" hidden>Открыть эфир</a>
+          <button id="logoutButton" type="button" class="secondary">Выйти</button>
+        </div>
+
+        <p id="status" role="status" aria-live="polite">Проверяем вход...</p>
       </div>
     </section>
   </main>
