@@ -15,6 +15,7 @@
   const chatList = $("#chatMessages") || $("#messages") || $("#chat");
 
   let liveRoom = null;
+  let viewerAudioMuted = true;
   let chatTimer = null;
   let heartbeatTimer = null;
   let lastMessageId = null;
@@ -105,9 +106,52 @@
 
     if (track.kind === "audio") {
       element.style.display = "none";
+      element.muted = isHost || viewerAudioMuted;
     }
 
     container.appendChild(element);
+  }
+
+  function setupSoundToggle() {
+    const button = $("#soundToggle");
+    if (!button) return;
+
+    function updateButton() {
+      button.textContent = viewerAudioMuted ? "🔇" : "🔊";
+      button.setAttribute(
+        "aria-label",
+        viewerAudioMuted ? "Включить звук" : "Выключить звук"
+      );
+      button.title = viewerAudioMuted ? "Включить звук" : "Выключить звук";
+      button.setAttribute("aria-pressed", viewerAudioMuted ? "false" : "true");
+    }
+
+    button.addEventListener("click", async () => {
+      if (isHost) return;
+
+      viewerAudioMuted = !viewerAudioMuted;
+
+      const container = getVideoContainer();
+      const audioElements = container
+        ? container.querySelectorAll("audio")
+        : [];
+
+      audioElements.forEach((audio) => {
+        audio.muted = viewerAudioMuted;
+
+        if (!viewerAudioMuted) {
+          const playback = audio.play();
+
+          if (playback && typeof playback.catch === "function") {
+            playback.catch(() => {});
+          }
+        }
+      });
+
+      updateButton();
+    });
+
+    updateButton();
   }
 
   async function loadStreamInfo() {
@@ -451,6 +495,12 @@
     }
 
     isHost = tokenData.isHost === true;
+
+    const soundButton = $("#soundToggle");
+    if (soundButton && isHost) {
+      soundButton.style.display = "none";
+    }
+
     liveRoom = new sdk.Room();
     setupViewerRoomEvents(sdk);
 
@@ -650,5 +700,6 @@
     });
   });
 
+  setupSoundToggle();
   init();
 })();
