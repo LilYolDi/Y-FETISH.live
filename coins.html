@@ -9,9 +9,7 @@
   <meta name="description" content="Пополнение баланса монет Y-FETISH LIVE. Выберите подходящий пакет монет.">
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     :root {
       color-scheme: dark;
@@ -31,11 +29,8 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    button, a {
-      -webkit-tap-highlight-color: transparent;
-    }
+    button, a { -webkit-tap-highlight-color: transparent; }
 
-    /* ШАПКА В СТИЛЕ ГЛАВНОЙ СТРАНИЦЫ */
     .topbar {
       position: sticky;
       top: 0;
@@ -61,15 +56,8 @@
       text-decoration: none;
     }
 
-    .logo-y {
-      color: #ff3038;
-      font-weight: 900;
-    }
-
-    .logo-name {
-      color: #fff;
-      font-weight: 900;
-    }
+    .logo-y { color: #ff3038; font-weight: 900; }
+    .logo-name { color: #fff; font-weight: 900; }
 
     .logo-live {
       margin-left: 7px;
@@ -97,20 +85,13 @@
     }
 
     @media (max-width: 480px) {
-      .topbar {
-        padding: 12px;
-      }
-
-      .logo {
-        font-size: 20px;
-      }
-
+      .topbar { padding: 12px; }
+      .logo { font-size: 20px; }
       .logo-live {
         margin-left: 5px;
         padding: 3px 6px;
         font-size: 11px;
       }
-
       .back {
         padding: 10px 11px;
         font-size: 12px;
@@ -149,10 +130,7 @@
       text-align: center;
     }
 
-    .balance-label {
-      color: #d0c5a9;
-      font-size: 13px;
-    }
+    .balance-label { color: #d0c5a9; font-size: 13px; }
 
     .balance-value {
       margin-top: 7px;
@@ -247,9 +225,8 @@
       cursor: pointer;
     }
 
-    .buy:active {
-      transform: scale(.98);
-    }
+    .buy:active { transform: scale(.98); }
+    .buy:disabled { opacity: .6; cursor: wait; }
 
     .notice {
       margin-top: 22px;
@@ -263,16 +240,16 @@
       text-align: center;
     }
 
-    .notice strong {
-      color: var(--gold-light);
-    }
+    .notice strong { color: var(--gold-light); }
 
     .status {
       min-height: 18px;
       margin-top: 14px;
       color: var(--muted);
       font-size: 12px;
+      line-height: 1.5;
       text-align: center;
+      overflow-wrap: anywhere;
     }
 
     @media (max-width: 360px) {
@@ -280,11 +257,7 @@
         padding-right: 10px;
         padding-left: 10px;
       }
-
-      .packages {
-        gap: 8px;
-      }
-
+      .packages { gap: 8px; }
       .package {
         padding-right: 7px;
         padding-left: 7px;
@@ -366,87 +339,184 @@
       <strong>Пополнение баланса</strong><br>
       Монеты предназначены для отправки подарков ведущим Y-FETISH LIVE.<br><br>
       <strong>Безопасная оплата</strong><br>
-      Оплата ещё не подключена. Кнопки покупки пока не списывают деньги и не начисляют монеты.
+      После выбора пакета ты перейдёшь на страницу оплаты. Монеты должны начисляться после подтверждения платежа сервером.
     </div>
 
-    <div class="status" id="pageStatus"></div>
+    <div class="status" id="pageStatus" role="status" aria-live="polite"></div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+    (() => {
+      "use strict";
 
-    const balanceElement = document.getElementById("coinBalance");
-    const statusElement = document.getElementById("pageStatus");
+      const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
+      const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
 
-    let authClient = null;
+      const balanceElement = document.getElementById("coinBalance");
+      const statusElement = document.getElementById("pageStatus");
+      const buyButtons = document.querySelectorAll(".buy");
 
-    if (window.supabase && window.supabase.createClient) {
-      authClient = window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-      );
-    }
+      let authClient = null;
 
-    async function loadBalance() {
-      try {
+      if (window.supabase && window.supabase.createClient) {
+        authClient = window.supabase.createClient(
+          SUPABASE_URL,
+          SUPABASE_KEY
+        );
+      }
+
+      function showStatus(message) {
+        statusElement.textContent = message;
+      }
+
+      async function getSession() {
         if (!authClient) {
-          balanceElement.textContent = "—";
-          statusElement.textContent = "Не удалось подключить сервис аккаунта.";
-          return;
+          throw new Error("Не удалось подключить сервис аккаунта.");
         }
 
         const { data, error } = await authClient.auth.getSession();
 
-        if (error || !data.session) {
-          balanceElement.textContent = "Войди в аккаунт";
-          statusElement.textContent = "Для просмотра баланса войди в аккаунт на главной странице.";
+        if (error) {
+          throw new Error("Не удалось проверить вход в аккаунт.");
+        }
+
+        if (!data.session || !data.session.access_token) {
+          throw new Error("Сначала войди в аккаунт на главной странице.");
+        }
+
+        return data.session;
+      }
+
+      async function loadBalance() {
+        try {
+          if (!authClient) {
+            balanceElement.textContent = "—";
+            showStatus("Не удалось подключить сервис аккаунта.");
+            return;
+          }
+
+          const { data, error } = await authClient.auth.getSession();
+
+          if (error || !data.session) {
+            balanceElement.textContent = "Войди в аккаунт";
+            showStatus("Для просмотра баланса войди в аккаунт на главной странице.");
+            return;
+          }
+
+          const response = await fetch("/api/account/wallet", {
+            headers: {
+              Authorization: "Bearer " + data.session.access_token
+            }
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || "Не удалось загрузить баланс");
+          }
+
+          const balance = Number(
+            result.coins ?? result.balance ?? result.wallet?.coins ?? 0
+          );
+
+          balanceElement.textContent =
+            Number.isFinite(balance) ? balance.toLocaleString("ru-RU") : "—";
+
+          showStatus("");
+        } catch (error) {
+          console.error("Ошибка загрузки баланса:", error);
+          balanceElement.textContent = "—";
+          showStatus("Не удалось загрузить баланс. Попробуй обновить страницу.");
+        }
+      }
+
+      async function buyCoins(button) {
+        if (button.disabled) return;
+
+        const coins = Number(button.dataset.coins);
+
+        // Сервер самостоятельно проверяет разрешённые пакеты и цены.
+        const allowedPackages = [200, 400, 1000, 2500, 5000, 10000];
+
+        if (!allowedPackages.includes(coins)) {
+          showStatus("Неизвестный пакет монет.");
           return;
         }
 
-        const response = await fetch("/api/account/wallet", {
-          headers: {
-            Authorization: "Bearer " + data.session.access_token
+        const originalText = button.textContent;
+        button.disabled = true;
+        button.textContent = "Подготовка оплаты...";
+        showStatus("Создаём платёж. Не закрывай страницу.");
+
+        try {
+          const session = await getSession();
+
+          const response = await fetch("/api/payments/create", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + session.access_token
+            },
+            body: JSON.stringify({ coins: coins })
+          });
+
+          let result;
+
+          try {
+            result = await response.json();
+          } catch {
+            throw new Error("Сервер вернул неправильный ответ. Попробуй позже.");
           }
-        });
 
-        const result = await response.json();
+          if (!response.ok) {
+            throw new Error(
+              result.error || result.message || "Не удалось создать платёж."
+            );
+          }
 
-        if (!response.ok) {
-          throw new Error(result.error || "Не удалось загрузить баланс");
+          const paymentUrl =
+            result.payment_url ||
+            result.paymentUrl ||
+            result.checkout_url ||
+            result.checkoutUrl ||
+            result.url;
+
+          if (!paymentUrl) {
+            throw new Error(
+              "Сервер не вернул ссылку оплаты. Проверь настройки AGDor Pay."
+            );
+          }
+
+          let parsedUrl;
+
+          try {
+            parsedUrl = new URL(paymentUrl);
+          } catch {
+            throw new Error("Сервер вернул некорректную ссылку оплаты.");
+          }
+
+          if (parsedUrl.protocol !== "https:") {
+            throw new Error("Ссылка оплаты должна использовать HTTPS.");
+          }
+
+          showStatus("Переходим к оплате...");
+          window.location.assign(parsedUrl.href);
+        } catch (error) {
+          console.error("Ошибка создания платежа:", error);
+          showStatus(error.message || "Ошибка оплаты. Попробуй ещё раз.");
+          button.disabled = false;
+          button.textContent = originalText;
         }
-
-        const balance = Number(
-          result.coins ?? result.balance ?? result.wallet?.coins ?? 0
-        );
-
-        balanceElement.textContent =
-          Number.isFinite(balance) ? balance.toLocaleString("ru-RU") : "—";
-
-        statusElement.textContent = "";
-      } catch (error) {
-        console.error("Ошибка загрузки баланса:", error);
-        balanceElement.textContent = "—";
-        statusElement.textContent = "Не удалось загрузить баланс. Попробуй обновить страницу.";
       }
-    }
 
-    document.querySelectorAll(".buy").forEach(button => {
-      button.addEventListener("click", () => {
-        const coins = button.dataset.coins;
-        const price = button.dataset.price;
-
-        alert(
-          "Пакет: " + Number(coins).toLocaleString("ru-RU") +
-          " монет за $" + price +
-          ". Оплата пока не подключена. Деньги не списаны, монеты не начислены."
-        );
+      buyButtons.forEach(button => {
+        button.addEventListener("click", () => buyCoins(button));
       });
-    });
 
-    loadBalance();
+      loadBalance();
+    })();
   </script>
 </body>
 </html>
