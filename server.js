@@ -1,4 +1,3 @@
-
 "use strict";
 
 const express = require("express");
@@ -1448,7 +1447,7 @@ app.get("/api/gifts", async (req, res) => {
   }
 });
 
-/* Кошелёк гостя */
+/* Кошелёк гостя — оставляем без изменений */
 
 app.get("/api/wallet", async (req, res) => {
   try {
@@ -1471,48 +1470,67 @@ app.get("/api/wallet", async (req, res) => {
   }
 });
 
-/* Отправка подарка */
+/* Отправка подарка за купленные монеты зарегистрированного пользователя */
 
-app.post("/api/gifts/send", async (req, res) => {
+app.post("/api/gifts/send", requireUser, async (req, res) => {
   try {
-    const id = guestId(req, res);
     const roomName = cleanText(req.body?.roomName, 100);
-    const giftId = Number(req.body?.giftId);
+    const giftId = req.body?.giftId;
 
     if (
       !validRoomName(roomName) ||
-      !Number.isSafeInteger(giftId) ||
-      giftId <= 0
+      typeof giftId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(giftId)
     ) {
       return res.status(400).json({
         error: "Неверные данные подарка"
       });
     }
 
-    if (!await getLiveStream(roomName)) {
+    const stream = await getLiveStream(roomName);
+
+    if (!stream || !stream.host_id) {
       return res.status(404).json({
-        error: "Эфир завершён"
+        error: "Эфир завершён или ведущий не найден"
       });
     }
 
     const { data, error } = await supabase.rpc("send_live_gift", {
-      p_guest_id: id,
+      p_sender_id: req.user.id,
       p_room_name: roomName,
       p_gift_id: giftId
     });
 
     if (error) {
-      return res.status(400).json({
-        error: error.message || "Не удалось отправить подарок"
+      console.error("Ошибка отправки подарка:", error);
+
+      const message = error.message || "";
+
+      if (
+        message.includes("Недостаточно монет") ||
+        message.includes("Подарок не найден") ||
+        message.includes("Эфир не найден")
+      ) {
+        return res.status(400).json({
+          error: message
+        });
+      }
+
+      return res.status(500).json({
+        error: "Не удалось отправить подарок"
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-      result: data
+      ...(data && typeof data === "object" ? data : {})
     });
   } catch (error) {
-    sendError(res, error, "Не удалось отправить подарок");
+    return sendError(
+      res,
+      error,
+      "Не удалось отправить подарок"
+    );
   }
 });
 
