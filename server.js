@@ -1,3 +1,4 @@
+
 "use strict";
 
 const express = require("express");
@@ -58,6 +59,11 @@ const COIN_PACKAGES = Object.freeze({
   5000: { price: 100 },
   10000: { price: 180 }
 });
+
+/* Настройки заработка от подарков */
+const COINS_PER_USD = 100;
+const HOST_EARNINGS_SHARE = 0.5;
+const HOST_EARNINGS_GOAL_USD = 100;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Не заданы SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY");
@@ -650,10 +656,6 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
       throw new Error("AGDor Pay не вернул ссылку на оплату");
     }
 
-    /*
-     * Разрешаем только HTTPS-ссылки, чтобы не перенаправлять
-     * пользователя на произвольные схемы.
-     */
     let parsedPaymentUrl;
 
     try {
@@ -678,10 +680,6 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
   } catch (error) {
     console.error("Создание платежа AGDor Pay:", error);
 
-    /*
-     * Если создание счёта завершилось ошибкой, удаляем только
-     * созданную нами незавершённую запись, если это возможно.
-     */
     if (pendingCreated && externalId) {
       const { error: cleanupError } = await supabase
         .from("coin_transactions")
@@ -704,13 +702,8 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
   }
 });
 
-/*
- * Webhook AGDor Pay.
- *
- * Проверка подписи: HMAC-SHA256(timestamp + "." + rawBody).
- * Названия заголовков и формат события должны соответствовать
- * документации конкретного проекта AGDor Pay.
- */
+/* Webhook AGDor Pay */
+
 app.post("/api/payments/webhook", async (req, res) => {
   try {
     if (!AGDOR_WEBHOOK_SECRET) {
@@ -738,10 +731,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Защита от слишком старых или будущих запросов.
-     * Предполагается, что timestamp передаётся в секундах.
-     */
     const timestampNumber = Number(timestamp);
 
     if (!Number.isFinite(timestampNumber)) {
@@ -803,10 +792,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       "success"
     ].includes(status);
 
-    /*
-     * Не начисляем монеты по событиям, которые не означают
-     * подтверждённую оплату.
-     */
     if (!confirmedEvent && !confirmedStatus) {
       return res.json({
         success: true,
@@ -829,11 +814,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Находим только ранее созданную незавершённую покупку.
-     * Повторное событие для уже обработанной покупки не начислит
-     * монеты ещё раз.
-     */
     const { data: transaction, error: transactionError } = await supabase
       .from("coin_transactions")
       .select("*")
@@ -874,10 +854,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Проверяем сумму платежа, если провайдер прислал её.
-     * Поле amount может означать сумму денег, а не монеты.
-     */
     const paidAmount = Number(
       data.amount_requested ??
       data.paid_amount ??
@@ -930,10 +906,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Сначала атомарно переводим запись из pending в purchase.
-     * Повторный webhook не сможет изменить эту же запись второй раз.
-     */
     const { data: claimed, error: claimError } = await supabase
       .from("coin_transactions")
       .update({
@@ -953,10 +925,6 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Начисляем монеты зарегистрированному пользователю.
-     * Если запись кошелька ещё отсутствует, создаём её.
-     */
     const { data: wallet, error: walletError } = await supabase
       .from("user_wallets")
       .select("balance")
@@ -1429,7 +1397,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-/* Подарки */
+/* Подарки: список */
 
 app.get("/api/gifts", async (req, res) => {
   try {
@@ -1444,6 +1412,209 @@ app.get("/api/gifts", async (req, res) => {
     res.json(data || []);
   } catch (error) {
     sendError(res, error, "Не удалось загрузить подарки");
+  }
+});
+
+/*
+ * Подарки: события для анимации у зрителей.
+ * Клиент может опрашивать этот маршрут, передавая since —
+ * время последнего полученного события.
+ */
+app.get("/api/gifts/events", async (req, res) => {
+  try {
+    const roomName = cleanText(req.query.roomName, 100);
+
+    if (!validRoomName(roomName)) {
+      return res.status(400).json({
+        error: "Неверное имя комнаты"
+      });
+    }
+
+    const stream = await getLiveStream(roomName);
+
+    if (!stream) {
+      return res.status(404).json({
+        error: "Эфир завершён"
+      });
+    }
+
+    const requestedSince = cleanText(req.query.since, 50);
+    const sinceTime = requestedSince
+      ? Date.parse(requestedSince)
+      : NaN;
+
+    const since = Number.isFinite(sinceTime)
+      ? new Date(sinceTime).toISOString()
+      : new Date(Date.now() - 30000).toISOString();
+
+    const { data: transactions, error } = await supabase
+      .from("gift_transactions")
+      .select("id, sender_id, receiver_id, stream_id, gift_id, quantity, total_coins, created_at")
+      .eq("stream_id", stream.id)
+      .gte("created_at", since)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    if (error) throw error;
+
+    const rows = transactions || [];
+
+    if (!rows.length) {
+      return res.json({
+        success: true,
+        events: []
+      });
+    }
+
+    const giftIds = [
+      ...new Set(rows.map(row => row.gift_id).filter(Boolean))
+    ];
+
+    const senderIds = [
+      ...new Set(rows.map(row => row.sender_id).filter(Boolean))
+    ];
+
+    const requests = [];
+
+    if (giftIds.length) {
+      requests.push(
+        supabase
+          .from("gifts")
+          .select("id, name, emoji, price")
+          .in("id", giftIds)
+      );
+    } else {
+      requests.push(Promise.resolve({ data: [], error: null }));
+    }
+
+    if (senderIds.length) {
+      requests.push(
+        supabase
+          .from("user_profiles")
+          .select("id, nickname")
+          .in("id", senderIds)
+      );
+    } else {
+      requests.push(Promise.resolve({ data: [], error: null }));
+    }
+
+    const [giftResult, profileResult] = await Promise.all(requests);
+
+    if (giftResult.error) throw giftResult.error;
+    if (profileResult.error) throw profileResult.error;
+
+    const giftsById = new Map(
+      (giftResult.data || []).map(gift => [String(gift.id), gift])
+    );
+
+    const namesById = new Map(
+      (profileResult.data || []).map(profile => [
+        profile.id,
+        profile.nickname
+      ])
+    );
+
+    const events = rows.map(row => {
+      const gift = giftsById.get(String(row.gift_id));
+
+      return {
+        id: row.id,
+        created_at: row.created_at,
+        senderName: namesById.get(row.sender_id) || "Зритель",
+        gift: gift
+          ? {
+              id: gift.id,
+              name: gift.name,
+              emoji: gift.emoji || "🎁",
+              price: Number(gift.price || 0)
+            }
+          : {
+              id: row.gift_id,
+              name: "Подарок",
+              emoji: "🎁",
+              price: Number(row.total_coins || 0)
+            },
+        quantity: Number(row.quantity || 1),
+        totalCoins: Number(row.total_coins || 0)
+      };
+    });
+
+    return res.json({
+      success: true,
+      events
+    });
+  } catch (error) {
+    sendError(res, error, "Не удалось загрузить события подарков");
+  }
+});
+
+/*
+ * Заработок ведущего.
+ * 100 монет = $1 общего объёма подарков.
+ * 50% получает ведущий, 50% — платформа.
+ */
+app.get("/api/host/earnings", requireHostAccess, async (req, res) => {
+  try {
+    const hostId = req.hostId;
+
+    if (!hostId) {
+      return res.status(400).json({
+        error: "Не удалось определить ведущего"
+      });
+    }
+
+    let offset = 0;
+    const pageSize = 1000;
+    let totalCoins = 0;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("gift_transactions")
+        .select("total_coins")
+        .eq("receiver_id", hostId)
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw error;
+
+      const rows = data || [];
+
+      for (const row of rows) {
+        totalCoins += Number(row.total_coins || 0);
+      }
+
+      if (rows.length < pageSize) break;
+
+      offset += pageSize;
+    }
+
+    const grossUsd = totalCoins / COINS_PER_USD;
+    const hostEarningsUsd =
+      Math.round(grossUsd * HOST_EARNINGS_SHARE * 100) / 100;
+
+    const platformCommissionUsd =
+      Math.round(grossUsd * (1 - HOST_EARNINGS_SHARE) * 100) / 100;
+
+    const progressPercent = Math.min(
+      100,
+      Math.round(
+        (hostEarningsUsd / HOST_EARNINGS_GOAL_USD) * 10000
+      ) / 100
+    );
+
+    return res.json({
+      success: true,
+      currency: "USD",
+      totalCoins,
+      grossUsd: Math.round(grossUsd * 100) / 100,
+      hostEarningsUsd,
+      platformCommissionUsd,
+      platformCommissionPercent: 50,
+      coinsPerUsd: COINS_PER_USD,
+      goalUsd: HOST_EARNINGS_GOAL_USD,
+      progressPercent
+    });
+  } catch (error) {
+    sendError(res, error, "Не удалось загрузить заработок ведущего");
   }
 });
 
