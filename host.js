@@ -36,6 +36,13 @@ let currentFacingMode = "user";
 let heartbeatTimer = null;
 let isSwitchingCamera = false;
 
+/* Подарки в эфире */
+let giftTimer = null;
+let giftLayer = null;
+let giftPollBusy = false;
+let lastGiftPollAt = null;
+const seenGiftEvents = new Set();
+
 /* Beauty effects pipeline */
 let maskCanvas = null;
 let maskContext = null;
@@ -167,6 +174,307 @@ async function loadSDK() {
 
 function getCameraTrack() {
   return localTracks.find(track => track.kind === "video") || null;
+}
+
+/* ================================
+   ПОДАРКИ ПОВЕРХ ВИДЕО ВЕДУЩЕГО
+   ================================ */
+
+function getGiftVideoContainer() {
+  if (preview?.parentElement) {
+    return preview.parentElement;
+  }
+
+  return document.querySelector(".studio-stage");
+}
+
+function setupHostGiftLayer() {
+  const container = getGiftVideoContainer();
+  if (!container) return null;
+
+  if (
+    giftLayer &&
+    giftLayer.isConnected &&
+    giftLayer.parentElement === container
+  ) {
+    return giftLayer;
+  }
+
+  if (!document.getElementById("hostGiftAnimationStyles")) {
+    const style = document.createElement("style");
+    style.id = "hostGiftAnimationStyles";
+
+    style.textContent = `
+      .host-gift-animation-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 100;
+        overflow: hidden;
+        pointer-events: none;
+        contain: layout paint;
+      }
+
+      .host-gift-pop {
+        position: absolute;
+        left: 50%;
+        bottom: 19%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        max-width: calc(100% - 24px);
+        padding: 10px 16px;
+        border: 1px solid rgba(255,255,255,.22);
+        border-radius: 18px;
+        color: #fff;
+        background: rgba(12,12,12,.82);
+        box-shadow: 0 5px 25px rgba(0,0,0,.35);
+        box-sizing: border-box;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        transform: translate(-50%, 0) scale(.7);
+        opacity: 0;
+        animation: hostGiftFly 3.4s ease-out forwards;
+      }
+
+      .host-gift-emoji {
+        flex: 0 0 auto;
+        font-size: clamp(36px, 9vw, 62px);
+        line-height: 1;
+        filter: drop-shadow(0 2px 8px rgba(255,80,140,.4));
+        animation: hostGiftPulse .65s ease-in-out infinite alternate;
+      }
+
+      .host-gift-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .host-gift-sender {
+        overflow: hidden;
+        color: #ffd76a;
+        font-size: 13px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .host-gift-name {
+        overflow-wrap: anywhere;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .host-gift-quantity {
+        color: #f5f5f5;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      @keyframes hostGiftFly {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, 35px) scale(.65);
+        }
+        12% {
+          opacity: 1;
+          transform: translate(-50%, 0) scale(1.08);
+        }
+        20% {
+          transform: translate(-50%, 0) scale(1);
+        }
+        72% {
+          opacity: 1;
+          transform: translate(-50%, -25px) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -85px) scale(.9);
+        }
+      }
+
+      @keyframes hostGiftPulse {
+        from { transform: scale(.92) rotate(-5deg); }
+        to { transform: scale(1.08) rotate(5deg); }
+      }
+
+      @media (max-width: 480px) {
+        .host-gift-pop {
+          bottom: 22%;
+          gap: 9px;
+          padding: 9px 12px;
+        }
+
+        .host-gift-name {
+          font-size: 14px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .host-gift-pop {
+          animation-duration: 2s;
+        }
+
+        .host-gift-emoji {
+          animation: none;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  const computedPosition = window.getComputedStyle(container).position;
+
+  if (computedPosition === "static") {
+    container.style.position = "relative";
+  }
+
+  giftLayer = document.createElement("div");
+  giftLayer.className = "host-gift-animation-layer";
+  giftLayer.setAttribute("aria-hidden", "true");
+
+  container.appendChild(giftLayer);
+  return giftLayer;
+}
+
+function showHostGift(event) {
+  const layer = setupHostGiftLayer();
+  if (!layer || !event) return;
+
+  const gift = event.gift || {};
+  const emoji = gift.emoji || event.emoji || "🎁";
+  const giftName =
+    gift.name || event.giftName || event.name || "Подарок";
+  const senderName =
+    event.senderName || event.sender_name || "Гость";
+  const quantity = Math.max(1, Number(event.quantity) || 1);
+
+  const pop = document.createElement("div");
+  pop.className = "host-gift-pop";
+
+  const emojiElement = document.createElement("div");
+  emojiElement.className = "host-gift-emoji";
+  emojiElement.textContent = emoji;
+
+  const textElement = document.createElement("div");
+  textElement.className = "host-gift-text";
+
+  const senderElement = document.createElement("div");
+  senderElement.className = "host-gift-sender";
+  senderElement.textContent = senderName + " отправил(а) подарок";
+
+  const nameElement = document.createElement("div");
+  nameElement.className = "host-gift-name";
+  nameElement.textContent = giftName;
+
+  textElement.append(senderElement, nameElement);
+
+  if (quantity > 1) {
+    const quantityElement = document.createElement("div");
+    quantityElement.className = "host-gift-quantity";
+    quantityElement.textContent = "Количество: ×" + quantity;
+    textElement.appendChild(quantityElement);
+  }
+
+  pop.append(emojiElement, textElement);
+  layer.appendChild(pop);
+
+  while (layer.children.length > 5) {
+    layer.firstElementChild.remove();
+  }
+
+  window.setTimeout(() => pop.remove(), 3600);
+}
+
+async function loadHostGiftEvents() {
+  if (!activeRoomName || isStopping || giftPollBusy) return;
+
+  giftPollBusy = true;
+
+  const pollStartedAt = new Date().toISOString();
+
+  try {
+    const query = new URLSearchParams({
+      roomName: activeRoomName,
+      since: lastGiftPollAt || new Date(Date.now() - 15000).toISOString()
+    });
+
+    const response = await apiFetch(
+      "/api/gifts/events?" + query.toString()
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || `Ошибка загрузки подарков: ${response.status}`
+      );
+    }
+
+    const events = Array.isArray(data)
+      ? data
+      : Array.isArray(data.events)
+        ? data.events
+        : [];
+
+    events.forEach(event => {
+      const eventKey = event.id != null
+        ? String(event.id)
+        : [
+            event.created_at || "",
+            event.sender_id || "",
+            event.gift_id || event.gift?.id || "",
+            event.quantity || 1
+          ].join(":");
+
+      if (seenGiftEvents.has(eventKey)) return;
+
+      seenGiftEvents.add(eventKey);
+      showHostGift(event);
+    });
+
+    if (seenGiftEvents.size > 500) {
+      const recentKeys = Array.from(seenGiftEvents).slice(-250);
+      seenGiftEvents.clear();
+      recentKeys.forEach(key => seenGiftEvents.add(key));
+    }
+
+    lastGiftPollAt = pollStartedAt;
+  } catch (error) {
+    /* Ошибка подарков не должна останавливать эфир */
+    console.warn("Не удалось загрузить подарки ведущего:", error.message);
+  } finally {
+    giftPollBusy = false;
+  }
+}
+
+function startHostGiftEvents() {
+  stopHostGiftEvents();
+
+  lastGiftPollAt = new Date(Date.now() - 15000).toISOString();
+  seenGiftEvents.clear();
+
+  setupHostGiftLayer();
+  loadHostGiftEvents();
+
+  giftTimer = setInterval(loadHostGiftEvents, 2500);
+}
+
+function stopHostGiftEvents() {
+  if (giftTimer) {
+    clearInterval(giftTimer);
+    giftTimer = null;
+  }
+
+  giftPollBusy = false;
+  lastGiftPollAt = null;
+  seenGiftEvents.clear();
+
+  if (giftLayer) {
+    giftLayer.replaceChildren();
+  }
 }
 
 /* Загрузка MediaPipe для отслеживания лица */
@@ -819,6 +1127,7 @@ async function stopStream(message = "Эфир завершён.") {
 
   isStopping = true;
   stopHeartbeat();
+  stopHostGiftEvents();
 
   const roomNameToStop = activeRoomName;
   activeRoomName = "";
@@ -1016,6 +1325,9 @@ if (streamForm) {
 
       startHeartbeat();
 
+      /* Запускаем показ подарков только после подключения эфира */
+      startHostGiftEvents();
+
       status(
         `Эфир запущен: ${title}\n` +
         `Комната: ${roomName}\n` +
@@ -1034,6 +1346,7 @@ if (streamForm) {
         await stopStream(error.message || "Не удалось запустить эфир.");
       } else {
         stopHeartbeat();
+        stopHostGiftEvents();
 
         if (room) {
           try {
@@ -1126,6 +1439,7 @@ if (logoutButton) {
 
 window.addEventListener("beforeunload", () => {
   stopHeartbeat();
+  stopHostGiftEvents();
 
   if (room) room.disconnect();
 
