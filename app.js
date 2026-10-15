@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -35,20 +34,55 @@
     }
   }
 
+  const SUPABASE_URL =
+    "https://cdyuxiicllnfrwssigsr.supabase.co";
+  const SUPABASE_KEY =
+    "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+
+  const authClient = window.supabase?.createClient
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    : null;
+
   async function api(url, options = {}) {
+    const headers = {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {})
+    };
+
+    if (
+      url === "/api/account/wallet" ||
+      url === "/api/gifts/send"
+    ) {
+      if (!authClient) {
+        throw new Error("Не удалось подключить сервис аккаунта.");
+      }
+
+      const { data: sessionData, error: sessionError } =
+        await authClient.auth.getSession();
+
+      const accessToken = sessionData?.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        throw new Error(
+          "Войди в аккаунт, чтобы отправлять подарки за монеты."
+        );
+      }
+
+      headers.Authorization = "Bearer " + accessToken;
+    }
+
     const response = await fetch(url, {
       credentials: "same-origin",
       ...options,
-      headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...(options.headers || {})
-      }
+      headers
     });
 
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.error || `Ошибка сервера: ${response.status}`);
+      throw new Error(
+        data.error || `Ошибка сервера: ${response.status}`
+      );
     }
 
     return data;
@@ -124,7 +158,10 @@
         viewerAudioMuted ? "Включить звук" : "Выключить звук"
       );
       button.title = viewerAudioMuted ? "Включить звук" : "Выключить звук";
-      button.setAttribute("aria-pressed", viewerAudioMuted ? "false" : "true");
+      button.setAttribute(
+        "aria-pressed",
+        viewerAudioMuted ? "false" : "true"
+      );
     }
 
     button.addEventListener("click", async () => {
@@ -603,10 +640,12 @@
     if (!coinBalance) return;
 
     try {
-      const data = await api("/api/wallet");
-      coinBalance.textContent = data.balance ?? 0;
+      const data = await api("/api/account/wallet");
+      coinBalance.textContent =
+        Number(data.balance ?? 0).toLocaleString("ru-RU");
     } catch (error) {
       console.error("Ошибка загрузки баланса:", error);
+      coinBalance.textContent = "—";
     }
   }
 
@@ -645,7 +684,8 @@
       });
 
       if (coinBalance && data.balance !== undefined) {
-        coinBalance.textContent = data.balance;
+        coinBalance.textContent =
+          Number(data.balance).toLocaleString("ru-RU");
       }
 
       showMessage(
