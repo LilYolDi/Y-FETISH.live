@@ -1,3 +1,4 @@
+
 "use strict";
 
 const express = require("express");
@@ -9,7 +10,14 @@ const { createClient } = require("@supabase/supabase-js");
 const { AccessToken } = require("livekit-server-sdk");
 
 const app = express();
-app.use(express.json({ limit: "1mb" }));
+
+/* Сохраняем исходное тело запроса для проверки подписи webhook */
+app.use(express.json({
+  limit: "1mb",
+  verify: (req, res, buffer) => {
+    req.rawBody = Buffer.from(buffer);
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 10000;
@@ -22,6 +30,35 @@ const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const HOST_PASSWORD = process.env.HOST_PASSWORD || "";
 const HOST_SESSION_SECRET = process.env.HOST_SESSION_SECRET || "";
 const HOST_PROFILE_ID = process.env.HOST_PROFILE_ID || "";
+
+/* AGDor Pay: секреты задаются в Render Environment */
+const AGDOR_API_KEY =
+  process.env.AURORA_API_KEY ||
+  process.env["Aurora API Key"] ||
+  "";
+
+const AGDOR_PROJECT_CODE =
+  process.env.AURORA_PROJECT_CODE ||
+  process.env["Aurora Project Code"] ||
+  "prj_fccc0f34";
+
+const AGDOR_WEBHOOK_SECRET =
+  process.env.DOOR_WEBHOOK_SECRET ||
+  process.env["Door Webhook Secret"] ||
+  "";
+
+const AGDOR_WALLET_CODE = "usdt_trc20_60e5a3a0";
+const AGDOR_INVOICE_URL = "https://agdorpay.com/api?r=create_invoice";
+
+/* Пакеты монет и их цена в USDT */
+const COIN_PACKAGES = Object.freeze({
+  200: { price: 2 },
+  400: { price: 10 },
+  1000: { price: 20 },
+  2500: { price: 50 },
+  5000: { price: 100 },
+  10000: { price: 180 }
+});
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Не заданы SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY");
@@ -503,6 +540,470 @@ app.get("/api/account/wallet", requireUser, async (req, res) => {
     });
   } catch (error) {
     sendError(res, error, "Не удалось загрузить баланс монет");
+  }
+});
+
+/* =========================================================
+   AGDor Pay — создание счёта и подтверждение покупки монет
+   ========================================================= */
+
+/*
+ * Создание счёта.
+ * Клиент передаёт количество монет, а цену сервер берёт
+ * только из COIN_PACKAGES, не доверяя цене с браузера.
+ */
+app.post("/api/payments/create", requireUser, async (req, res) => {
+  let externalId = null;
+  let pendingCreated = false;
+
+  try {
+    if (!AGDOR_API_KEY || !AGDOR_PROJECT_CODE) {
+      return res.status(503).json({
+        error: "Оплата временно не настроена."
+      });
+    }
+
+    const coins = Number(req.body?.coins);
+    const pack = COIN_PACKAGES[coins];
+
+    if (!Number.isSafeInteger(coins) || !pack) {
+      return res.status(400).json({
+        error: "Выбери один из доступных пакетов монет."
+      });
+    }
+
+    externalId = crypto.randomUUID();
+
+    /*
+     * В существующей таблице coin_transactions используется
+     * поле create_at. Новая таблица не требуется.
+     */
+    const { error: insertError } = await supabase
+      .from("coin_transactions")
+      .insert({
+        user_id: req.user.id,
+        amount: coins,
+        transaction_type: "purchase_pending",
+        payment_reference: externalId
+      });
+
+    if (insertError) throw insertError;
+
+    pendingCreated = true;
+
+    const form = new URLSearchParams({
+      amount: String(pack.price),
+      wallet_code: AGDOR_WALLET_CODE,
+      external_id: externalId,
+      customer_id: req.user.id
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    let response;
+
+    try {
+      response = await fetch(AGDOR_INVOICE_URL, {
+        method: "POST",
+        headers: {
+          "X-Project-Code": AGDOR_PROJECT_CODE,
+          "X-API-Key": AGDOR_API_KEY,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: form.toString(),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const responseText = await response.text();
+    let result;
+
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      throw new Error("AGDor Pay вернул ответ не в формате JSON");
+    }
+
+    if (!response.ok) {
+      console.error("AGDor Pay HTTP error:", response.status, result);
+      throw new Error("Не удалось создать платёжный счёт");
+    }
+
+    const invoice = result?.data || result?.result?.data || result?.result || result;
+
+    const paymentUrl =
+      invoice?.payment_url ||
+      invoice?.paymentUrl ||
+      invoice?.checkout_url ||
+      invoice?.checkoutUrl ||
+      invoice?.url;
+
+    if (
+      result?.success === false ||
+      result?.error ||
+      !paymentUrl ||
+      typeof paymentUrl !== "string"
+    ) {
+      console.error("Неожиданный ответ AGDor Pay:", result);
+      throw new Error("AGDor Pay не вернул ссылку на оплату");
+    }
+
+    /*
+     * Разрешаем только HTTPS-ссылки, чтобы не перенаправлять
+     * пользователя на произвольные схемы.
+     */
+    let parsedPaymentUrl;
+
+    try {
+      parsedPaymentUrl = new URL(paymentUrl);
+    } catch {
+      throw new Error("AGDor Pay вернул неправильную ссылку");
+    }
+
+    if (parsedPaymentUrl.protocol !== "https:") {
+      throw new Error("AGDor Pay вернул небезопасную ссылку");
+    }
+
+    res.json({
+      success: true,
+      payment_url: parsedPaymentUrl.toString(),
+      external_id: externalId,
+      coins,
+      amount: pack.price,
+      currency: "USDT",
+      network: "TRC20"
+    });
+  } catch (error) {
+    console.error("Создание платежа AGDor Pay:", error);
+
+    /*
+     * Если создание счёта завершилось ошибкой, удаляем только
+     * созданную нами незавершённую запись, если это возможно.
+     */
+    if (pendingCreated && externalId) {
+      const { error: cleanupError } = await supabase
+        .from("coin_transactions")
+        .delete()
+        .eq("payment_reference", externalId)
+        .eq("user_id", req.user.id)
+        .eq("transaction_type", "purchase_pending");
+
+      if (cleanupError) {
+        console.error(
+          "Не удалось удалить незавершённую запись платежа:",
+          cleanupError
+        );
+      }
+    }
+
+    res.status(502).json({
+      error: "Не удалось создать счёт на оплату. Попробуй ещё раз."
+    });
+  }
+});
+
+/*
+ * Webhook AGDor Pay.
+ *
+ * Проверка подписи: HMAC-SHA256(timestamp + "." + rawBody).
+ * Названия заголовков и формат события должны соответствовать
+ * документации конкретного проекта AGDor Pay.
+ */
+app.post("/api/payments/webhook", async (req, res) => {
+  try {
+    if (!AGDOR_WEBHOOK_SECRET) {
+      console.error("Не задан DOOR_WEBHOOK_SECRET");
+      return res.status(503).json({
+        error: "Webhook не настроен"
+      });
+    }
+
+    const timestamp =
+      req.headers["x-payment-timestamp"] ||
+      req.headers["x-webhook-timestamp"];
+
+    const signatureHeader =
+      req.headers["x-payment-signature"] ||
+      req.headers["x-webhook-signature"];
+
+    if (
+      typeof timestamp !== "string" ||
+      typeof signatureHeader !== "string" ||
+      !req.rawBody
+    ) {
+      return res.status(400).json({
+        error: "Отсутствует подпись webhook"
+      });
+    }
+
+    /*
+     * Защита от слишком старых или будущих запросов.
+     * Предполагается, что timestamp передаётся в секундах.
+     */
+    const timestampNumber = Number(timestamp);
+
+    if (!Number.isFinite(timestampNumber)) {
+      return res.status(400).json({
+        error: "Неверный timestamp"
+      });
+    }
+
+    const timestampMs = timestampNumber < 1e12
+      ? timestampNumber * 1000
+      : timestampNumber;
+
+    if (Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) {
+      return res.status(401).json({
+        error: "Webhook просрочен"
+      });
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", AGDOR_WEBHOOK_SECRET)
+      .update(`${timestamp}.${req.rawBody.toString("utf8")}`)
+      .digest("hex");
+
+    const receivedSignature = signatureHeader
+      .replace(/^sha256=/i, "")
+      .trim();
+
+    if (!safeEqual(
+      expectedSignature.toLowerCase(),
+      receivedSignature.toLowerCase()
+    )) {
+      return res.status(401).json({
+        error: "Неверная подпись webhook"
+      });
+    }
+
+    const payload = req.body || {};
+
+    const eventType =
+      payload.event_type ||
+      payload.event ||
+      payload.type ||
+      "";
+
+    const status = String(
+      payload.status ||
+      payload.data?.status ||
+      ""
+    ).toLowerCase();
+
+    const confirmedEvent =
+      eventType === "invoice.confirmed" ||
+      eventType === "invoice_confirmed";
+
+    const confirmedStatus = [
+      "confirmed",
+      "paid",
+      "completed",
+      "success"
+    ].includes(status);
+
+    /*
+     * Не начисляем монеты по событиям, которые не означают
+     * подтверждённую оплату.
+     */
+    if (!confirmedEvent && !confirmedStatus) {
+      return res.json({
+        success: true,
+        ignored: true
+      });
+    }
+
+    const data = payload.data || payload.invoice || payload;
+
+    const externalId = cleanText(
+      data.external_id ||
+      data.externalId ||
+      data.merchant_reference,
+      100
+    );
+
+    if (!externalId) {
+      return res.status(400).json({
+        error: "Не указан external_id"
+      });
+    }
+
+    /*
+     * Находим только ранее созданную незавершённую покупку.
+     * Повторное событие для уже обработанной покупки не начислит
+     * монеты ещё раз.
+     */
+    const { data: transaction, error: transactionError } = await supabase
+      .from("coin_transactions")
+      .select("*")
+      .eq("payment_reference", externalId)
+      .eq("transaction_type", "purchase_pending")
+      .maybeSingle();
+
+    if (transactionError) throw transactionError;
+
+    if (!transaction) {
+      const { data: alreadyProcessed, error: processedError } = await supabase
+        .from("coin_transactions")
+        .select("id")
+        .eq("payment_reference", externalId)
+        .eq("transaction_type", "purchase")
+        .maybeSingle();
+
+      if (processedError) throw processedError;
+
+      if (alreadyProcessed) {
+        return res.json({
+          success: true,
+          already_processed: true
+        });
+      }
+
+      return res.status(404).json({
+        error: "Покупка не найдена"
+      });
+    }
+
+    const coins = Number(transaction.amount);
+    const pack = COIN_PACKAGES[coins];
+
+    if (!pack) {
+      return res.status(400).json({
+        error: "Неизвестный пакет монет"
+      });
+    }
+
+    /*
+     * Проверяем сумму платежа, если провайдер прислал её.
+     * Поле amount может означать сумму денег, а не монеты.
+     */
+    const paidAmount = Number(
+      data.amount_requested ??
+      data.paid_amount ??
+      data.amount_paid ??
+      data.amount
+    );
+
+    if (
+      Number.isFinite(paidAmount) &&
+      paidAmount > 0 &&
+      Math.abs(paidAmount - pack.price) > 0.000001
+    ) {
+      console.error("Сумма платежа не совпала:", {
+        externalId,
+        expected: pack.price,
+        received: paidAmount
+      });
+
+      return res.status(400).json({
+        error: "Сумма платежа не совпадает с заказом"
+      });
+    }
+
+    const currency = String(
+      data.currency ||
+      data.pay_currency ||
+      "USDT"
+    ).toUpperCase();
+
+    const network = String(
+      data.network ||
+      data.chain ||
+      data.blockchain ||
+      "TRC20"
+    ).toUpperCase();
+
+    if (currency !== "USDT") {
+      return res.status(400).json({
+        error: "Неверная валюта платежа"
+      });
+    }
+
+    if (
+      network !== "TRC20" &&
+      network !== "TRON" &&
+      network !== "USDT_TRC20"
+    ) {
+      return res.status(400).json({
+        error: "Неверная сеть платежа"
+      });
+    }
+
+    /*
+     * Сначала атомарно переводим запись из pending в purchase.
+     * Повторный webhook не сможет изменить эту же запись второй раз.
+     */
+    const { data: claimed, error: claimError } = await supabase
+      .from("coin_transactions")
+      .update({
+        transaction_type: "purchase"
+      })
+      .eq("id", transaction.id)
+      .eq("transaction_type", "purchase_pending")
+      .select("id, user_id, amount")
+      .maybeSingle();
+
+    if (claimError) throw claimError;
+
+    if (!claimed) {
+      return res.json({
+        success: true,
+        already_processed: true
+      });
+    }
+
+    /*
+     * Начисляем монеты зарегистрированному пользователю.
+     * Если запись кошелька ещё отсутствует, создаём её.
+     */
+    const { data: wallet, error: walletError } = await supabase
+      .from("user_wallets")
+      .select("balance")
+      .eq("user_id", claimed.user_id)
+      .maybeSingle();
+
+    if (walletError) throw walletError;
+
+    if (wallet) {
+      const newBalance = Number(wallet.balance || 0) + coins;
+
+      const { error: updateWalletError } = await supabase
+        .from("user_wallets")
+        .update({
+          balance: newBalance
+        })
+        .eq("user_id", claimed.user_id);
+
+      if (updateWalletError) throw updateWalletError;
+    } else {
+      const { error: createWalletError } = await supabase
+        .from("user_wallets")
+        .insert({
+          user_id: claimed.user_id,
+          balance: coins
+        });
+
+      if (createWalletError) throw createWalletError;
+    }
+
+    console.log("Покупка монет подтверждена:", {
+      externalId,
+      userId: claimed.user_id,
+      coins
+    });
+
+    return res.json({
+      success: true,
+      credited: true
+    });
+  } catch (error) {
+    console.error("Webhook AGDor Pay:", error);
+
+    return res.status(500).json({
+      error: "Не удалось обработать webhook"
+    });
   }
 });
 
