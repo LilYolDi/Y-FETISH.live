@@ -1479,3 +1479,159 @@ window.addEventListener("beforeunload", () => {
 });
 
 checkLogin();
+
+
+
+
+
+
+/* ===== ШКАЛА ЗАРАБОТКА ВЕДУЩЕГО ===== */
+(() => {
+  let earningsTimer = null;
+  let earningsBusy = false;
+
+  function createEarningsPanel() {
+    let panel = document.getElementById("hostEarningsPanel");
+    if (panel) return panel;
+
+    if (!document.getElementById("hostEarningsStyles")) {
+      const style = document.createElement("style");
+      style.id = "hostEarningsStyles";
+      style.textContent = `
+        #hostEarningsPanel {
+          position: fixed;
+          z-index: 150;
+          top: calc(12px + env(safe-area-inset-top, 0px));
+          left: 10px;
+          width: 190px;
+          box-sizing: border-box;
+          padding: 12px;
+          border: 1px solid rgba(255,255,255,.18);
+          border-radius: 14px;
+          color: #fff;
+          background: rgba(12,12,12,.90);
+          font: 13px/1.4 Arial,sans-serif;
+          box-shadow: 0 4px 18px rgba(0,0,0,.3);
+          display: none;
+          pointer-events: none;
+        }
+        #hostEarningsPanel .he-title {
+          font-weight: 800;
+          margin-bottom: 7px;
+        }
+        #hostEarningsPanel .he-amount {
+          color: #66efa0;
+          font-size: 23px;
+          font-weight: 800;
+          margin-bottom: 7px;
+        }
+        #hostEarningsPanel .he-track {
+          height: 8px;
+          border-radius: 99px;
+          overflow: hidden;
+          background: rgba(255,255,255,.2);
+          margin: 7px 0;
+        }
+        #hostEarningsPanel .he-fill {
+          height: 100%;
+          width: 0%;
+          border-radius: inherit;
+          background: linear-gradient(90deg,#25c878,#b6ff6b);
+          transition: width .35s ease;
+        }
+        #hostEarningsPanel .he-detail {
+          color: #ddd;
+          font-size: 11px;
+        }
+        @media(max-width:480px) {
+          #hostEarningsPanel {
+            top: calc(10px + env(safe-area-inset-top, 0px));
+            left: 8px;
+            width: 155px;
+            padding: 9px;
+          }
+          #hostEarningsPanel .he-amount { font-size: 20px; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    panel = document.createElement("div");
+    panel.id = "hostEarningsPanel";
+    panel.innerHTML = `
+      <div class="he-title">💰 Мой заработок</div>
+      <div class="he-amount" id="heAmount">$0.00</div>
+      <div class="he-track"><div class="he-fill" id="heFill"></div></div>
+      <div id="heProgress">0% от цели $100</div>
+      <div class="he-detail" id="heCoins">Получено монет: 0</div>
+    `;
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  async function updateEarnings() {
+    if (earningsBusy) return;
+    earningsBusy = true;
+
+    try {
+      const response = await apiFetch("/api/host/earnings");
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || "Не удалось загрузить заработок");
+      }
+
+      const amount = Number(data.hostEarningsUsd) || 0;
+      const goal = Number(data.goalUsd) || 100;
+      const coins = Number(data.totalCoins) || 0;
+      const progress = Math.max(
+        0,
+        Math.min(100, Number(data.progressPercent) || (amount / goal * 100))
+      );
+
+      createEarningsPanel().style.display =
+        activeRoomName && !isStopping ? "block" : "none";
+
+      document.getElementById("heAmount").textContent =
+        "$" + amount.toFixed(2);
+      document.getElementById("heFill").style.width = progress + "%";
+      document.getElementById("heProgress").textContent =
+        progress.toFixed(1) + "% от цели $" + goal.toFixed(0);
+      document.getElementById("heCoins").textContent =
+        "Получено монет: " + coins.toLocaleString("ru-RU");
+    } catch (error) {
+      console.warn("Загрузка заработка:", error.message);
+    } finally {
+      earningsBusy = false;
+    }
+  }
+
+  function startEarningsUpdates() {
+    if (earningsTimer) clearInterval(earningsTimer);
+    updateEarnings();
+    earningsTimer = setInterval(updateEarnings, 5000);
+  }
+
+  function stopEarningsUpdates() {
+    if (earningsTimer) {
+      clearInterval(earningsTimer);
+      earningsTimer = null;
+    }
+    const panel = document.getElementById("hostEarningsPanel");
+    if (panel) panel.style.display = "none";
+  }
+
+  const originalStartHostGiftEvents = startHostGiftEvents;
+  startHostGiftEvents = function () {
+    originalStartHostGiftEvents();
+    startEarningsUpdates();
+  };
+
+  const originalStopHostGiftEvents = stopHostGiftEvents;
+  stopHostGiftEvents = function () {
+    originalStopHostGiftEvents();
+    stopEarningsUpdates();
+  };
+
+  window.addEventListener("beforeunload", stopEarningsUpdates);
+})();
