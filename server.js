@@ -1436,7 +1436,7 @@ app.get("/api/gifts", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("gifts")
-      .select("*")
+      .select("id, name, emoji, price, active, is_dice")
       .eq("active", true)
       .order("price", { ascending: true });
 
@@ -1448,7 +1448,7 @@ app.get("/api/gifts", async (req, res) => {
   }
 });
 
-/* Кошелёк гостя */
+/* Кошелёк гостя — оставлен для совместимости */
 
 app.get("/api/wallet", async (req, res) => {
   try {
@@ -1457,77 +1457,205 @@ app.get("/api/wallet", async (req, res) => {
     const { data, error } = await supabase
       .from("live_wallets")
       .select("*")
-      .eq("guest_id", id)
+      .eq("user_id", id)
       .maybeSingle();
 
     if (error) throw error;
 
     res.json({
       guestId: id,
-      balance: Number(data?.balance || 0)
+      balance: Number(data?.coins || 0)
     });
   } catch (error) {
     sendError(res, error, "Не удалось загрузить кошелёк");
   }
 });
 
-/* Отправка подарка */
+/* Отправка подарка зарегистрированным пользователем */
 
-app.post("/api/gifts/send", async (req, res) => {
+app.post("/api/gifts/send", requireUser, async (req, res) => {
   try {
-    const id = guestId(req, res);
     const roomName = cleanText(req.body?.roomName, 100);
-    const giftId = Number(req.body?.giftId);
+    const giftId = req.body?.giftId;
 
-    if (
-      !validRoomName(roomName) ||
-      !Number.isSafeInteger(giftId) ||
-      giftId <= 0
-    ) {
+    const validUuid =
+      typeof giftId === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(giftId);
+
+    if (!validRoomName(roomName) || !validUuid) {
       return res.status(400).json({
         error: "Неверные данные подарка"
       });
     }
 
-    if (!await getLiveStream(roomName)) {
-      return res.status(404).json({
-        error: "Эфир завершён"
-      });
-    }
-
-    const { data, error } = await supabase.rpc("send_live_gift", {
-      p_guest_id: id,
-      p_room_name: roomName,
-      p_gift_id: giftId
-    });
+    const { data, error } = await supabase.rpc(
+      "send_registered_live_gift",
+      {
+        p_sender_id: req.user.id,
+        p_room_name: roomName,
+        p_gift_id: giftId
+      }
+    );
 
     if (error) {
+      console.error("Ошибка отправки подарка:", error);
+
+      const message = error.message || "";
+
+      if (/недостаточно монет/i.test(message)) {
+        return res.status(400).json({
+          error: "Недостаточно монет"
+        });
+      }
+
+      if (/эфир завершён/i.test(message)) {
+        return res.status(400).json({
+          error: "Эфир завершён"
+        });
+      }
+
       return res.status(400).json({
-        error: error.message || "Не удалось отправить подарок"
+        error: "Не удалось отправить подарок"
       });
     }
 
-    res.json({
-      success: true,
-      result: data
-    });
+    res.json(data);
   } catch (error) {
     sendError(res, error, "Не удалось отправить подарок");
   }
 });
 
-/* Неизвестные маршруты */
+/* События подарков для анимации */
 
-app.use("/api", (req, res) => {
-  res.status(404).json({
-    error: "API-маршрут не найден"
-  });
+app.get("/api/gifts/events", async (req, res) => {
+  try {
+    const roomName = cleanText(req.query.roomName, 100);
+    const since = req.query.since;
+
+    if (!validRoomName(roomName)) {
+      return res.status(400).json({
+        error: "Неверное имя комнаты"
+      });
+    }
+
+    const stream = await getLiveStream(roomName);
+
+    if (!stream) {
+      return res.json([]);
+    }
+
+    let query = supabase
+      .from("gift_transactions")
+      .select(
+        "id, sender_id, receiver_id, stream_id, gift_id, quantity, total_coins, created_at"
+      )
+      .eq("stream_id", stream.id)
+      .order("created_at", { ascending: true })
+      .limit(100);
+
+    if (
+      typeof since === "string" &&
+      Number.isFinite(Date.parse(since))
+    ) {
+      query = query.gt("created_at", since);
+    }
+
+    const { data: transactions, error } = await query;
+
+    if (error) throw error;
+
+    const rows = transactions || [];
+
+    if (!rows.length) {
+      return res.json([]);
+    }
+
+    const giftIds = [...new Set(rows.map(row => row.gift_id))];
+    const senderIds = [...new Set(rows.map(row => row.sender_id))];
+
+    const [giftResult, userProfileResult, profileResult] =
+      await Promise.all([
+        supabase
+          .from("gifts")
+          .select("id, name, emoji")
+          .in("id", giftIds),
+
+        supabase
+          .from("user_profiles")
+          .select("id, nickname")
+          .in("id", senderIds),
+
+        supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", senderIds)
+      ]);
+
+    if (giftResult.error) throw giftResult.error;
+
+    const giftMap = new Map(
+      (giftResult.data || []).map(gift => [gift.id, gift])
+    );
+
+    const nameMap = new Map();
+
+    for (const profile of profileResult.data || []) {
+      nameMap.set(profile.id, profile.username);
+    }
+
+    for (const profile of userProfileResult.data || []) {
+      if (profile.nickname) {
+        nameMap.set(profile.id, profile.nickname);
+      }
+    }
+
+    res.json(rows.map(row => ({
+      ...row,
+      gift: giftMap.get(row.gift_id) || {
+        name: "Подарок",
+        emoji: "🎁"
+      },
+      senderName: nameMap.get(row.sender_id) || "Пользователь"
+    })));
+  } catch (error) {
+    sendError(res, error, "Не удалось загрузить события подарков");
+  }
 });
 
-app.use((req, res) => {
-  res.status(404).send("Страница не найдена");
-});
+/* Заработок ведущего по полученным подаркам */
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Y-FETISH LIVE running on port ${PORT}`);
+app.get("/api/host/earnings", requireHostAccess, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("gift_transactions")
+      .select("total_coins")
+      .eq("receiver_id", req.hostId);
+
+    if (error) throw error;
+
+    const totalCoins = (data || []).reduce(
+      (sum, row) => sum + Number(row.total_coins || 0),
+      0
+    );
+
+    const goalUsd = 100;
+
+    // Отображение по условному курсу 100 монет = 1 USD.
+    // Это не означает, что вывод денег уже подключён.
+    const hostEarningsUsd = totalCoins / 100;
+
+    const progressPercent = Math.min(
+      100,
+      Math.round((hostEarningsUsd / goalUsd) * 100)
+    );
+
+    res.json({
+      totalCoins,
+      hostEarningsUsd,
+      goalUsd,
+      progressPercent
+    });
+  } catch (error) {
+    sendError(res, error, "Не удалось загрузить заработок ведущего");
+  }
 });
