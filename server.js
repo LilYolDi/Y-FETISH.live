@@ -1488,7 +1488,7 @@ app.post("/api/gifts/send", requireUser, async (req, res) => {
     }
 
     const { data, error } = await supabase.rpc(
-      "send_registered_live_gift",
+      "send_live_gift",
       {
         p_sender_id: req.user.id,
         p_room_name: roomName,
