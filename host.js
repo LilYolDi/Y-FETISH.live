@@ -21,7 +21,6 @@ const preview = $("preview");
 const statusText = $("status");
 const watchLink = $("watchLink");
 const cameraButton = $("cameraButton");
-const maskSelect = $("maskSelect");
 
 let supabaseClient = null;
 let currentUser = null;
@@ -36,45 +35,6 @@ let currentFacingMode = "user";
 let heartbeatTimer = null;
 let isSwitchingCamera = false;
 
-/* Beauty effects pipeline */
-let maskCanvas = null;
-let maskContext = null;
-let canvasStream = null;
-let processedVideoTrack = null;
-let faceMeshInstance = null;
-let faceLandmarks = null;
-let renderFrameId = null;
-let faceMeshBusy = false;
-let lastFaceMeshTime = 0;
-let maskLoadPromise = null;
-
-/* Отдельное видео для исходной камеры */
-let sourceVideo = null;
-
-function getSourceVideo() {
-  if (sourceVideo) return sourceVideo;
-
-  sourceVideo = document.createElement("video");
-  sourceVideo.autoplay = true;
-  sourceVideo.muted = true;
-  sourceVideo.playsInline = true;
-  sourceVideo.setAttribute("aria-hidden", "true");
-
-  Object.assign(sourceVideo.style, {
-    position: "fixed",
-    left: "-10px",
-    top: "-10px",
-    width: "1px",
-    height: "1px",
-    opacity: "0",
-    pointerEvents: "none",
-    zIndex: "-1"
-  });
-
-  document.body.appendChild(sourceVideo);
-  return sourceVideo;
-}
-
 function status(message) {
   if (statusText) statusText.textContent = message;
 }
@@ -83,11 +43,6 @@ function setStudioVisible(authenticated) {
   if (loginPanel) loginPanel.hidden = authenticated;
   if (studioPanel) studioPanel.hidden = !authenticated;
   document.body.classList.toggle("studio-active", authenticated);
-
-  const studioTop = document.querySelector(".studio-top");
-  if (studioTop) {
-    studioTop.hidden = false;
-  }
 }
 
 async function loadSupabase() {
@@ -103,8 +58,7 @@ async function loadSupabase() {
     const script = document.createElement("script");
     script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
     script.onload = resolve;
-    script.onerror = () =>
-      reject(new Error("Не удалось загрузить Supabase"));
+    script.onerror = () => reject(new Error("Не удалось загрузить Supabase"));
     document.head.appendChild(script);
   });
 
@@ -129,8 +83,8 @@ async function getAccessToken() {
 
 async function apiFetch(url, options = {}) {
   const token = await getAccessToken();
-  const headers = new Headers(options.headers || {});
 
+  const headers = new Headers(options.headers || {});
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   if (options.body && !headers.has("Content-Type")) {
@@ -153,8 +107,7 @@ async function loadSDK() {
     script.src =
       "https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.min.js";
     script.onload = resolve;
-    script.onerror = () =>
-      reject(new Error("Не удалось загрузить LiveKit"));
+    script.onerror = () => reject(new Error("Не удалось загрузить LiveKit"));
     document.head.appendChild(script);
   });
 
@@ -167,409 +120,6 @@ async function loadSDK() {
 
 function getCameraTrack() {
   return localTracks.find(track => track.kind === "video") || null;
-}
-
-/* Загрузка MediaPipe для отслеживания лица */
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const existing = [...document.scripts].find(s => s.src === src);
-
-    if (existing) {
-      if (existing.dataset.loaded === "true") {
-        resolve();
-      } else {
-        existing.addEventListener("load", resolve, { once: true });
-        existing.addEventListener("error", () => {
-          reject(new Error("Не удалось загрузить библиотеку эффектов"));
-        }, { once: true });
-      }
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
-      script.dataset.loaded = "true";
-      resolve();
-    };
-    script.onerror = () =>
-      reject(new Error("Не удалось загрузить библиотеку эффектов"));
-    document.head.appendChild(script);
-  });
-}
-
-async function loadFaceMesh() {
-  if (faceMeshInstance) return faceMeshInstance;
-  if (maskLoadPromise) return maskLoadPromise;
-
-  maskLoadPromise = (async () => {
-    await loadScript(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"
-    );
-
-    if (!window.FaceMesh) {
-      throw new Error("Библиотека распознавания лица недоступна");
-    }
-
-    const mesh = new window.FaceMesh({
-      locateFile: file =>
-        `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
-    });
-
-    mesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    mesh.onResults(results => {
-      faceLandmarks = results.multiFaceLandmarks?.[0] || null;
-    });
-
-    faceMeshInstance = mesh;
-    return mesh;
-  })();
-
-  try {
-    return await maskLoadPromise;
-  } catch (error) {
-    maskLoadPromise = null;
-    throw error;
-  }
-}
-
-function point(index) {
-  if (!faceLandmarks || !maskCanvas) return null;
-
-  const p = faceLandmarks[index];
-  if (!p) return null;
-
-  return {
-    x: p.x * maskCanvas.width,
-    y: p.y * maskCanvas.height
-  };
-}
-
-function faceWidth() {
-  const left = point(234);
-  const right = point(454);
-
-  if (!left || !right) return 0;
-
-  return Math.hypot(right.x - left.x, right.y - left.y);
-}
-
-/* Румянец */
-function drawCheekBlush(ctx, width, opacity, color) {
-  const left = point(205);
-  const right = point(425);
-
-  if (!left || !right || width < 10) return;
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-
-  for (const p of [left, right]) {
-    const gradient = ctx.createRadialGradient(
-      p.x, p.y, width * 0.01,
-      p.x, p.y, width * 0.13
-    );
-
-    gradient.addColorStop(0, color);
-    gradient.addColorStop(1, "rgba(255,100,150,0)");
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.ellipse(
-      p.x, p.y,
-      width * 0.12, width * 0.065,
-      0, 0, Math.PI * 2
-    );
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
-/* Цвет губ */
-function drawLipColor(ctx, width, color, opacity) {
-  const upper = point(13);
-  const lower = point(14);
-  const left = point(61);
-  const right = point(291);
-
-  if (!upper || !lower || !left || !right || width < 10) return;
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.fillStyle = color;
-
-  ctx.beginPath();
-  ctx.moveTo(left.x, left.y);
-
-  ctx.quadraticCurveTo(
-    upper.x - width * 0.035,
-    upper.y - width * 0.025,
-    upper.x,
-    upper.y
-  );
-
-  ctx.quadraticCurveTo(
-    upper.x + width * 0.035,
-    upper.y - width * 0.025,
-    right.x,
-    right.y
-  );
-
-  ctx.quadraticCurveTo(
-    lower.x + width * 0.025,
-    lower.y + width * 0.02,
-    lower.x,
-    lower.y
-  );
-
-  ctx.quadraticCurveTo(
-    lower.x - width * 0.025,
-    lower.y + width * 0.02,
-    left.x,
-    left.y
-  );
-
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-}
-
-/* Лёгкий макияж глаз */
-function drawEyeMakeup(ctx, width, color, opacity) {
-  const eyes = [
-    [33, 133, 159],
-    [362, 263, 386]
-  ];
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = Math.max(1.5, width * 0.012);
-  ctx.lineCap = "round";
-
-  for (const [outerId, innerId, upperId] of eyes) {
-    const outer = point(outerId);
-    const inner = point(innerId);
-    const upper = point(upperId);
-
-    if (!outer || !inner || !upper) continue;
-
-    ctx.beginPath();
-    ctx.moveTo(outer.x, outer.y);
-    ctx.quadraticCurveTo(
-      upper.x,
-      upper.y - width * 0.012,
-      inner.x,
-      inner.y
-    );
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
-/* Beauty / Glamour / Макияж / Pink */
-function drawBeautyFilter() {
-  if (!maskContext || !maskCanvas) return;
-
-  const selected = maskSelect?.value || "none";
-  if (selected === "none") return;
-
-  const settingsByFilter = {
-    beauty: {
-      tint: "rgba(255,220,230,0.045)",
-      blush: 0.22,
-      blushColor: "#ff7799",
-      lips: "#e96b88",
-      lipOpacity: 0.24,
-      eyes: "#68404f",
-      eyeOpacity: 0.15
-    },
-    glamour: {
-      tint: "rgba(255,190,220,0.075)",
-      blush: 0.38,
-      blushColor: "#ff5688",
-      lips: "#d92862",
-      lipOpacity: 0.48,
-      eyes: "#442235",
-      eyeOpacity: 0.42
-    },
-    makeup: {
-      tint: "rgba(255,215,225,0.035)",
-      blush: 0.28,
-      blushColor: "#f45b86",
-      lips: "#d83255",
-      lipOpacity: 0.58,
-      eyes: "#301b2a",
-      eyeOpacity: 0.48
-    },
-    pink: {
-      tint: "rgba(255,105,180,0.085)",
-      blush: 0.42,
-      blushColor: "#ff69b4",
-      lips: "#ff3985",
-      lipOpacity: 0.48,
-      eyes: "#82365f",
-      eyeOpacity: 0.28
-    }
-  };
-
-  const settings = settingsByFilter[selected];
-  if (!settings) return;
-
-  const ctx = maskContext;
-
-  ctx.save();
-  ctx.fillStyle = settings.tint;
-  ctx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-  ctx.restore();
-
-  const width = faceWidth();
-  if (width < 10 || !faceLandmarks) return;
-
-  drawCheekBlush(ctx, width, settings.blush, settings.blushColor);
-  drawLipColor(ctx, width, settings.lips, settings.lipOpacity);
-  drawEyeMakeup(ctx, width, settings.eyes, settings.eyeOpacity);
-}
-
-/* Обрабатываем исходную камеру, а не preview */
-function renderFrame() {
-  if (!sourceVideo || !maskCanvas || !maskContext) return;
-
-  if (
-    sourceVideo.readyState >= 2 &&
-    sourceVideo.videoWidth > 0 &&
-    sourceVideo.videoHeight > 0
-  ) {
-    if (
-      maskCanvas.width !== sourceVideo.videoWidth ||
-      maskCanvas.height !== sourceVideo.videoHeight
-    ) {
-      maskCanvas.width = sourceVideo.videoWidth;
-      maskCanvas.height = sourceVideo.videoHeight;
-    }
-
-    maskContext.drawImage(
-      sourceVideo,
-      0,
-      0,
-      maskCanvas.width,
-      maskCanvas.height
-    );
-
-    drawBeautyFilter();
-
-    const selected = maskSelect?.value || "none";
-    const now = performance.now();
-
-    if (
-      selected !== "none" &&
-      faceMeshInstance &&
-      !faceMeshBusy &&
-      now - lastFaceMeshTime > 65
-    ) {
-      faceMeshBusy = true;
-      lastFaceMeshTime = now;
-
-      faceMeshInstance.send({ image: sourceVideo })
-        .catch(error => console.error("Face Mesh:", error))
-        .finally(() => {
-          faceMeshBusy = false;
-        });
-    }
-  }
-
-  renderFrameId = requestAnimationFrame(renderFrame);
-}
-
-async function ensureProcessedVideoTrack() {
-  if (processedVideoTrack) return processedVideoTrack;
-
-  sdk = sdk || await loadSDK();
-
-  const cameraTrack = getCameraTrack();
-  if (!cameraTrack) {
-    throw new Error("Камера не готова. Разреши доступ к камере.");
-  }
-
-  const inputVideo = getSourceVideo();
-
-  inputVideo.srcObject = new MediaStream([
-    cameraTrack.mediaStreamTrack
-  ]);
-
-  await inputVideo.play().catch(() => {});
-
-  for (let i = 0; i < 80; i++) {
-    if (inputVideo.videoWidth > 0 && inputVideo.videoHeight > 0) {
-      break;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  if (!inputVideo.videoWidth || !inputVideo.videoHeight) {
-    throw new Error("Камера не передаёт изображение. Попробуй ещё раз.");
-  }
-
-  maskCanvas = document.createElement("canvas");
-  maskCanvas.width = inputVideo.videoWidth;
-  maskCanvas.height = inputVideo.videoHeight;
-
-  maskContext = maskCanvas.getContext("2d", {
-    alpha: false,
-    desynchronized: true
-  });
-
-  if (!maskContext) {
-    throw new Error("Не удалось подготовить обработку видео.");
-  }
-
-  maskContext.fillStyle = "#000";
-  maskContext.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
-
-  if (typeof maskCanvas.captureStream !== "function") {
-    throw new Error(
-      "Этот браузер не поддерживает передачу обработанного видео. Попробуй обновить браузер."
-    );
-  }
-
-  canvasStream = maskCanvas.captureStream(24);
-  const canvasTrack = canvasStream.getVideoTracks()[0];
-
-  if (!canvasTrack || !sdk.LocalVideoTrack) {
-    throw new Error("Не удалось подготовить видео для LiveKit.");
-  }
-
-  processedVideoTrack = new sdk.LocalVideoTrack(canvasTrack);
-
-  if (renderFrameId !== null) {
-    cancelAnimationFrame(renderFrameId);
-  }
-
-  renderFrameId = requestAnimationFrame(renderFrame);
-
-  if (maskSelect?.value && maskSelect.value !== "none") {
-    await loadFaceMesh();
-  }
-
-  if (preview) {
-    preview.srcObject = canvasStream;
-    preview.muted = true;
-    preview.playsInline = true;
-    preview.hidden = false;
-    await preview.play().catch(() => {});
-  }
-
-  return processedVideoTrack;
 }
 
 async function prepareCamera() {
@@ -592,10 +142,14 @@ async function prepareCamera() {
     const cameraTrack = getCameraTrack();
 
     if (cameraTrack && preview) {
-      await ensureProcessedVideoTrack();
+      preview.srcObject = new MediaStream([
+        cameraTrack.mediaStreamTrack
+      ]);
+      preview.hidden = false;
+      await preview.play().catch(() => {});
     }
 
-    status("Камера включена. Выбери Beauty-фильтр или начинай эфир.");
+    status("Камера включена. Введи название и начинай эфир.");
   } catch (error) {
     console.error("Camera preview:", error);
     status(error.message || "Не удалось включить камеру.");
@@ -640,6 +194,10 @@ async function checkLogin() {
   }
 }
 
+/*
+ * Вход через аккаунт сайта.
+ * Пароль из этой формы не отправляем на сервер как отдельный пароль ведущего.
+ */
 if (loginForm) {
   loginForm.addEventListener("submit", async event => {
     event.preventDefault();
@@ -648,7 +206,9 @@ if (loginForm) {
 
     try {
       status("Открываем страницу входа...");
+
       if (passwordInput) passwordInput.value = "";
+
       location.href = "/login.html?next=%2Fhost.html";
     } finally {
       if (loginButton) loginButton.disabled = false;
@@ -656,30 +216,10 @@ if (loginForm) {
   });
 }
 
-/* Выбор Beauty-фильтра */
-if (maskSelect) {
-  maskSelect.addEventListener("change", async () => {
-    if (maskSelect.value === "none") {
-      faceLandmarks = null;
-      status("Эффект отключён.");
-      return;
-    }
-
-    try {
-      status("Загружаем распознавание лица...");
-      await loadFaceMesh();
-      status("Эффект включён. Поверни голову, чтобы проверить отслеживание.");
-    } catch (error) {
-      console.error("Beauty filter loading:", error);
-      maskSelect.value = "none";
-      faceLandmarks = null;
-      status(
-        "Не удалось загрузить эффекты. Проверь интернет и попробуй ещё раз."
-      );
-    }
-  });
-}
-
+/*
+ * Переключение строго по кругу:
+ * передняя -> задняя -> передняя -> задняя.
+ */
 async function switchCamera() {
   if (isSwitchingCamera) return;
 
@@ -707,19 +247,16 @@ async function switchCamera() {
     const nextFacingMode =
       currentFacingMode === "user" ? "environment" : "user";
 
-    await cameraTrack.restartTrack({ facingMode: nextFacingMode });
+    await cameraTrack.restartTrack({
+      facingMode: nextFacingMode
+    });
+
     currentFacingMode = nextFacingMode;
 
-    const inputVideo = getSourceVideo();
-
-    inputVideo.srcObject = new MediaStream([
-      cameraTrack.mediaStreamTrack
-    ]);
-
-    await inputVideo.play().catch(() => {});
-
-    if (!processedVideoTrack && preview) {
-      preview.srcObject = inputVideo.srcObject;
+    if (preview) {
+      preview.srcObject = new MediaStream([
+        cameraTrack.mediaStreamTrack
+      ]);
       preview.hidden = false;
       await preview.play().catch(() => {});
     }
@@ -777,43 +314,6 @@ function startHeartbeat() {
   heartbeatTimer = setInterval(sendHeartbeat, 15000);
 }
 
-async function cleanupEffectsPipeline() {
-  if (renderFrameId !== null) {
-    cancelAnimationFrame(renderFrameId);
-    renderFrameId = null;
-  }
-
-  faceLandmarks = null;
-  faceMeshBusy = false;
-
-  if (processedVideoTrack) {
-    try {
-      processedVideoTrack.stop();
-    } catch {}
-    processedVideoTrack = null;
-  }
-
-  if (canvasStream) {
-    canvasStream.getTracks().forEach(track => {
-      try {
-        track.stop();
-      } catch {}
-    });
-    canvasStream = null;
-  }
-
-  if (faceMeshInstance) {
-    try {
-      await faceMeshInstance.close();
-    } catch {}
-    faceMeshInstance = null;
-  }
-
-  maskCanvas = null;
-  maskContext = null;
-  maskLoadPromise = null;
-}
-
 async function stopStream(message = "Эфир завершён.") {
   if (isStopping) return;
 
@@ -850,8 +350,6 @@ async function stopStream(message = "Эфир завершён.") {
     }
   }
 
-  await cleanupEffectsPipeline();
-
   localTracks.forEach(track => {
     try {
       track.stop();
@@ -859,19 +357,12 @@ async function stopStream(message = "Эфир завершён.") {
   });
   localTracks = [];
 
-  const inputVideo = getSourceVideo();
-  inputVideo.srcObject = null;
-
   if (preview) {
     preview.srcObject = null;
     preview.hidden = true;
   }
 
   if (stopButton) stopButton.hidden = true;
-
-  /* ПОКАЗЫВАЕМ НАЗВАНИЕ И СТРАНУ ПОСЛЕ ОСТАНОВКИ ЭФИРА */
-  const studioTop = document.querySelector(".studio-top");
-  if (studioTop) studioTop.hidden = false;
 
   if (startButton) {
     startButton.hidden = false;
@@ -903,6 +394,7 @@ if (streamForm) {
     if (startButton) startButton.disabled = true;
 
     status("Проверяем аккаунт...");
+
     let streamRegistered = false;
 
     try {
@@ -928,21 +420,6 @@ if (streamForm) {
           }
         });
       }
-
-      const cameraTrack = getCameraTrack();
-      if (!cameraTrack) {
-        throw new Error("Камера не готова. Разреши доступ к камере.");
-      }
-
-      const inputVideo = getSourceVideo();
-
-      if (!inputVideo.srcObject) {
-        inputVideo.srcObject = new MediaStream([
-          cameraTrack.mediaStreamTrack
-        ]);
-      }
-
-      const outputVideoTrack = await ensureProcessedVideoTrack();
 
       status("Регистрируем эфир...");
 
@@ -987,16 +464,15 @@ if (streamForm) {
       );
 
       for (const track of localTracks) {
-        if (track.kind === "audio") {
-          await newRoom.localParticipant.publishTrack(track);
-        }
+        await newRoom.localParticipant.publishTrack(track);
       }
 
-      /* Зрителям публикуется видео с эффектами */
-      await newRoom.localParticipant.publishTrack(outputVideoTrack);
+      const cameraTrack = getCameraTrack();
 
-      if (preview) {
-        preview.srcObject = canvasStream;
+      if (cameraTrack && preview) {
+        preview.srcObject = new MediaStream([
+          cameraTrack.mediaStreamTrack
+        ]);
         preview.hidden = false;
         await preview.play().catch(() => {});
       }
@@ -1009,10 +485,6 @@ if (streamForm) {
 
       if (stopButton) stopButton.hidden = false;
       if (startButton) startButton.hidden = true;
-
-      /* СКРЫВАЕМ НАЗВАНИЕ И СТРАНУ ПОСЛЕ УСПЕШНОГО ЗАПУСКА */
-      const studioTop = document.querySelector(".studio-top");
-      if (studioTop) studioTop.hidden = true;
 
       startHeartbeat();
 
@@ -1044,8 +516,6 @@ if (streamForm) {
         room = null;
         activeRoomName = "";
 
-        await cleanupEffectsPipeline();
-
         localTracks.forEach(track => {
           try {
             track.stop();
@@ -1053,20 +523,12 @@ if (streamForm) {
         });
         localTracks = [];
 
-        const inputVideo = getSourceVideo();
-        inputVideo.srcObject = null;
-
         if (preview) {
           preview.srcObject = null;
           preview.hidden = true;
         }
 
         if (stopButton) stopButton.hidden = true;
-
-        /* При ошибке поля остаются видимыми */
-        const studioTop = document.querySelector(".studio-top");
-        if (studioTop) studioTop.hidden = false;
-
         if (startButton) {
           startButton.hidden = false;
           startButton.disabled = false;
@@ -1108,11 +570,6 @@ if (logoutButton) {
     });
     localTracks = [];
 
-    await cleanupEffectsPipeline();
-
-    const inputVideo = getSourceVideo();
-    inputVideo.srcObject = null;
-
     if (preview) {
       preview.srcObject = null;
       preview.hidden = true;
@@ -1134,34 +591,6 @@ window.addEventListener("beforeunload", () => {
       track.stop();
     } catch {}
   });
-
-  if (renderFrameId !== null) {
-    cancelAnimationFrame(renderFrameId);
-  }
-
-  if (canvasStream) {
-    canvasStream.getTracks().forEach(track => {
-      try {
-        track.stop();
-      } catch {}
-    });
-  }
-
-  if (processedVideoTrack) {
-    try {
-      processedVideoTrack.stop();
-    } catch {}
-  }
-
-  if (faceMeshInstance) {
-    try {
-      faceMeshInstance.close();
-    } catch {}
-  }
-
-  if (sourceVideo) {
-    sourceVideo.srcObject = null;
-  }
 });
 
 checkLogin();
