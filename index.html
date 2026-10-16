@@ -310,8 +310,7 @@
     }
 
     #countryButton,
-    #topStreamsButton,
-    #subscriptionsButton {
+    #topStreamsButton {
       background: #202020;
       color: #fff;
       border: 1px solid #444;
@@ -332,59 +331,6 @@
       background: #e5222e;
       border-color: #e5222e;
     }
-
-    #subscriptionsButton {
-      font-weight: bold;
-    }
-
-    #subscriptionsButton:hover,
-    #subscriptionsButton.active {
-      background: #451719;
-      border-color: #e5222e;
-    }
-
-    #subscriptionsPanel {
-      margin-top: 14px;
-      padding: 16px;
-      background: #1b1b1b;
-      border: 1px solid #333;
-      border-radius: 12px;
-    }
-
-    #subscriptionsPanel h2 {
-      font-size: 18px;
-      margin: 0 0 12px;
-    }
-
-    .subscription-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #333;
-    }
-
-    .subscription-item:last-child { border-bottom: 0; }
-
-    .subscription-name {
-      min-width: 0;
-      overflow-wrap: anywhere;
-      font-weight: bold;
-    }
-
-    .subscription-watch {
-      flex-shrink: 0;
-      padding: 9px 12px;
-      border-radius: 8px;
-      background: #e5222e;
-      color: #fff;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: bold;
-    }
-
-    .subscription-watch:hover { background: #c91824; }
 
     #countryMenu {
       position: absolute;
@@ -449,8 +395,7 @@
       #countryFilterControls { gap: 7px; }
 
       #countryButton,
-      #topStreamsButton,
-      #subscriptionsButton {
+      #topStreamsButton {
         padding: 11px 10px;
         font-size: 12px;
       }
@@ -626,7 +571,6 @@
       <div id="countryFilterControls">
         <button id="countryButton" type="button">🌍 Все страны ▼</button>
         <button id="topStreamsButton" type="button" aria-pressed="false">🔥 Топ стримы</button>
-        <button id="subscriptionsButton" type="button" aria-expanded="false">❤️ Подписки</button>
       </div>
 
       <div id="countryMenu" hidden>
@@ -637,11 +581,6 @@
         <button type="button" data-country="Германия">🇩🇪 Германия</button>
         <button type="button" data-country="Другие">🌐 Другие</button>
       </div>
-
-      <section id="subscriptionsPanel" hidden>
-        <h2>❤️ Мои подписки</h2>
-        <div id="subscriptionsList" class="muted">Нажми «Подписки», чтобы загрузить список.</div>
-      </section>
     </div>
 
     <div id="streams" class="streams" aria-live="polite">
@@ -871,131 +810,6 @@
     document.addEventListener("click", event => {
       if (!event.target.closest(".country-filter")) {
         countryMenu.hidden = true;
-      }
-    });
-
-    // Список аккаунтов, на которые подписан пользователь
-    const subscriptionsButton = document.getElementById("subscriptionsButton");
-    const subscriptionsPanel = document.getElementById("subscriptionsPanel");
-    const subscriptionsList = document.getElementById("subscriptionsList");
-    let subscriptionsLoaded = false;
-    let subscriptionsLoading = false;
-
-    function renderSubscriptionMessage(message) {
-      subscriptionsList.replaceChildren();
-      const paragraph = document.createElement("p");
-      paragraph.textContent = message;
-      subscriptionsList.appendChild(paragraph);
-    }
-
-    async function loadSubscriptions(forceRefresh = false) {
-      if (subscriptionsLoading) return;
-      if (subscriptionsLoaded && !forceRefresh) return;
-
-      if (!authClient) {
-        renderSubscriptionMessage("Не удалось подключить авторизацию.");
-        return;
-      }
-
-      subscriptionsLoading = true;
-      renderSubscriptionMessage("Загружаем подписки…");
-
-      try {
-        const { data, error } = await authClient.auth.getSession();
-        if (error) throw error;
-
-        const session = data.session;
-
-        if (!session) {
-          subscriptionsLoaded = false;
-          subscriptionsList.replaceChildren();
-
-          const message = document.createElement("p");
-          message.textContent = "Войди в аккаунт, чтобы посмотреть свои подписки.";
-
-          const login = document.createElement("a");
-          login.href = "/login.html";
-          login.className = "watch-button";
-          login.textContent = "Войти";
-
-          subscriptionsList.append(message, login);
-          return;
-        }
-
-        const response = await fetch(
-          "/api/follows/" + encodeURIComponent(session.user.id) + "/following",
-          {
-            headers: { Authorization: "Bearer " + session.access_token },
-            cache: "no-store"
-          }
-        );
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Не удалось загрузить подписки");
-        }
-
-        const users = Array.isArray(result.users) ? result.users : [];
-        subscriptionsList.replaceChildren();
-
-        if (!users.length) {
-          renderSubscriptionMessage(
-            "Ты пока ни на кого не подписан. Подписки появятся здесь."
-          );
-          subscriptionsLoaded = true;
-          return;
-        }
-
-        users.forEach(user => {
-          const item = document.createElement("div");
-          item.className = "subscription-item";
-
-          const name = document.createElement("div");
-          name.className = "subscription-name";
-          name.textContent = user.nickname || "Пользователь";
-
-          const liveStream = allStreams.find(stream =>
-            String(stream.host_id || stream.hostId || stream.user_id || "") ===
-            String(user.userId)
-          );
-
-          if (liveStream && liveStream.room_name) {
-            const link = document.createElement("a");
-            link.className = "subscription-watch";
-            link.href = "/live.html?room=" + encodeURIComponent(liveStream.room_name);
-            link.textContent = "Смотреть эфир";
-            item.append(name, link);
-          } else {
-            const status = document.createElement("span");
-            status.className = "muted";
-            status.textContent = "Не в эфире";
-            item.append(name, status);
-          }
-
-          subscriptionsList.appendChild(item);
-        });
-
-        subscriptionsLoaded = true;
-      } catch (error) {
-        console.error("Ошибка загрузки подписок:", error);
-        renderSubscriptionMessage(
-          "Не удалось загрузить подписки. Проверь подключение и попробуй ещё раз."
-        );
-        subscriptionsLoaded = false;
-      } finally {
-        subscriptionsLoading = false;
-      }
-    }
-
-    subscriptionsButton.addEventListener("click", async () => {
-      const opening = subscriptionsPanel.hidden;
-      subscriptionsPanel.hidden = !opening;
-      subscriptionsButton.classList.toggle("active", opening);
-      subscriptionsButton.setAttribute("aria-expanded", String(opening));
-
-      if (opening) {
-        await loadSubscriptions(true);
       }
     });
 
