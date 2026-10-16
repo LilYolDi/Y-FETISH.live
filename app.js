@@ -1,4 +1,3 @@
-
 (() => {
   "use strict";
 
@@ -28,14 +27,6 @@
   let hostBusy = false;
   let streamEnded = false;
 
-  // Подписки
-  let streamHostId = null;
-  let currentUserId = null;
-  let followButton = null;
-  let isFollowing = false;
-  let followersCount = 0;
-  let followBusy = false;
-
   let giftAnimationLayer = null;
   let lastGiftPollAt = new Date(Date.now() - 15000).toISOString();
   let giftPollBusy = false;
@@ -58,40 +49,32 @@
     ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
     : null;
 
-  async function getAccessToken() {
-    if (!authClient) {
-      throw new Error("Не удалось подключить сервис аккаунта.");
-    }
-
-    const { data, error } = await authClient.auth.getSession();
-
-    if (error) {
-      throw new Error("Не удалось проверить вход в аккаунт.");
-    }
-
-    const session = data?.session;
-
-    if (!session?.access_token) {
-      throw new Error("Войди в аккаунт, чтобы пользоваться подписками и подарками.");
-    }
-
-    currentUserId = session.user?.id || currentUserId;
-    return session.access_token;
-  }
-
   async function api(url, options = {}) {
     const headers = {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(options.headers || {})
     };
 
-    const needsAuth =
+    if (
       url === "/api/account/wallet" ||
-      url === "/api/gifts/send" ||
-      url.startsWith("/api/follows/");
+      url === "/api/gifts/send"
+    ) {
+      if (!authClient) {
+        throw new Error("Не удалось подключить сервис аккаунта.");
+      }
 
-    if (needsAuth) {
-      headers.Authorization = "Bearer " + await getAccessToken();
+      const { data: sessionData, error: sessionError } =
+        await authClient.auth.getSession();
+
+      const accessToken = sessionData?.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        throw new Error(
+          "Войди в аккаунт, чтобы отправлять подарки за монеты."
+        );
+      }
+
+      headers.Authorization = "Bearer " + accessToken;
     }
 
     const response = await fetch(url, {
@@ -171,154 +154,6 @@
 
     if (giftAnimationLayer && giftAnimationLayer.parentElement !== container) {
       container.appendChild(giftAnimationLayer);
-    }
-  }
-
-  // Оформление подписки
-  function setupFollowStyles() {
-    if (document.getElementById("followButtonStyles")) return;
-
-    const style = document.createElement("style");
-    style.id = "followButtonStyles";
-    style.textContent = `
-      .live-follow-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        min-height: 38px;
-        margin: 8px 0;
-        padding: 9px 16px;
-        border: 0;
-        border-radius: 10px;
-        background: #e21b2d;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-      }
-
-      .live-follow-button.is-following {
-        background: #303030;
-        border: 1px solid #555;
-      }
-
-      .live-follow-button:disabled {
-        opacity: .65;
-        cursor: wait;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  function updateFollowButton() {
-    if (!followButton) return;
-
-    if (isFollowing) {
-      followButton.textContent =
-        `✓ Вы подписаны${followersCount > 0 ? ` · ${followersCount}` : ""}`;
-      followButton.classList.add("is-following");
-      followButton.setAttribute("aria-pressed", "true");
-    } else {
-      followButton.textContent =
-        `❤️ Подписаться${followersCount > 0 ? ` · ${followersCount}` : ""}`;
-      followButton.classList.remove("is-following");
-      followButton.setAttribute("aria-pressed", "false");
-    }
-  }
-
-  function createFollowButton() {
-    if (followButton || !hostNameElement || !streamHostId) return;
-
-    setupFollowStyles();
-
-    followButton = document.createElement("button");
-    followButton.type = "button";
-    followButton.className = "live-follow-button";
-    followButton.textContent = "❤️ Подписаться";
-    followButton.setAttribute("aria-pressed", "false");
-
-    hostNameElement.insertAdjacentElement("afterend", followButton);
-
-    followButton.addEventListener("click", toggleFollow);
-  }
-
-  async function loadFollowStatus() {
-    if (!streamHostId || !authClient) return;
-
-    try {
-      const { data, error } = await authClient.auth.getSession();
-
-      if (error) throw error;
-
-      currentUserId = data?.session?.user?.id || null;
-
-      // Нельзя подписаться на самого себя.
-      if (currentUserId && currentUserId === streamHostId) {
-        followButton?.remove();
-        followButton = null;
-        return;
-      }
-
-      createFollowButton();
-
-      if (!currentUserId) {
-        updateFollowButton();
-        return;
-      }
-
-      const dataFromApi = await api(
-        "/api/follows/" + encodeURIComponent(streamHostId)
-      );
-
-      isFollowing = dataFromApi.isFollowing === true;
-      followersCount = Number(dataFromApi.followersCount) || 0;
-
-      updateFollowButton();
-    } catch (error) {
-      console.warn("Не удалось загрузить подписку:", error.message);
-      createFollowButton();
-      updateFollowButton();
-    }
-  }
-
-  async function toggleFollow() {
-    if (followBusy || !streamHostId || !followButton) return;
-
-    followBusy = true;
-    followButton.disabled = true;
-
-    try {
-      const token = await getAccessToken();
-
-      if (currentUserId === streamHostId) {
-        showMessage("Нельзя подписаться на собственный аккаунт.");
-        return;
-      }
-
-      const method = isFollowing ? "DELETE" : "POST";
-
-      const data = await api(
-        "/api/follows/" + encodeURIComponent(streamHostId),
-        { method }
-      );
-
-      isFollowing = data.isFollowing === true;
-
-      if (isFollowing) {
-        followersCount += 1;
-        showMessage("Вы подписались на ведущего!");
-      } else {
-        followersCount = Math.max(0, followersCount - 1);
-        showMessage("Вы отписались от ведущего.");
-      }
-
-      updateFollowButton();
-    } catch (error) {
-      showMessage(error.message);
-    } finally {
-      followBusy = false;
-      if (followButton) followButton.disabled = false;
     }
   }
 
@@ -527,6 +362,7 @@
     if (!roomName || streamEnded || giftPollBusy) return;
 
     giftPollBusy = true;
+
     const pollStartedAt = new Date().toISOString();
 
     try {
@@ -558,6 +394,7 @@
         showGiftAnimation(event);
       });
 
+      // Не даём набору обработанных событий бесконечно расти.
       if (seenGiftEvents.size > 500) {
         const recentKeys = Array.from(seenGiftEvents).slice(-250);
         seenGiftEvents.clear();
@@ -566,6 +403,7 @@
 
       lastGiftPollAt = pollStartedAt;
     } catch (error) {
+      // Ошибка анимации не должна останавливать эфир или чат.
       console.warn("Не удалось загрузить события подарков:", error.message);
     } finally {
       giftPollBusy = false;
@@ -645,12 +483,6 @@
 
     if (hostNameElement) {
       hostNameElement.textContent = stream.host_name || "Ведущий";
-    }
-
-    streamHostId = stream.host_id || null;
-
-    if (streamHostId) {
-      await loadFollowStatus();
     }
 
     return true;
@@ -987,11 +819,6 @@
     startGiftEvents();
 
     if (isHost) {
-      if (followButton) {
-        followButton.remove();
-        followButton = null;
-      }
-
       setupHostInterface();
       await publishHostTracks(sdk);
       startHostHeartbeat();
