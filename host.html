@@ -218,54 +218,63 @@
       white-space: pre-line;
     }
 
-    /* Чат ведущего: отдельная панель поверх видео */
-    #hostChat {
-      position: fixed;
-      z-index: 140;
-      left: 12px;
-      bottom: calc(145px + env(safe-area-inset-bottom, 0px));
-      width: min(300px, calc(100vw - 24px));
-      max-height: 32vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      border: 1px solid rgba(255,255,255,.16);
-      border-radius: 13px;
-      background: rgba(12,12,12,.82);
-      color: #fff;
-      box-shadow: 0 4px 18px rgba(0,0,0,.3);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-    }
+/* Чат ведущего: только сообщения поверх видео, без фона */
+#hostChat {
+  position: fixed;
+  z-index: 140;
+  left: 12px;
+  bottom: calc(145px + env(safe-area-inset-bottom, 0px));
+  width: min(300px, calc(100vw - 24px));
+  max-height: 32vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #fff;
+}
 
-    #hostChat[hidden] { display: none !important; }
+#hostChat[hidden] {
+  display: none !important;
+}
 
-    #hostChatHeader {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 9px 11px;
-      border-bottom: 1px solid rgba(255,255,255,.12);
-      font-size: 13px;
-      font-weight: 700;
-    }
+#hostChatHeader {
+  display: none !important;
+}
 
-    #hostChatMessages {
-      display: flex;
-      flex-direction: column;
-      gap: 7px;
-      min-height: 30px;
-      padding: 9px 11px;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-      overflow-wrap: anywhere;
-      font-size: 13px;
-    }
+#hostChatMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 30px;
+  padding: 9px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  background: transparent !important;
+}
 
-    .host-chat-message { line-height: 1.35; }
-    .host-chat-name { color: #ff6874; font-weight: 700; }
-    .host-chat-empty { color: #c5c5c5; }
+.host-chat-message {
+  line-height: 1.35;
+  color: #fff;
+  text-shadow: 0 1px 3px #000, 0 1px 6px #000;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.host-chat-name {
+  color: #ff5252;
+  font-weight: 700;
+}
+
+.host-chat-empty {
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+  background: transparent !important;
+}
 
     @media (max-width: 800px) {
       body.studio-active {
