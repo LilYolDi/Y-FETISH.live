@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -408,7 +409,7 @@
         position: fixed;
         z-index: 25;
         right: 14px;
-        top: calc(env(safe-area-inset-top) + 35px);        
+        top: calc(env(safe-area-inset-top) + 35px);
         bottom: auto;
         display: flex;
         align-items: center;
@@ -428,13 +429,13 @@
         -webkit-tap-highlight-color: transparent;
       }
 
-.sound-toggle {
-  top: calc(env(safe-area-inset-top) + 35px);
-}
+      .sound-toggle {
+        top: calc(env(safe-area-inset-top) + 35px);
+      }
 
-.gift-toggle {
-  top: calc(env(safe-area-inset-top) + 88px);
-}
+      .gift-toggle {
+        top: calc(env(safe-area-inset-top) + 88px);
+      }
 
       .sound-toggle:active,
       .gift-toggle:active {
@@ -459,8 +460,6 @@
         box-shadow: 0 12px 40px rgba(0,0,0,.65);
         -webkit-overflow-scrolling: touch;
       }
-
-
 
       body.show-gifts .gift-panel {
         display: block;
@@ -551,41 +550,6 @@
         font-size: 13px;
         line-height: 1.4;
       }
-
-      @media (max-width: 380px) {
-        .gift-panel {
-          left: 8px;
-          right: 8px;
-          padding: 15px 10px 12px;
-        }
-
-        .gift-list {
-          gap: 6px;
-        }
-
-        .gift-item {
-          min-height: 70px;
-          padding: 8px 3px;
-          font-size: 11px;
-        }
-      }
-
-      .gift-close {
-        position: absolute;
-        top: 10px;
-        right: 12px;
-        display: block;
-        width: 32px;
-        height: 32px;
-        border: 0;
-        border-radius: 50%;
-        background: #333;
-        color: #fff;
-        font-size: 20px;
-        cursor: pointer;
-      }
-
-      .gift-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 380px) {
@@ -605,6 +569,20 @@
       .sound-toggle,
       .gift-toggle {
         right: 10px;
+      }
+
+      .gift-panel {
+        left: 8px;
+        right: 8px;
+        padding: 15px 10px 12px;
+      }
+
+      .gift-list { gap: 6px; }
+
+      .gift-item {
+        min-height: 70px;
+        padding: 8px 3px;
+        font-size: 11px;
       }
     }
   </style>
@@ -690,6 +668,28 @@
   <script>
     const giftToggle = document.getElementById("giftToggle");
     const giftClose = document.getElementById("giftClose");
+    const giftPanel = document.getElementById("giftPanel");
+    const videoSection = document.querySelector(".video-section");
+
+    // На телефоне переносим панель из слоя видео,
+    // чтобы она могла отображаться поверх чата.
+    // На компьютере возвращаем её в прежнее место.
+    function positionGiftPanel() {
+      if (!giftPanel || !videoSection) return;
+
+      if (window.matchMedia("(max-width: 800px)").matches) {
+        if (giftPanel.parentElement !== document.body) {
+          document.body.appendChild(giftPanel);
+        }
+      } else {
+        if (giftPanel.parentElement !== videoSection) {
+          videoSection.appendChild(giftPanel);
+        }
+      }
+    }
+
+    positionGiftPanel();
+    window.addEventListener("resize", positionGiftPanel);
 
     giftToggle.addEventListener("click", function () {
       document.body.classList.toggle("show-gifts");
