@@ -293,6 +293,25 @@
 
     .watch-button:hover { background: #c91824; }
 
+    .follow-button {
+      display: block;
+      width: 100%;
+      margin-top: 9px;
+      padding: 11px 14px;
+      border: 1px solid #e5222e;
+      border-radius: 8px;
+      background: #351719;
+      color: #fff;
+      text-align: center;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .follow-button:hover { background: #512024; }
+    .follow-button.following { background: #292929; border-color: #555; }
+    .follow-button:disabled { opacity: .65; cursor: wait; }
+
     footer {
       padding: 20px 16px;
       text-align: center;
@@ -310,7 +329,8 @@
     }
 
     #countryButton,
-    #topStreamsButton {
+    #topStreamsButton,
+    #subscriptionsButton {
       background: #202020;
       color: #fff;
       border: 1px solid #444;
@@ -331,6 +351,59 @@
       background: #e5222e;
       border-color: #e5222e;
     }
+
+    #subscriptionsButton {
+      font-weight: bold;
+    }
+
+    #subscriptionsButton:hover,
+    #subscriptionsButton.active {
+      background: #451719;
+      border-color: #e5222e;
+    }
+
+    #subscriptionsPanel {
+      margin-top: 14px;
+      padding: 16px;
+      background: #1b1b1b;
+      border: 1px solid #333;
+      border-radius: 12px;
+    }
+
+    #subscriptionsPanel h2 {
+      font-size: 18px;
+      margin: 0 0 12px;
+    }
+
+    .subscription-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .subscription-item:last-child { border-bottom: 0; }
+
+    .subscription-name {
+      min-width: 0;
+      overflow-wrap: anywhere;
+      font-weight: bold;
+    }
+
+    .subscription-watch {
+      flex-shrink: 0;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #e5222e;
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .subscription-watch:hover { background: #c91824; }
 
     #countryMenu {
       position: absolute;
@@ -395,7 +468,8 @@
       #countryFilterControls { gap: 7px; }
 
       #countryButton,
-      #topStreamsButton {
+      #topStreamsButton,
+      #subscriptionsButton {
         padding: 11px 10px;
         font-size: 12px;
       }
@@ -571,6 +645,7 @@
       <div id="countryFilterControls">
         <button id="countryButton" type="button">🌍 Все страны ▼</button>
         <button id="topStreamsButton" type="button" aria-pressed="false">🔥 Топ стримы</button>
+        <button id="subscriptionsButton" type="button" aria-expanded="false">❤️ Подписки</button>
       </div>
 
       <div id="countryMenu" hidden>
@@ -581,6 +656,11 @@
         <button type="button" data-country="Германия">🇩🇪 Германия</button>
         <button type="button" data-country="Другие">🌐 Другие</button>
       </div>
+
+      <section id="subscriptionsPanel" hidden>
+        <h2>❤️ Мои подписки</h2>
+        <div id="subscriptionsList" class="muted">Нажми «Подписки», чтобы загрузить список.</div>
+      </section>
     </div>
 
     <div id="streams" class="streams" aria-live="polite">
@@ -813,6 +893,264 @@
       }
     });
 
+    // Список аккаунтов, на которые подписан пользователь
+    const subscriptionsButton = document.getElementById("subscriptionsButton");
+    const subscriptionsPanel = document.getElementById("subscriptionsPanel");
+    const subscriptionsList = document.getElementById("subscriptionsList");
+    let subscriptionsLoaded = false;
+    let subscriptionsLoading = false;
+
+    function renderSubscriptionMessage(message) {
+      subscriptionsList.replaceChildren();
+      const paragraph = document.createElement("p");
+      paragraph.textContent = message;
+      subscriptionsList.appendChild(paragraph);
+    }
+
+    async function loadSubscriptions(forceRefresh = false) {
+      if (subscriptionsLoading) return;
+      if (subscriptionsLoaded && !forceRefresh) return;
+
+      if (!authClient) {
+        renderSubscriptionMessage("Не удалось подключить авторизацию.");
+        return;
+      }
+
+      subscriptionsLoading = true;
+      renderSubscriptionMessage("Загружаем подписки…");
+
+      try {
+        const { data, error } = await authClient.auth.getSession();
+        if (error) throw error;
+
+        const session = data.session;
+
+        if (!session) {
+          subscriptionsLoaded = false;
+          subscriptionsList.replaceChildren();
+
+          const message = document.createElement("p");
+          message.textContent = "Войди в аккаунт, чтобы посмотреть свои подписки.";
+
+          const login = document.createElement("a");
+          login.href = "/login.html";
+          login.className = "watch-button";
+          login.textContent = "Войти";
+
+          subscriptionsList.append(message, login);
+          return;
+        }
+
+        const response = await fetch(
+          "/api/follows/me/list",
+          {
+            headers: { Authorization: "Bearer " + session.access_token },
+            cache: "no-store"
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Не удалось загрузить подписки");
+        }
+
+        const users = Array.isArray(result)
+          ? result
+          : (result.users || result.follows || result.following || result.items || result.data || []);
+        subscriptionsList.replaceChildren();
+
+        if (!users.length) {
+          renderSubscriptionMessage(
+            "Ты пока ни на кого не подписан. Подписки появятся здесь."
+          );
+          subscriptionsLoaded = true;
+          return;
+        }
+
+        users.forEach(user => {
+          const item = document.createElement("div");
+          item.className = "subscription-item";
+
+          const name = document.createElement("div");
+          name.className = "subscription-name";
+          name.textContent = user.nickname || user.username || user.following_nickname || "Пользователь";
+
+          const liveStream = allStreams.find(stream =>
+            String(stream.host_id || stream.hostId || stream.user_id || "") ===
+            String(user.userId || user.following_id || user.id || user.followingId || user.following_user_id)
+          );
+
+          if (liveStream && liveStream.room_name) {
+            const link = document.createElement("a");
+            link.className = "subscription-watch";
+            link.href = "/live.html?room=" + encodeURIComponent(liveStream.room_name);
+            link.textContent = "Смотреть эфир";
+            item.append(name, link);
+          } else {
+            const status = document.createElement("span");
+            status.className = "muted";
+            status.textContent = "Не в эфире";
+            item.append(name, status);
+          }
+
+          subscriptionsList.appendChild(item);
+        });
+
+        subscriptionsLoaded = true;
+      } catch (error) {
+        console.error("Ошибка загрузки подписок:", error);
+        renderSubscriptionMessage(
+          "Не удалось загрузить подписки. Проверь подключение и попробуй ещё раз."
+        );
+        subscriptionsLoaded = false;
+      } finally {
+        subscriptionsLoading = false;
+      }
+    }
+
+    subscriptionsButton.addEventListener("click", async () => {
+      const opening = subscriptionsPanel.hidden;
+      subscriptionsPanel.hidden = !opening;
+      subscriptionsButton.classList.toggle("active", opening);
+      subscriptionsButton.setAttribute("aria-expanded", String(opening));
+
+      if (opening) {
+        await loadSubscriptions(true);
+      }
+    });
+
+    // Подписка на ведущих: использует уже настроенные API server.js.
+    const followStates = new Map();
+
+    function getStreamHostId(stream) {
+      return String(
+        stream.host_id || stream.hostId || stream.user_id ||
+        stream.userId || stream.profile_id || stream.profileId || ""
+      );
+    }
+
+    async function getCurrentSession() {
+      if (!authClient) return null;
+      const { data, error } = await authClient.auth.getSession();
+      if (error) throw error;
+      return data.session || null;
+    }
+
+    async function refreshFollowButton(button, hostId, session) {
+      if (!hostId) {
+        button.hidden = true;
+        return;
+      }
+
+      if (!session?.access_token) {
+        button.textContent = "❤️ Войти, чтобы подписаться";
+        button.classList.remove("following");
+        button.dataset.following = "false";
+        button.disabled = false;
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/follows/" + encodeURIComponent(hostId), {
+          headers: { Authorization: "Bearer " + session.access_token },
+          cache: "no-store"
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Не удалось проверить подписку");
+
+        if (result.isOwnProfile) {
+          button.hidden = true;
+          return;
+        }
+
+        const following = Boolean(result.isFollowing);
+        followStates.set(hostId, following);
+        button.dataset.following = String(following);
+        button.textContent = following ? "✓ Вы подписаны · Отписаться" : "❤️ Подписаться";
+        button.classList.toggle("following", following);
+        button.disabled = false;
+      } catch (error) {
+        console.error("Не удалось проверить подписку:", error);
+        button.textContent = "❤️ Подписаться";
+        button.dataset.following = "false";
+        button.disabled = false;
+      }
+    }
+
+    function createFollowButton(stream) {
+      const hostId = getStreamHostId(stream);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "follow-button";
+      button.textContent = "❤️ Проверяем подписку…";
+      button.disabled = true;
+
+      if (!hostId) {
+        button.hidden = true;
+        return button;
+      }
+
+      button.addEventListener("click", async () => {
+        let session;
+        try {
+          session = await getCurrentSession();
+        } catch (error) {
+          console.error("Не удалось проверить аккаунт:", error);
+          alert("Не удалось проверить вход в аккаунт. Обнови страницу и попробуй ещё раз.");
+          return;
+        }
+
+        if (!session?.access_token) {
+          location.href = "/login.html";
+          return;
+        }
+
+        const wasFollowing = button.dataset.following === "true";
+        button.disabled = true;
+        button.textContent = wasFollowing ? "Отписываемся…" : "Подписываемся…";
+
+        try {
+          const response = await fetch("/api/follows/" + encodeURIComponent(hostId), {
+            method: wasFollowing ? "DELETE" : "POST",
+            headers: { Authorization: "Bearer " + session.access_token },
+            cache: "no-store"
+          });
+          const result = await response.json();
+          if (!response.ok || result.success === false) {
+            throw new Error(result.error || "Не удалось изменить подписку");
+          }
+
+          const following = Boolean(result.isFollowing);
+          followStates.set(hostId, following);
+          button.dataset.following = String(following);
+          button.textContent = following ? "✓ Вы подписаны · Отписаться" : "❤️ Подписаться";
+          button.classList.toggle("following", following);
+
+          // Если открыт список подписок, сразу обновляем его содержимое.
+          if (!subscriptionsPanel.hidden) {
+            await loadSubscriptions(true);
+          }
+        } catch (error) {
+          console.error("Ошибка изменения подписки:", error);
+          alert(error.message || "Не удалось изменить подписку. Попробуй ещё раз.");
+          await refreshFollowButton(button, hostId, session);
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      getCurrentSession()
+        .then(session => refreshFollowButton(button, hostId, session))
+        .catch(error => {
+          console.error("Ошибка проверки подписки:", error);
+          button.textContent = "❤️ Подписаться";
+          button.disabled = false;
+        });
+
+      return button;
+    }
+
     // LiveKit: подключения для видеопревью на карточках
     const previewConnections = new Map();
 
@@ -999,6 +1337,9 @@
 
       let filteredStreams = allStreams.filter(stream => {
         if (selectedCountry === "all") return true;
+        if (selectedCountry === "Другие") {
+          return !["Украина", "Россия", "Польша", "Германия"].includes(stream.country);
+        }
         return stream.country === selectedCountry;
       });
 
@@ -1075,7 +1416,9 @@
           "/live.html?room=" + encodeURIComponent(stream.room_name);
         watchLink.textContent = "Смотреть эфир";
 
-        card.append(preview, status, title, host, watchLink);
+        const followButton = createFollowButton(stream);
+
+        card.append(preview, status, title, host, watchLink, followButton);
         streamsContainer.appendChild(card);
 
         visibleRoomNames.add(stream.room_name);
