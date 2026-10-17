@@ -312,6 +312,12 @@
     .follow-button.following { background: #292929; border-color: #555; }
     .follow-button:disabled { opacity: .65; cursor: wait; }
 
+    .followers-count {
+      margin: 6px 0 0;
+      color: #aaa;
+      font-size: 13px;
+    }
+
     footer {
       padding: 20px 16px;
       text-align: center;
@@ -764,6 +770,28 @@
           (user.email ? "\nEmail: " + user.email : "");
 
         profileDetails.style.whiteSpace = "pre-line";
+
+        try {
+          const followersResponse = await fetch(
+            "/api/follows/" + encodeURIComponent(user.id),
+            {
+              headers: {
+                Authorization: "Bearer " + session.access_token
+              },
+              cache: "no-store"
+            }
+          );
+          const followersResult = await followersResponse.json();
+
+          if (followersResponse.ok) {
+            profileDetails.textContent +=
+              "\nПодписчики: " +
+              Number(followersResult.followersCount || 0).toLocaleString("ru-RU");
+          }
+        } catch (followersError) {
+          console.error("Не удалось загрузить подписчиков профиля:", followersError);
+        }
+
         accountWrap.hidden = false;
         loginLink.hidden = true;
 
@@ -1030,6 +1058,43 @@
       );
     }
 
+    async function loadFollowerCount(element, userId) {
+      if (!userId) {
+        element.hidden = true;
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "/api/follows/" + encodeURIComponent(userId),
+          { cache: "no-store" }
+        );
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Не удалось загрузить подписчиков");
+        }
+
+        element.textContent =
+          "👥 Подписчики: " +
+          Number(result.followersCount || 0).toLocaleString("ru-RU");
+        element.hidden = false;
+      } catch (error) {
+        console.error("Ошибка загрузки числа подписчиков:", error);
+        element.textContent = "👥 Подписчики: —";
+      }
+    }
+
+    async function refreshFollowerCounts(userId) {
+      const elements = [
+        ...document.querySelectorAll(".followers-count")
+      ].filter(element => element.dataset.userId === userId);
+
+      await Promise.all(
+        elements.map(element => loadFollowerCount(element, userId))
+      );
+    }
+
     async function getCurrentSession() {
       if (!authClient) return null;
       const { data, error } = await authClient.auth.getSession();
@@ -1126,6 +1191,7 @@
           button.dataset.following = String(following);
           button.textContent = following ? "✓ Вы подписаны · Отписаться" : "❤️ Подписаться";
           button.classList.toggle("following", following);
+          await refreshFollowerCounts(hostId);
 
           // Если открыт список подписок, сразу обновляем его содержимое.
           if (!subscriptionsPanel.hidden) {
@@ -1410,6 +1476,12 @@
           stream.profiles?.username ||
           "Ведущий";
 
+        const followers = document.createElement("p");
+        followers.className = "followers-count";
+        followers.dataset.userId = getStreamHostId(stream);
+        followers.textContent = "👥 Подписчики: …";
+        loadFollowerCount(followers, followers.dataset.userId);
+
         const watchLink = document.createElement("a");
         watchLink.className = "watch-button";
         watchLink.href =
@@ -1418,7 +1490,15 @@
 
         const followButton = createFollowButton(stream);
 
-        card.append(preview, status, title, host, watchLink, followButton);
+        card.append(
+          preview,
+          status,
+          title,
+          host,
+          followers,
+          watchLink,
+          followButton
+        );
         streamsContainer.appendChild(card);
 
         visibleRoomNames.add(stream.room_name);
