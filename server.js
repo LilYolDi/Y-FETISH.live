@@ -1720,3 +1720,211 @@ app.use((req, res) => {
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Y-FETISH LIVE running on port ${PORT}`);
 });
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   ПОДПИСКИ ПОЛЬЗОВАТЕЛЕЙ
+   Таблица Supabase: user_follows
+   Поля: follower_id, following_id, created_at
+   ========================================================= */
+
+/* Получить количество подписчиков и подписок, проверить подписку */
+app.get("/api/follows/:userId", async (req, res) => {
+  try {
+    const userId = cleanText(req.params.userId, 100);
+
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)
+    ) {
+      return res.status(400).json({
+        error: "Неверный ID пользователя"
+      });
+    }
+
+    const currentUser = await getUser(req);
+
+    const [
+      followersResult,
+      followingResult,
+      statusResult
+    ] = await Promise.all([
+      supabase
+        .from("user_follows")
+        .select("follower_id", { count: "exact", head: true })
+        .eq("following_id", userId),
+
+      supabase
+        .from("user_follows")
+        .select("following_id", { count: "exact", head: true })
+        .eq("follower_id", userId),
+
+      currentUser
+        ? supabase
+            .from("user_follows")
+            .select("follower_id")
+            .eq("follower_id", currentUser.id)
+            .eq("following_id", userId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null })
+    ]);
+
+    if (followersResult.error) throw followersResult.error;
+    if (followingResult.error) throw followingResult.error;
+    if (statusResult.error) throw statusResult.error;
+
+    return res.json({
+      success: true,
+      userId,
+      followersCount: followersResult.count || 0,
+      followingCount: followingResult.count || 0,
+      isFollowing: Boolean(statusResult.data),
+      isOwnProfile: currentUser?.id === userId
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось загрузить подписки");
+  }
+});
+
+/* Подписаться на пользователя */
+app.post("/api/follows/:userId", requireUser, async (req, res) => {
+  try {
+    const followingId = cleanText(req.params.userId, 100);
+    const followerId = req.user.id;
+
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(followingId)
+    ) {
+      return res.status(400).json({
+        error: "Неверный ID пользователя"
+      });
+    }
+
+    if (followerId === followingId) {
+      return res.status(400).json({
+        error: "Нельзя подписаться на самого себя"
+      });
+    }
+
+    const { data: target, error: targetError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", followingId)
+      .maybeSingle();
+
+    if (targetError) throw targetError;
+
+    if (!target) {
+      return res.status(404).json({
+        error: "Пользователь не найден"
+      });
+    }
+
+    const { error: insertError } = await supabase
+      .from("user_follows")
+      .upsert(
+        {
+          follower_id: followerId,
+          following_id: followingId
+        },
+        {
+          onConflict: "follower_id,following_id",
+          ignoreDuplicates: true
+        }
+      );
+
+    if (insertError) throw insertError;
+
+    return res.json({
+      success: true,
+      isFollowing: true
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось подписаться на пользователя");
+  }
+});
+
+/* Отписаться от пользователя */
+app.delete("/api/follows/:userId", requireUser, async (req, res) => {
+  try {
+    const followingId = cleanText(req.params.userId, 100);
+
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(followingId)
+    ) {
+      return res.status(400).json({
+        error: "Неверный ID пользователя"
+      });
+    }
+
+    const { error } = await supabase
+      .from("user_follows")
+      .delete()
+      .eq("follower_id", req.user.id)
+      .eq("following_id", followingId);
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      isFollowing: false
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось отменить подписку");
+  }
+});
+
+/* Список пользователей, на которых подписан текущий аккаунт */
+app.get("/api/follows/me/list", requireUser, async (req, res) => {
+  try {
+    const { data: follows, error } = await supabase
+      .from("user_follows")
+      .select("following_id, created_at")
+      .eq("follower_id", req.user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const rows = follows || [];
+    const ids = [...new Set(rows.map(row => row.following_id))];
+
+    if (!ids.length) {
+      return res.json({
+        success: true,
+        users: []
+      });
+    }
+
+    const { data: profiles, error: profilesError } = await supabase
+      .from("user_profiles")
+      .select("id, nickname")
+      .in("id", ids);
+
+    if (profilesError) throw profilesError;
+
+    const names = new Map(
+      (profiles || []).map(profile => [
+        profile.id,
+        profile.nickname
+      ])
+    );
+
+    return res.json({
+      success: true,
+      users: rows.map(row => ({
+        id: row.following_id,
+        nickname: names.get(row.following_id) || "Пользователь",
+        followedAt: row.created_at
+      }))
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось загрузить список подписок");
+  }
+});
+
