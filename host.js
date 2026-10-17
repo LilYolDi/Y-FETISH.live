@@ -1737,3 +1737,510 @@ stopHostGiftEvents = function () {
 
   window.addEventListener("beforeunload", stopEarningsUpdates);
 })();
+
+
+
+/* ===== ЗАРАБОТОК И ВЫВОД USDT TRC20 ===== */
+(() => {
+  let loading = false;
+  let refreshTimer = null;
+
+  const money = value =>
+    "$" + (Number(value) || 0).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+  function createPanel() {
+    let button = document.getElementById("earningsAccountButton");
+    let panel = document.getElementById("earningsAccountPanel");
+
+    if (button && panel) return { button, panel };
+
+    if (!document.getElementById("earningsAccountCSS")) {
+      const style = document.createElement("style");
+      style.id = "earningsAccountCSS";
+      style.textContent = `
+        #earningsAccountButton {
+          position:fixed;
+          left:10px;
+          bottom:calc(14px + env(safe-area-inset-bottom,0px));
+          z-index:9998;
+          padding:12px 14px;
+          border:1px solid #555;
+          border-radius:12px;
+          background:#202020;
+          color:#fff;
+          font-weight:800;
+          font-size:13px;
+        }
+
+        #earningsAccountPanel {
+          position:fixed;
+          z-index:10001;
+          left:50%;
+          top:50%;
+          transform:translate(-50%,-50%);
+          width:min(420px,calc(100vw - 24px));
+          max-height:82vh;
+          overflow-y:auto;
+          box-sizing:border-box;
+          padding:16px;
+          border:1px solid #444;
+          border-radius:16px;
+          background:#111;
+          color:#fff;
+          box-shadow:0 10px 40px #000a;
+          font:14px/1.45 Arial,sans-serif;
+        }
+
+        #earningsAccountPanel[hidden],
+        #earningsAccountButton[hidden] {
+          display:none!important;
+        }
+
+        #earningsAccountPanel .ea-header {
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          margin-bottom:14px;
+        }
+
+        #earningsAccountPanel .ea-title {
+          font-size:19px;
+          font-weight:800;
+        }
+
+        #earningsAccountPanel .ea-close {
+          padding:8px 12px;
+          border:1px solid #444;
+          border-radius:8px;
+          background:#292929;
+          color:white;
+        }
+
+        #earningsAccountPanel .ea-grid {
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:8px;
+        }
+
+        #earningsAccountPanel .ea-card {
+          padding:10px;
+          border:1px solid #333;
+          border-radius:10px;
+          background:#1b1b1b;
+        }
+
+        #earningsAccountPanel .ea-label {
+          color:#aaa;
+          font-size:12px;
+        }
+
+        #earningsAccountPanel .ea-value {
+          margin-top:5px;
+          font-size:20px;
+          font-weight:800;
+          overflow-wrap:anywhere;
+        }
+
+        #earningsAccountPanel .ea-section {
+          margin-top:16px;
+          margin-bottom:8px;
+          font-size:15px;
+          font-weight:800;
+        }
+
+        #earningsAccountPanel .ea-form {
+          display:flex;
+          flex-direction:column;
+          gap:9px;
+        }
+
+        #earningsAccountPanel .ea-form label {
+          display:block;
+          margin-bottom:4px;
+          color:#ccc;
+          font-size:12px;
+        }
+
+        #earningsAccountPanel .ea-form input {
+          width:100%;
+          min-height:44px;
+          box-sizing:border-box;
+          padding:10px;
+          border:1px solid #444;
+          border-radius:9px;
+          background:#1b1b1b;
+          color:#fff;
+          font-size:16px;
+        }
+
+        #earningsAccountPanel .ea-submit {
+          min-height:44px;
+          border:0;
+          border-radius:9px;
+          background:#df1b2d;
+          color:#fff;
+          font-weight:800;
+        }
+
+        #earningsAccountPanel .ea-submit:disabled {
+          opacity:.5;
+        }
+
+        #earningsAccountPanel .ea-message {
+          margin-top:10px;
+          overflow-wrap:anywhere;
+          font-size:12px;
+        }
+
+        #earningsAccountPanel .ea-muted {
+          color:#aaa;
+          font-size:12px;
+        }
+
+        #earningsAccountPanel .ea-request {
+          padding:10px 0;
+          border-bottom:1px solid #333;
+          overflow-wrap:anywhere;
+        }
+
+        #earningsAccountPanel .ea-warning {
+          margin-top:12px;
+          padding:10px;
+          border-radius:8px;
+          background:#292318;
+          color:#f1d9a8;
+          font-size:12px;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    button = document.createElement("button");
+    button.id = "earningsAccountButton";
+    button.type = "button";
+    button.textContent = "💰 Заработок / вывод";
+    button.hidden = true;
+
+    button.addEventListener("click", () => {
+      createPanel().panel.hidden = false;
+      refresh();
+    });
+
+    document.body.appendChild(button);
+
+    panel = document.createElement("section");
+    panel.id = "earningsAccountPanel";
+    panel.hidden = true;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", "Заработок и вывод");
+
+    panel.innerHTML = `
+      <div class="ea-header">
+        <div class="ea-title">💰 Заработок и вывод</div>
+        <button class="ea-close" id="eaClose" type="button">✕</button>
+      </div>
+
+      <div class="ea-grid">
+        <div class="ea-card">
+          <div class="ea-label">Заработано всего</div>
+          <div class="ea-value" id="eaEarned">$0.00</div>
+        </div>
+
+        <div class="ea-card">
+          <div class="ea-label">Доступно к выводу</div>
+          <div class="ea-value" id="eaAvailable">$0.00</div>
+        </div>
+
+        <div class="ea-card">
+          <div class="ea-label">Зарезервировано</div>
+          <div class="ea-value" id="eaReserved">$0.00</div>
+        </div>
+
+        <div class="ea-card">
+          <div class="ea-label">Монет в подарках</div>
+          <div class="ea-value" id="eaCoins">0</div>
+        </div>
+      </div>
+
+      <p class="ea-muted">
+        100 монет = $1 стоимости подарков.
+        Ведущий получает 70%. Минимальный вывод — $100.
+      </p>
+
+      <div class="ea-section">Заявка на вывод USDT TRC20</div>
+
+      <form class="ea-form" id="eaWithdrawForm">
+        <div>
+          <label for="eaAmount">Сумма вывода, USD</label>
+          <input
+            id="eaAmount"
+            name="amountUsd"
+            type="number"
+            min="100"
+            step="0.01"
+            value="100"
+            required
+          >
+        </div>
+
+        <div>
+          <label for="eaWallet">Адрес кошелька TRC20</label>
+          <input
+            id="eaWallet"
+            name="walletAddress"
+            type="text"
+            minlength="34"
+            maxlength="34"
+            pattern="T[1-9A-HJ-NP-Za-km-z]{33}"
+            placeholder="Адрес, начинающийся с T"
+            autocomplete="off"
+            required
+          >
+        </div>
+
+        <button class="ea-submit" id="eaSubmit" type="submit">
+          Подать заявку
+        </button>
+      </form>
+
+      <div class="ea-message" id="eaMessage" aria-live="polite"></div>
+
+      <div class="ea-warning">
+        Заявка не переводит USDT автоматически.
+        Выплата должна быть обработана отдельно.
+      </div>
+
+      <div class="ea-section">История заявок</div>
+      <div id="eaHistory" class="ea-muted">Загрузка...</div>
+    `;
+
+    document.body.appendChild(panel);
+
+    panel.querySelector("#eaClose").addEventListener("click", () => {
+      panel.hidden = true;
+    });
+
+    panel.querySelector("#eaWithdrawForm").addEventListener(
+      "submit",
+      submitWithdrawal
+    );
+
+    return { button, panel };
+  }
+
+  function statusText(status) {
+    const labels = {
+      pending: "Ожидает обработки",
+      approved: "Одобрена",
+      paid: "Выплачена",
+      rejected: "Отклонена"
+    };
+
+    return labels[status] || status || "Неизвестный статус";
+  }
+
+  async function refresh() {
+    if (loading) return;
+
+    const { panel } = createPanel();
+    loading = true;
+
+    try {
+      const results = await Promise.all([
+        apiFetch("/api/host/earnings"),
+        apiFetch("/api/host/withdrawals")
+      ]);
+
+      const earnings = await results[0].json();
+      const history = await results[1].json();
+
+      if (!results[0].ok || earnings.success === false) {
+        throw new Error(
+          earnings.error || "Не удалось загрузить заработок"
+        );
+      }
+
+      if (!results[1].ok || history.success === false) {
+        throw new Error(
+          history.error || "Не удалось загрузить историю заявок"
+        );
+      }
+
+      panel.querySelector("#eaEarned").textContent =
+        money(earnings.hostEarningsUsd);
+
+      panel.querySelector("#eaAvailable").textContent =
+        money(earnings.availableUsd);
+
+      panel.querySelector("#eaReserved").textContent =
+        money(earnings.reservedUsd);
+
+      panel.querySelector("#eaCoins").textContent =
+        (Number(earnings.totalCoins) || 0).toLocaleString("ru-RU");
+
+      const available = Number(earnings.availableUsd) || 0;
+      const amountInput = panel.querySelector("#eaAmount");
+      const submitButton = panel.querySelector("#eaSubmit");
+
+      amountInput.max = String(available);
+      submitButton.disabled = available < 100;
+      submitButton.textContent = available < 100
+        ? "Для вывода нужно минимум $100"
+        : "Подать заявку";
+
+      const list = panel.querySelector("#eaHistory");
+      list.replaceChildren();
+
+      const requests = Array.isArray(history.requests)
+        ? history.requests
+        : [];
+
+      if (requests.length === 0) {
+        list.textContent = "Заявок пока нет.";
+      } else {
+        requests.forEach(request => {
+          const item = document.createElement("div");
+          item.className = "ea-request";
+
+          const amount = document.createElement("div");
+          amount.style.fontWeight = "800";
+          amount.textContent = money(request.amountUsd);
+
+          const status = document.createElement("div");
+          status.textContent = statusText(request.status);
+
+          const date = document.createElement("div");
+          date.className = "ea-muted";
+          date.textContent = request.created_at
+            ? new Date(request.created_at).toLocaleString("ru-RU")
+            : "";
+
+          item.append(amount, status, date);
+
+          if (request.admin_note) {
+            const note = document.createElement("div");
+            note.className = "ea-muted";
+            note.textContent = "Комментарий: " + request.admin_note;
+            item.appendChild(note);
+          }
+
+          list.appendChild(item);
+        });
+      }
+    } catch (error) {
+      panel.querySelector("#eaMessage").textContent =
+        error.message || "Ошибка загрузки данных.";
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function submitWithdrawal(event) {
+    event.preventDefault();
+
+    const { panel } = createPanel();
+    const form = panel.querySelector("#eaWithdrawForm");
+    const button = panel.querySelector("#eaSubmit");
+    const message = panel.querySelector("#eaMessage");
+
+    if (!form.reportValidity()) return;
+
+    const amountUsd = Number(
+      panel.querySelector("#eaAmount").value
+    );
+
+    const walletAddress = panel.querySelector("#eaWallet")
+      .value.trim();
+
+    if (!Number.isFinite(amountUsd) || amountUsd < 100) {
+      message.textContent = "Минимальная сумма вывода — $100.";
+      return;
+    }
+
+    if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(walletAddress)) {
+      message.textContent = "Проверь адрес кошелька TRC20.";
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Отправляем заявку...";
+    message.textContent = "";
+
+    try {
+      const response = await apiFetch("/api/host/withdrawals", {
+        method: "POST",
+        body: JSON.stringify({
+          amountUsd,
+          walletAddress
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.error || "Не удалось создать заявку."
+        );
+      }
+
+      message.textContent =
+        data.message || "Заявка создана.";
+
+      form.reset();
+      panel.querySelector("#eaAmount").value = "100";
+
+      await refresh();
+    } catch (error) {
+      message.textContent =
+        error.message || "Не удалось создать заявку.";
+    } finally {
+      button.disabled = false;
+      await refresh();
+    }
+  }
+
+  function updateVisibility() {
+    const { button, panel } = createPanel();
+    const studio = document.getElementById("studioPanel");
+    const loggedIn = Boolean(studio && !studio.hidden);
+
+    button.hidden = !loggedIn;
+
+    if (!loggedIn) {
+      panel.hidden = true;
+    }
+  }
+
+  function start() {
+    createPanel();
+    updateVisibility();
+
+    refreshTimer = setInterval(() => {
+      updateVisibility();
+
+      const panel = document.getElementById(
+        "earningsAccountPanel"
+      );
+
+      if (panel && !panel.hidden) {
+        refresh();
+      }
+    }, 10000);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start, {
+      once: true
+    });
+  } else {
+    start();
+  }
+
+  window.addEventListener("beforeunload", () => {
+    if (refreshTimer) clearInterval(refreshTimer);
+  });
+})();
