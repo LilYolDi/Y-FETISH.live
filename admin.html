@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Админ-панель — Y-FETISH LIVE</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #101010;
+      color: #f3f3f3;
+      font-family: Arial, sans-serif;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { color: #e7bd55; font-size: 25px; }
+    h2 { font-size: 19px; }
+    .panel {
+      background: #1b1b1b;
+      border: 1px solid #393126;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 7px;
+      font-size: 15px;
+    }
+    input, textarea, select {
+      color: #fff;
+      background: #111;
+      border: 1px solid #555;
+    }
+    button {
+      border: 0;
+      background: #d8ad45;
+      color: #111;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.secondary { background: #333; color: white; }
+    button:disabled { opacity: .5; }
+    .muted { color: #aaa; font-size: 13px; }
+    .message { margin: 12px 0; white-space: pre-wrap; }
+    .error { color: #ff7777; }
+    .success { color: #8ee6a0; }
+    .request { border-top: 1px solid #444; padding: 14px 0; }
+    .request:first-child { border-top: 0; }
+    .line { margin: 7px 0; overflow-wrap: anywhere; }
+    .amount { color: #e7bd55; font-size: 21px; font-weight: bold; }
+    .address { user-select: text; }
+    .hidden { display: none !important; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 560px) {
+      body { padding: 10px; }
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Y-FETISH LIVE</h1>
+    <p class="muted">Панель управления выплатами ведущим</p>
+
+    <section class="panel" id="loginPanel">
+      <h2>Вход администратора</h2>
+      <form id="loginForm">
+        <input id="password" type="password" placeholder="Пароль администратора"
+          autocomplete="current-password" required>
+        <button type="submit">Войти</button>
+      </form>
+    </section>
+
+    <section id="adminPanel" class="hidden">
+      <div class="panel">
+        <div class="row">
+          <button id="refreshBtn" type="button">Обновить заявки</button>
+          <button id="logoutBtn" class="secondary" type="button">Выйти</button>
+        </div>
+        <div id="message" class="message"></div>
+      </div>
+
+      <section class="panel">
+        <h2>Заявки на выплату</h2>
+        <div id="requests">
+          Загрузка заявок…
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const $ = id => document.getElementById(id);
+    const loginPanel = $("loginPanel");
+    const adminPanel = $("adminPanel");
+    const message = $("message");
+    const requests = $("requests");
+
+    function showMessage(text, type = "") {
+      message.textContent = text;
+      message.className = "message " + type;
+    }
+
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        credentials: "same-origin",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || ("Ошибка HTTP " + response.status));
+      }
+      return data;
+    }
+
+    function setLoggedIn(value) {
+      loginPanel.classList.toggle("hidden", value);
+      adminPanel.classList.toggle("hidden", !value);
+    }
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("ru-RU");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function statusLabel(status) {
+      return ({
+        pending: "Ожидает",
+        approved: "Одобрена",
+        paid: "Выплачена",
+        rejected: "Отклонена"
+      })[status] || status || "Неизвестно";
+    }
+
+    function renderRequests(rows) {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        requests.textContent = "Заявок пока нет.";
+        return;
+      }
+
+      requests.innerHTML = rows.map(item => {
+        const id = escapeHtml(item.id);
+        const amount = Number(item.amountUsd ?? (Number(item.amount_cents) / 100));
+        const amountText = Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
+        const status = ["pending", "approved", "paid", "rejected"].includes(item.status)
+          ? item.status : "pending";
+
+        return `
+          <article class="request" data-id="${id}">
+            <div class="amount">${amountText} USD</div>
+            <div class="line"><b>Ведущий:</b> ${escapeHtml(item.host_username || item.host_id || "—")}</div>
+            <div class="line"><b>ID заявки:</b> ${id}</div>
+            <div class="line"><b>Сеть:</b> ${escapeHtml(item.network || "—")}</div>
+            <div class="line"><b>Адрес кошелька:</b></div>
+            <div class="line address">${escapeHtml(item.wallet_address || "—")}</div>
+            <div class="line"><b>Создана:</b> ${escapeHtml(formatDate(item.created_at))}</div>
+            <div class="line"><b>Обработана:</b> ${escapeHtml(formatDate(item.processed_at))}</div>
+            <div class="line"><b>Текущий статус:</b> ${escapeHtml(statusLabel(status))}</div>
+
+            <label for="status-${id}">Изменить статус</label>
+            <select id="status-${id}">
+              <option value="pending" ${status === "pending" ? "selected" : ""}>Ожидает</option>
+              <option value="approved" ${status === "approved" ? "selected" : ""}>Одобрена</option>
+              <option value="paid" ${status === "paid" ? "selected" : ""}>Выплачена</option>
+              <option value="rejected" ${status === "rejected" ? "selected" : ""}>Отклонена</option>
+            </select>
+
+            <label for="note-${id}">Заметка администратора</label>
+            <textarea id="note-${id}" rows="2" maxlength="1000"
+              placeholder="Например: выплата отправлена">${escapeHtml(item.admin_note || "")}</textarea>
+
+            <button type="button" data-save="${id}">Сохранить изменения</button>
+          </article>
+        `;
+      }).join("");
+
+      requests.querySelectorAll("[data-save]").forEach(button => {
+        button.addEventListener("click", () => saveRequest(button.dataset.save, button));
+      });
+    }
+
+    async function loadRequests() {
+      requests.textContent = "Загрузка заявок…";
+      showMessage("");
+
+      try {
+        const data = await api("/api/admin/withdrawals");
+        const rows = Array.isArray(data) ? data : data.withdrawals;
+        renderRequests(rows || []);
+      } catch (error) {
+        requests.textContent = "Не удалось загрузить заявки.";
+        showMessage(error.message, "error");
+        if (/вход|авторизац|администратор/i.test(error.message)) {
+          setLoggedIn(false);
+        }
+      }
+    }
+
+    async function saveRequest(id, button) {
+      const status = $("status-" + id).value;
+      const admin_note = $("note-" + id).value;
+
+      if (!confirm("Сохранить изменения для этой заявки?")) return;
+
+      button.disabled = true;
+      try {
+        await api("/api/admin/withdrawals/" + encodeURIComponent(id), {
+          method: "PATCH",
+          body: JSON.stringify({ status, admin_note })
+        });
+        showMessage("Изменения сохранены.", "success");
+        await loadRequests();
+      } catch (error) {
+        showMessage(error.message, "error");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    $("loginForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const password = $("password").value;
+      showMessage("Выполняется вход…");
+
+      try {
+        await api("/api/admin/login", {
+          method: "POST",
+          body: JSON.stringify({ password })
+        });
+        $("password").value = "";
+        setLoggedIn(true);
+        await loadRequests();
+      } catch (error) {
+        showMessage(error.message, "error");
+      }
+    });
+
+    $("refreshBtn").addEventListener("click", loadRequests);
+
+    $("logoutBtn").addEventListener("click", async () => {
+      try {
+        await api("/api/admin/logout", { method: "POST", body: "{}" });
+      } catch (_) {}
+      setLoggedIn(false);
+      showMessage("");
+    });
+
+    (async function init() {
+      try {
+        const data = await api("/api/admin/session");
+        setLoggedIn(Boolean(data.authenticated));
+        if (data.authenticated) await loadRequests();
+      } catch (_) {
+        setLoggedIn(false);
+      }
+    })();
+  </script>
+</body>
+</html>
