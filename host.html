@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -138,7 +137,7 @@
     .camera-controls button,
     .camera-controls .watch-link { flex: 1 1 130px; }
 
-    /* Кнопки камеры: вертикально справа сверху */
+    /* Камера и Beauty */
     #cameraButton,
     #beautyButton {
       position: absolute;
@@ -183,7 +182,6 @@
     #cameraButton:active { background: rgba(75,75,75,.95); }
     #beautyButton:active { background: #ff3038; }
 
-    /* Выбор Beauty-фильтра */
     .mask-control {
       display: flex;
       flex-direction: column;
@@ -206,17 +204,9 @@
       color: #fff;
     }
 
-    body:not(.studio-active) #beautyButton {
-      display: none;
-    }
-
-    body.studio-active .mask-control {
-      display: none;
-    }
-
-    body.studio-active .mask-control.beauty-open {
-      display: flex;
-    }
+    body:not(.studio-active) #beautyButton { display: none; }
+    body.studio-active .mask-control { display: none; }
+    body.studio-active .mask-control.beauty-open { display: flex; }
 
     #status {
       min-height: 20px;
@@ -227,6 +217,55 @@
       overflow-wrap: anywhere;
       white-space: pre-line;
     }
+
+    /* Чат ведущего: отдельная панель поверх видео */
+    #hostChat {
+      position: fixed;
+      z-index: 140;
+      left: 12px;
+      bottom: calc(145px + env(safe-area-inset-bottom, 0px));
+      width: min(300px, calc(100vw - 24px));
+      max-height: 32vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 13px;
+      background: rgba(12,12,12,.82);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0,0,0,.3);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #hostChat[hidden] { display: none !important; }
+
+    #hostChatHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 11px;
+      border-bottom: 1px solid rgba(255,255,255,.12);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    #hostChatMessages {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-height: 30px;
+      padding: 9px 11px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+
+    .host-chat-message { line-height: 1.35; }
+    .host-chat-name { color: #ff6874; font-weight: 700; }
+    .host-chat-empty { color: #c5c5c5; }
 
     @media (max-width: 800px) {
       body.studio-active {
@@ -280,7 +319,6 @@
         background: #080808;
       }
 
-      /* Верхняя панель оставляет место для круглых кнопок справа */
       body.studio-active .studio-top {
         position: fixed;
         top: calc(12px + env(safe-area-inset-top, 0px));
@@ -336,7 +374,6 @@
         box-shadow: 0 4px 18px rgba(226,27,45,.35);
       }
 
-      /* Нижние действия остаются внизу */
       body.studio-active .camera-controls {
         position: fixed;
         left: 10px;
@@ -364,7 +401,6 @@
         overflow-wrap: anywhere;
       }
 
-      /* Кнопки камеры и Beauty: вертикальный столбик справа сверху */
       body.studio-active #cameraButton,
       body.studio-active #beautyButton {
         position: fixed;
@@ -389,7 +425,6 @@
         bottom: auto;
       }
 
-      /* Панель фильтров открывается слева от кнопок */
       body.studio-active .mask-control.beauty-open {
         position: fixed;
         left: 12px;
@@ -427,6 +462,13 @@
         font-size: 12px;
         text-shadow: 0 1px 4px #000;
         pointer-events: none;
+      }
+
+      body.studio-active #hostChat {
+        left: 10px;
+        bottom: calc(175px + env(safe-area-inset-bottom, 0px));
+        width: min(280px, calc(100vw - 20px));
+        max-height: 25vh;
       }
     }
 
@@ -466,9 +508,7 @@
         right: 14px;
       }
 
-      body.studio-active .studio-top {
-        right: 72px;
-      }
+      body.studio-active .studio-top { right: 72px; }
     }
 
     @media (max-height: 500px) and (max-width: 800px) {
@@ -498,6 +538,11 @@
       body.studio-active .mask-control.beauty-open {
         top: calc(118px + env(safe-area-inset-top, 0px));
         bottom: auto;
+      }
+
+      body.studio-active #hostChat {
+        bottom: calc(125px + env(safe-area-inset-bottom, 0px));
+        max-height: 20vh;
       }
     }
   </style>
@@ -594,6 +639,17 @@
       </div>
     </section>
   </main>
+
+  <!-- Панель чата. host.js управляет сообщениями и видимостью во время эфира. -->
+  <aside id="hostChat" aria-label="Чат зрителей" hidden>
+    <div id="hostChatHeader">
+      <span>💬 Чат зрителей</span>
+      <span id="hostChatCount">0</span>
+    </div>
+    <div id="hostChatMessages" aria-live="polite">
+      <div class="host-chat-empty">Сообщений пока нет</div>
+    </div>
+  </aside>
 
   <script>
     (() => {
