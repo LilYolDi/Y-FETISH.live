@@ -477,6 +477,103 @@ function stopHostGiftEvents() {
   }
 }
 
+
+/* ===== ЧАТ ЗРИТЕЛЕЙ В СТУДИИ ВЕДУЩЕГО ===== */
+
+let hostChatTimer = null;
+let hostChatBusy = false;
+
+function renderHostChat(messages) {
+  const panel = $("hostChat");
+  const list = $("hostChatMessages");
+  const count = $("hostChatCount");
+
+  if (!panel || !list || !count) return;
+
+  const items = Array.isArray(messages) ? messages : [];
+
+  count.textContent = String(items.length);
+  list.replaceChildren();
+
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "host-chat-empty";
+    empty.textContent = "Сообщений пока нет";
+    list.appendChild(empty);
+    return;
+  }
+
+  items.forEach(item => {
+    const message = document.createElement("div");
+    message.className = "host-chat-message";
+
+    const name = document.createElement("div");
+    name.className = "host-chat-name";
+    name.textContent =
+      item.participant_name || item.username || item.sender_name || "Гость";
+
+    const text = document.createElement("div");
+    text.textContent = item.message || "";
+
+    message.append(name, text);
+    list.appendChild(message);
+  });
+
+  list.scrollTop = list.scrollHeight;
+}
+
+async function loadHostChat() {
+  if (!activeRoomName || isStopping || hostChatBusy) return;
+
+  hostChatBusy = true;
+  const roomName = activeRoomName;
+
+  try {
+    const response = await apiFetch(
+      "/api/chat?roomName=" + encodeURIComponent(roomName)
+    );
+
+    if (!response.ok) {
+      throw new Error("Ошибка загрузки чата: " + response.status);
+    }
+
+    const messages = await response.json();
+
+    if (activeRoomName !== roomName || isStopping) return;
+
+    renderHostChat(messages);
+  } catch (error) {
+    console.warn("Не удалось загрузить чат ведущего:", error.message);
+  } finally {
+    hostChatBusy = false;
+  }
+}
+
+function startHostChat() {
+  stopHostChat();
+
+  const panel = $("hostChat");
+  if (panel) panel.hidden = false;
+
+  renderHostChat([]);
+  loadHostChat();
+
+  hostChatTimer = setInterval(loadHostChat, 2000);
+}
+
+function stopHostChat() {
+  if (hostChatTimer) {
+    clearInterval(hostChatTimer);
+    hostChatTimer = null;
+  }
+
+  hostChatBusy = false;
+
+  const panel = $("hostChat");
+  if (panel) panel.hidden = true;
+}
+
+
 /* Загрузка MediaPipe для отслеживания лица */
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -1621,17 +1718,21 @@ checkLogin();
     if (panel) panel.style.display = "none";
   }
 
-  const originalStartHostGiftEvents = startHostGiftEvents;
-  startHostGiftEvents = function () {
-    originalStartHostGiftEvents();
-    startEarningsUpdates();
-  };
+const originalStartHostGiftEvents = startHostGiftEvents;
 
-  const originalStopHostGiftEvents = stopHostGiftEvents;
-  stopHostGiftEvents = function () {
-    originalStopHostGiftEvents();
-    stopEarningsUpdates();
-  };
+startHostGiftEvents = function () {
+  originalStartHostGiftEvents();
+  startEarningsUpdates();
+  startHostChat();
+};
+
+const originalStopHostGiftEvents = stopHostGiftEvents;
+
+stopHostGiftEvents = function () {
+  originalStopHostGiftEvents();
+  stopEarningsUpdates();
+  stopHostChat();
+};
 
   window.addEventListener("beforeunload", stopEarningsUpdates);
 })();
