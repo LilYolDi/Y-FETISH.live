@@ -43,6 +43,217 @@ let giftPollBusy = false;
 let lastGiftPollAt = null;
 const seenGiftEvents = new Set();
 
+/* ===== ЧАТ ЗРИТЕЛЕЙ ПОВЕРХ ВИДЕО ВЕДУЩЕГО ===== */
+let hostChatTimer = null;
+let hostChatBusy = false;
+let hostChatLayer = null;
+const hostChatSeenIds = new Set();
+
+function setupHostChat() {
+  if (!document.getElementById("hostChatStyles")) {
+    const style = document.createElement("style");
+    style.id = "hostChatStyles";
+    style.textContent = `
+      #hostChatLayer {
+        display: none;
+      }
+
+      @media (max-width: 800px) {
+        body.studio-active.host-chat-active #hostChatLayer {
+          position: fixed;
+          z-index: 116;
+          left: 12px;
+          right: 76px;
+          bottom: calc(175px + env(safe-area-inset-bottom, 0px));
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
+          max-height: 32vh;
+          overflow: hidden;
+          pointer-events: none;
+          background: transparent;
+        }
+
+        #hostChatLayer .host-chat-line {
+          max-width: 100%;
+          color: #fff;
+          font: 600 14px/1.4 Arial, sans-serif;
+          overflow-wrap: anywhere;
+          text-shadow:
+            0 1px 3px #000,
+            1px 1px 3px #000,
+            -1px -1px 3px #000,
+            0 0 7px rgba(0,0,0,.95);
+          animation: hostChatAppear .2s ease-out;
+        }
+
+        #hostChatLayer .host-chat-name {
+          color: #ff7b91;
+          font-weight: 800;
+        }
+
+        @keyframes hostChatAppear {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  hostChatLayer = document.getElementById("hostChatLayer");
+
+  if (!hostChatLayer) {
+    hostChatLayer = document.createElement("div");
+    hostChatLayer.id = "hostChatLayer";
+    hostChatLayer.setAttribute("aria-live", "polite");
+    hostChatLayer.setAttribute("aria-label", "Сообщения зрителей");
+    document.body.appendChild(hostChatLayer);
+  }
+
+  return hostChatLayer;
+}
+
+function hostChatMessageKey(item) {
+  if (item.id != null) return String(item.id);
+
+  return [
+    item.created_at || "",
+    item.participant_name || "",
+    item.message || ""
+  ].join(":");
+}
+
+function showHostChatMessage(item) {
+  if (!item || !item.message) return;
+
+  const layer = setupHostChat();
+  if (!layer) return;
+
+  const line = document.createElement("div");
+  line.className = "host-chat-line";
+
+  const name = document.createElement("span");
+  name.className = "host-chat-name";
+  name.textContent =
+    String(item.participant_name || "Зритель").slice(0, 50) + ": ";
+
+  const message = document.createElement("span");
+  message.textContent = String(item.message).slice(0, 500);
+
+  line.append(name, message);
+  layer.appendChild(line);
+
+  while (layer.children.length > 8) {
+    layer.firstElementChild.remove();
+  }
+
+  window.setTimeout(() => {
+    line.remove();
+  }, 12000);
+}
+
+async function loadHostChat() {
+  if (!activeRoomName || isStopping || hostChatBusy) return;
+
+  hostChatBusy = true;
+
+  try {
+    const response = await apiFetch(
+      "/api/chat?roomName=" + encodeURIComponent(activeRoomName)
+    );
+
+    const data = await response.json().catch(() => []);
+
+    if (!response.ok) {
+      throw new Error(data.error || "Не удалось загрузить чат");
+    }
+
+    const messages = Array.isArray(data)
+      ? data
+      : Array.isArray(data.messages)
+        ? data.messages
+        : [];
+
+    const layer = setupHostChat();
+    if (!layer) return;
+
+    const initialLoad = layer.dataset.loaded !== "true";
+
+    if (initialLoad) {
+      layer.dataset.loaded = "true";
+
+      const recentMessages = messages.slice(-6);
+
+      messages.forEach(item => {
+        hostChatSeenIds.add(hostChatMessageKey(item));
+      });
+
+      recentMessages.forEach(showHostChatMessage);
+      return;
+    }
+
+    messages.forEach(item => {
+      const key = hostChatMessageKey(item);
+
+      if (hostChatSeenIds.has(key)) return;
+
+      hostChatSeenIds.add(key);
+      showHostChatMessage(item);
+    });
+
+    if (hostChatSeenIds.size > 500) {
+      const recentKeys = Array.from(hostChatSeenIds).slice(-250);
+      hostChatSeenIds.clear();
+      recentKeys.forEach(key => hostChatSeenIds.add(key));
+    }
+  } catch (error) {
+    console.warn("Чат ведущего:", error.message);
+  } finally {
+    hostChatBusy = false;
+  }
+}
+
+function startHostChat() {
+  stopHostChat();
+
+  const layer = setupHostChat();
+  if (!layer) return;
+
+  layer.replaceChildren();
+  delete layer.dataset.loaded;
+  hostChatSeenIds.clear();
+
+  document.body.classList.add("host-chat-active");
+
+  loadHostChat();
+  hostChatTimer = setInterval(loadHostChat, 2500);
+}
+
+function stopHostChat() {
+  if (hostChatTimer) {
+    clearInterval(hostChatTimer);
+    hostChatTimer = null;
+  }
+
+  document.body.classList.remove("host-chat-active");
+  hostChatSeenIds.clear();
+
+  if (hostChatLayer) {
+    hostChatLayer.replaceChildren();
+    delete hostChatLayer.dataset.loaded;
+  }
+
+  hostChatBusy = false;
+}
+
 /* Beauty effects pipeline */
 let maskCanvas = null;
 let maskContext = null;
@@ -87,6 +298,7 @@ function status(message) {
 }
 
 function setStudioVisible(authenticated) {
+
   if (loginPanel) loginPanel.hidden = authenticated;
   if (studioPanel) studioPanel.hidden = !authenticated;
   document.body.classList.toggle("studio-active", authenticated);
@@ -339,6 +551,9 @@ function setupHostGiftLayer() {
   return giftLayer;
 }
 
+
+}
+
 function showHostGift(event) {
   const layer = setupHostGiftLayer();
   if (!layer || !event) return;
@@ -588,7 +803,8 @@ function drawCheekBlush(ctx, width, opacity, color) {
     gradient.addColorStop(0, color);
     gradient.addColorStop(1, "rgba(255,100,150,0)");
 
-    ctx.fillStyle = gradient;
+
+      ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.ellipse(
       p.x, p.y,
@@ -836,6 +1052,7 @@ async function ensureProcessedVideoTrack() {
     alpha: false,
     desynchronized: true
   });
+
 
   if (!maskContext) {
     throw new Error("Не удалось подготовить обработку видео.");
@@ -1087,7 +1304,9 @@ function startHeartbeat() {
 
 async function cleanupEffectsPipeline() {
   if (renderFrameId !== null) {
-    cancelAnimationFrame(renderFrameId);
+
+
+      cancelAnimationFrame(renderFrameId);
     renderFrameId = null;
   }
 
@@ -1128,6 +1347,7 @@ async function stopStream(message = "Эфир завершён.") {
   isStopping = true;
   stopHeartbeat();
   stopHostGiftEvents();
+  stopHostChat();
 
   const roomNameToStop = activeRoomName;
   activeRoomName = "";
@@ -1327,6 +1547,7 @@ if (streamForm) {
 
       /* Запускаем показ подарков только после подключения эфира */
       startHostGiftEvents();
+      startHostChat();
 
       status(
         `Эфир запущен: ${title}\n` +
@@ -1335,7 +1556,9 @@ if (streamForm) {
       );
 
       newRoom.on(sdk.RoomEvent.Disconnected, () => {
-        if (room === newRoom && !isStopping) {
+
+
+            if (room === newRoom && !isStopping) {
           stopStream("Соединение с эфиром потеряно.");
         }
       });
@@ -1347,6 +1570,7 @@ if (streamForm) {
       } else {
         stopHeartbeat();
         stopHostGiftEvents();
+        stopHostChat();
 
         if (room) {
           try {
@@ -1440,6 +1664,7 @@ if (logoutButton) {
 window.addEventListener("beforeunload", () => {
   stopHeartbeat();
   stopHostGiftEvents();
+  stopHostChat();
 
   if (room) room.disconnect();
 
