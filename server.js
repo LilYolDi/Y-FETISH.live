@@ -1705,29 +1705,6 @@ app.post("/api/gifts/send", requireUser, async (req, res) => {
   }
 });
 
-/* Неизвестные маршруты */
-
-app.use("/api", (req, res) => {
-  res.status(404).json({
-    error: "API-маршрут не найден"
-  });
-});
-
-app.use((req, res) => {
-  res.status(404).send("Страница не найдена");
-});
-
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Y-FETISH LIVE running on port ${PORT}`);
-});
-
-
-
-
-
-
-
-
 
 /* =========================================================
    ПОДПИСКИ ПОЛЬЗОВАТЕЛЕЙ
@@ -1928,3 +1905,19 @@ app.get("/api/follows/me/list", requireUser, async (req, res) => {
   }
 });
 
+/* Неизвестные API-маршруты — только после всех API-маршрутов */
+app.use("/api", (req, res) => {
+  res.status(404).json({
+    error: "API-маршрут не найден"
+  });
+});
+
+/* Неизвестные страницы */
+app.use((req, res) => {
+  res.status(404).send("Страница не найдена");
+});
+
+/* Запуск сервера — строго в самом конце */
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Y-FETISH LIVE running on port ${PORT}`);
+});
