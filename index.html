@@ -492,37 +492,6 @@
         height: 23px !important;
         min-height: 23px !important;
       }
-
-
-      .follow-button {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  padding: 11px 14px;
-  border: 1px solid #e5222e;
-  border-radius: 8px;
-  background: #e5222e;
-  color: #fff;
-  font-size: 14px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.follow-button.following {
-  background: #292929;
-  border-color: #555;
-}
-
-.follow-button:disabled {
-  opacity: .6;
-  cursor: wait;
-}
-
-.follow-list-item {
-  padding: 8px 0;
-  border-bottom: 1px solid #333;
-  overflow-wrap: anywhere;
-}
     }
   </style>
 </head>
@@ -568,15 +537,6 @@
           </button>
 
           <div class="profile-details" id="profileDetails" hidden></div>
-
-          <div class="profile-details" id="followSummary">
-  Подписчики: <strong id="followersCount">0</strong><br>
-  Подписки: <strong id="followingCount">0</strong>
-  <button class="panel-button" id="myFollowsButton" type="button">
-    Мои подписки
-  </button>
-  <div id="myFollowsList" hidden></div>
-</div>
 
           <a class="panel-button panel-link" href="/host.html">Мои эфиры</a>
 
@@ -1118,7 +1078,9 @@
         card.append(preview, status, title, host, watchLink);
         streamsContainer.appendChild(card);
 
-
+        visibleRoomNames.add(stream.room_name);
+        connectPreview(stream.room_name, preview, video, placeholder);
+      });
 
       stopUnusedPreviewConnections(visibleRoomNames);
     }
