@@ -491,6 +491,7 @@ function renderHostChat(messages) {
   if (!panel || !list || !count) return;
 
   const items = Array.isArray(messages) ? messages : [];
+  const lastMessages = items.slice(-4);
 
   count.textContent = String(items.length);
   list.replaceChildren();
@@ -503,7 +504,7 @@ function renderHostChat(messages) {
     return;
   }
 
-  items.forEach(item => {
+  lastMessages.forEach(item => {
     const message = document.createElement("div");
     message.className = "host-chat-message";
 
