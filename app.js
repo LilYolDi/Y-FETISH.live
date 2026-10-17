@@ -18,6 +18,7 @@
   let viewerAudioMuted = true;
   let chatTimer = null;
   let heartbeatTimer = null;
+  let giftTimer = null;
   let lastMessageId = null;
   let firstChatLoad = true;
   let isHost = false;
@@ -25,6 +26,11 @@
   let hostFacingMode = "user";
   let hostBusy = false;
   let streamEnded = false;
+
+  let giftAnimationLayer = null;
+  let lastGiftPollAt = new Date(Date.now() - 15000).toISOString();
+  let giftPollBusy = false;
+  const seenGiftEvents = new Set();
 
   function showMessage(message) {
     if (giftMessage) {
@@ -145,6 +151,270 @@
     }
 
     container.appendChild(element);
+
+    if (giftAnimationLayer && giftAnimationLayer.parentElement !== container) {
+      container.appendChild(giftAnimationLayer);
+    }
+  }
+
+  // Создаём слой анимации поверх видео.
+  function setupGiftAnimationLayer() {
+    const container = getVideoContainer();
+    if (!container) return null;
+
+    if (
+      giftAnimationLayer &&
+      giftAnimationLayer.isConnected &&
+      giftAnimationLayer.parentElement === container
+    ) {
+      return giftAnimationLayer;
+    }
+
+    const styleId = "liveGiftAnimationStyles";
+
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        .live-gift-animation-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 50;
+          overflow: hidden;
+          pointer-events: none;
+          contain: layout paint;
+        }
+
+        .live-gift-pop {
+          position: absolute;
+          left: 50%;
+          bottom: 16%;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          max-width: calc(100% - 24px);
+          padding: 10px 16px;
+          border: 1px solid rgba(255,255,255,.22);
+          border-radius: 18px;
+          color: #fff;
+          background: rgba(12,12,12,.82);
+          box-shadow: 0 5px 25px rgba(0,0,0,.35);
+          transform: translate(-50%, 0) scale(.7);
+          opacity: 0;
+          animation: liveGiftFly 3.4s ease-out forwards;
+          box-sizing: border-box;
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+        }
+
+        .live-gift-emoji {
+          flex: 0 0 auto;
+          font-size: clamp(36px, 9vw, 62px);
+          line-height: 1;
+          filter: drop-shadow(0 2px 8px rgba(255,80,140,.4));
+          animation: liveGiftPulse .65s ease-in-out infinite alternate;
+        }
+
+        .live-gift-text {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .live-gift-sender {
+          overflow: hidden;
+          color: #ffd76a;
+          font-size: 13px;
+          font-weight: 800;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .live-gift-name {
+          overflow-wrap: anywhere;
+          font-size: 16px;
+          font-weight: 800;
+        }
+
+        .live-gift-quantity {
+          color: #f5f5f5;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        @keyframes liveGiftFly {
+          0% {
+            opacity: 0;
+            transform: translate(-50%, 35px) scale(.65);
+          }
+          12% {
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1.08);
+          }
+          20% {
+            transform: translate(-50%, 0) scale(1);
+          }
+          72% {
+            opacity: 1;
+            transform: translate(-50%, -25px) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(-50%, -85px) scale(.9);
+          }
+        }
+
+        @keyframes liveGiftPulse {
+          from { transform: scale(.92) rotate(-5deg); }
+          to { transform: scale(1.08) rotate(5deg); }
+        }
+
+        @media (max-width: 480px) {
+          .live-gift-pop {
+            bottom: 19%;
+            gap: 9px;
+            padding: 9px 12px;
+          }
+
+          .live-gift-name {
+            font-size: 14px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .live-gift-pop {
+            animation-duration: 2s;
+          }
+
+          .live-gift-emoji {
+            animation: none;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const computedPosition = window.getComputedStyle(container).position;
+
+    if (computedPosition === "static") {
+      container.style.position = "relative";
+    }
+
+    giftAnimationLayer = document.createElement("div");
+    giftAnimationLayer.className = "live-gift-animation-layer";
+    giftAnimationLayer.setAttribute("aria-hidden", "true");
+
+    container.appendChild(giftAnimationLayer);
+    return giftAnimationLayer;
+  }
+
+  function showGiftAnimation(event) {
+    const layer = setupGiftAnimationLayer();
+    if (!layer || !event) return;
+
+    const gift = event.gift || {};
+    const emoji = gift.emoji || event.emoji || "🎁";
+    const giftName = gift.name || event.giftName || event.name || "Подарок";
+    const senderName =
+      event.senderName || event.sender_name || "Гость";
+    const quantity = Math.max(1, Number(event.quantity) || 1);
+
+    const pop = document.createElement("div");
+    pop.className = "live-gift-pop";
+
+    const emojiElement = document.createElement("div");
+    emojiElement.className = "live-gift-emoji";
+    emojiElement.textContent = emoji;
+
+    const textElement = document.createElement("div");
+    textElement.className = "live-gift-text";
+
+    const senderElement = document.createElement("div");
+    senderElement.className = "live-gift-sender";
+    senderElement.textContent = senderName + " отправил(а) подарок";
+
+    const nameElement = document.createElement("div");
+    nameElement.className = "live-gift-name";
+    nameElement.textContent = giftName;
+
+    textElement.append(senderElement, nameElement);
+
+    if (quantity > 1) {
+      const quantityElement = document.createElement("div");
+      quantityElement.className = "live-gift-quantity";
+      quantityElement.textContent = "Количество: ×" + quantity;
+      textElement.appendChild(quantityElement);
+    }
+
+    pop.append(emojiElement, textElement);
+    layer.appendChild(pop);
+
+    while (layer.children.length > 5) {
+      layer.firstElementChild.remove();
+    }
+
+    window.setTimeout(() => pop.remove(), 3600);
+  }
+
+  // Получаем подарки, отправленные в этот эфир.
+  async function loadGiftEvents() {
+    if (!roomName || streamEnded || giftPollBusy) return;
+
+    giftPollBusy = true;
+
+    const pollStartedAt = new Date().toISOString();
+
+    try {
+      const query = new URLSearchParams({
+        roomName,
+        since: lastGiftPollAt
+      });
+
+      const data = await api("/api/gifts/events?" + query.toString());
+      const events = Array.isArray(data)
+        ? data
+        : Array.isArray(data.events)
+          ? data.events
+          : [];
+
+      events.forEach((event) => {
+        const eventKey = event.id != null
+          ? String(event.id)
+          : [
+              event.created_at || "",
+              event.sender_id || "",
+              event.gift_id || event.gift?.id || "",
+              event.quantity || 1
+            ].join(":");
+
+        if (seenGiftEvents.has(eventKey)) return;
+
+        seenGiftEvents.add(eventKey);
+        showGiftAnimation(event);
+      });
+
+      // Не даём набору обработанных событий бесконечно расти.
+      if (seenGiftEvents.size > 500) {
+        const recentKeys = Array.from(seenGiftEvents).slice(-250);
+        seenGiftEvents.clear();
+        recentKeys.forEach((key) => seenGiftEvents.add(key));
+      }
+
+      lastGiftPollAt = pollStartedAt;
+    } catch (error) {
+      // Ошибка анимации не должна останавливать эфир или чат.
+      console.warn("Не удалось загрузить события подарков:", error.message);
+    } finally {
+      giftPollBusy = false;
+    }
+  }
+
+  function startGiftEvents() {
+    clearInterval(giftTimer);
+    setupGiftAnimationLayer();
+    loadGiftEvents();
+    giftTimer = setInterval(loadGiftEvents, 2500);
   }
 
   function setupSoundToggle() {
@@ -479,6 +749,7 @@
       streamEnded = true;
       clearInterval(chatTimer);
       clearInterval(heartbeatTimer);
+      clearInterval(giftTimer);
       window.location.replace("/");
     } catch (error) {
       showMessage(
@@ -543,6 +814,9 @@
     setupViewerRoomEvents(sdk);
 
     await liveRoom.connect(liveKitUrl, tokenData.token);
+
+    setupGiftAnimationLayer();
+    startGiftEvents();
 
     if (isHost) {
       setupHostInterface();
@@ -729,6 +1003,7 @@
   window.addEventListener("beforeunload", () => {
     clearInterval(chatTimer);
     clearInterval(heartbeatTimer);
+    clearInterval(giftTimer);
 
     if (liveRoom) {
       liveRoom.disconnect();
