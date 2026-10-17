@@ -444,23 +444,138 @@
       .gift-panel {
         display: none;
         position: fixed;
-        z-index: 30;
-        right: 10px;
-        bottom: calc(env(safe-area-inset-bottom) + 72px);
+        z-index: 40;
         left: 10px;
-        max-height: 48dvh;
+        right: 10px;
+        bottom: calc(env(safe-area-inset-bottom) + 12px);
+        max-height: 62dvh;
         overflow-y: auto;
+        overscroll-behavior: contain;
         margin: 0;
-        padding: 16px;
-        background: rgba(22,22,22,.97);
-        border: 1px solid #444;
-        border-radius: 16px;
-        box-shadow: 0 0 30px rgba(0,0,0,.5);
+        padding: 18px 14px 14px;
+        background: #171717;
+        border: 1px solid #3a3a3a;
+        border-radius: 18px;
+        box-shadow: 0 12px 40px rgba(0,0,0,.65);
+        -webkit-overflow-scrolling: touch;
       }
 
-      body.show-gifts .gift-panel { display: block; }
+      body.show-gifts::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 29;
+        background: rgba(0,0,0,.45);
+        pointer-events: none;
+      }
 
-      .gift-panel h2 { padding-right: 38px; }
+      body.show-gifts .gift-panel {
+        display: block;
+      }
+
+      .gift-panel h2 {
+        margin: 0 42px 14px 0;
+        padding: 0;
+        color: #fff;
+        font-size: 19px;
+        line-height: 1.3;
+      }
+
+      .gift-panel > p:first-of-type {
+        margin: 0 0 14px;
+        padding: 11px 12px;
+        background: #242424;
+        border: 1px solid #353535;
+        border-radius: 10px;
+        color: #d0d0d0;
+        font-size: 14px;
+      }
+
+      #coinBalance {
+        color: #f2cd72;
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .gift-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border: 1px solid #454545;
+        border-radius: 50%;
+        background: #303030;
+        color: #fff;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .gift-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .gift-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        min-height: 76px;
+        padding: 10px 5px;
+        border: 1px solid #393939;
+        border-radius: 12px;
+        background: #252525;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.4;
+        text-align: center;
+        overflow-wrap: anywhere;
+        cursor: pointer;
+        transition: background .15s ease, border-color .15s ease;
+      }
+
+      .gift-item:active {
+        background: #353535;
+        border-color: #e21b2d;
+      }
+
+      .gift-item:disabled {
+        opacity: .55;
+        cursor: wait;
+      }
+
+      #giftMessage {
+        margin: 12px 0 0;
+        color: #e8c66f;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 380px) {
+        .gift-panel {
+          left: 8px;
+          right: 8px;
+          padding: 15px 10px 12px;
+        }
+
+        .gift-list {
+          gap: 6px;
+        }
+
+        .gift-item {
+          min-height: 70px;
+          padding: 8px 3px;
+          font-size: 11px;
+        }
+      }
 
       .gift-close {
         position: absolute;
