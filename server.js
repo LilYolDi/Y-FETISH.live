@@ -30,6 +30,10 @@ const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET;
 const HOST_PASSWORD = process.env.HOST_PASSWORD || "";
 const HOST_SESSION_SECRET = process.env.HOST_SESSION_SECRET || "";
 const HOST_PROFILE_ID = process.env.HOST_PROFILE_ID || "";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "";
+const ADMIN_COOKIE = "yfetish_live_admin";
+const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
 
 /* AGDor Pay: секреты задаются в Render Environment */
 const AGDOR_API_KEY =
@@ -209,6 +213,45 @@ function getHostSession(req) {
     expires: Number(expires)
   };
 }
+
+function adminSignature(expires) {
+  return crypto
+    .createHmac("sha256", ADMIN_SESSION_SECRET)
+    .update(String(expires))
+    .digest("hex");
+}
+
+function getAdminSession(req) {
+  if (!ADMIN_SESSION_SECRET) return null;
+
+  const value = getCookie(req, ADMIN_COOKIE);
+  if (!value) return null;
+
+  const parts = value.split(".");
+  if (parts.length !== 2) return null;
+
+  const [expires, signature] = parts;
+
+  if (!/^\d+$/.test(expires)) return null;
+  if (Number(expires) <= Date.now()) return null;
+
+  if (!safeEqual(signature, adminSignature(expires))) {
+    return null;
+  }
+
+  return { expires: Number(expires) };
+}
+
+function requireAdmin(req, res, next) {
+  if (!getAdminSession(req)) {
+    return res.status(401).json({
+      error: "Требуется вход администратора"
+    });
+  }
+
+  next();
+}
+
 
 function createHostSession(res) {
   const expires = String(Date.now() + HOST_SESSION_MS);
@@ -480,6 +523,7 @@ for (const page of [
   "host.html",
   "login.html",
   "coins.html",
+  "admin.html",
   "app.js",
   "host.js",
   "style.css"
@@ -2105,6 +2149,147 @@ app.get("/api/follows/me/list", requireUser, async (req, res) => {
     return sendError(res, error, "Не удалось загрузить список подписок");
   }
 });
+
+
+
+/* Админ-панель: вход и управление выплатами */
+
+app.post("/api/admin/login", (req, res) => {
+  if (!ADMIN_PASSWORD || !ADMIN_SESSION_SECRET) {
+    return res.status(503).json({
+      error: "Вход администратора не настроен в Render"
+    });
+  }
+
+  const password = String(req.body?.password || "");
+
+  if (!safeEqual(password, ADMIN_PASSWORD)) {
+    return res.status(401).json({
+      error: "Неверный пароль администратора"
+    });
+  }
+
+  const expires = String(Date.now() + ADMIN_SESSION_MS);
+  const signature = adminSignature(expires);
+  const value = `${expires}.${signature}`;
+
+  res.setHeader(
+    "Set-Cookie",
+    `${ADMIN_COOKIE}=${value}; HttpOnly; Path=/; Max-Age=${Math.floor(ADMIN_SESSION_MS / 1000)}; SameSite=Lax; Secure`
+  );
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/session", (req, res) => {
+  return res.json({
+    authenticated: Boolean(getAdminSession(req))
+  });
+});
+
+app.post("/api/admin/logout", (req, res) => {
+  res.setHeader(
+    "Set-Cookie",
+    `${ADMIN_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax; Secure`
+  );
+
+  return res.json({ success: true });
+});
+
+app.get("/api/admin/withdrawals", requireAdmin, async (req, res) => {
+  try {
+    const { data: rows, error } = await supabase
+      .from("withdrawal_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const hostIds = [...new Set(
+      (rows || []).map(row => row.host_id).filter(Boolean)
+    )];
+
+    let profiles = [];
+
+    if (hostIds.length) {
+      const { data, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", hostIds);
+
+      if (profilesError) throw profilesError;
+      profiles = data || [];
+    }
+
+    const profileMap = new Map(
+      profiles.map(profile => [String(profile.id), profile.username])
+    );
+
+    return res.json({
+      withdrawals: (rows || []).map(row => ({
+        ...row,
+        host_username: profileMap.get(String(row.host_id)) || row.host_id,
+        amountUsd: Number(row.amount_cents) / 100
+      }))
+    });
+  } catch (error) {
+    console.error("Admin withdrawals error:", error);
+    return res.status(500).json({
+      error: "Не удалось загрузить заявки на выплату"
+    });
+  }
+});
+
+app.patch("/api/admin/withdrawals/:id", requireAdmin, async (req, res) => {
+  try {
+    const allowedStatuses = [
+      "pending",
+      "approved",
+      "paid",
+      "rejected"
+    ];
+
+    const status = String(req.body?.status || "");
+    const admin_note = String(req.body?.admin_note || "").slice(0, 1000);
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Недопустимый статус заявки"
+      });
+    }
+
+    const { data, error } = await supabase
+      .from("withdrawal_requests")
+      .update({
+        status,
+        admin_note,
+        processed_at: status === "pending" ? null : new Date().toISOString()
+      })
+      .eq("id", req.params.id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        error: "Заявка не найдена"
+      });
+    }
+
+    return res.json({
+      success: true,
+      withdrawal: data
+    });
+  } catch (error) {
+    console.error("Admin update withdrawal error:", error);
+    return res.status(500).json({
+      error: "Не удалось сохранить изменения заявки"
+    });
+  }
+});
+
+
 
 /* Неизвестные API-маршруты — только после всех API-маршрутов */
 app.use("/api", (req, res) => {
