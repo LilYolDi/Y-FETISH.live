@@ -238,9 +238,9 @@
 }
 
 #hostChatMessages {
-  margin-top: 30px
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 7px;
   min-height: 30px;
   padding: 9px 0;
@@ -470,7 +470,7 @@
 
       body.studio-active #hostChat {
         left: 10px;
-        bottom: calc(175px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(100px + env(safe-area-inset-bottom, 0px));
         width: min(280px, calc(100vw - 20px));
         max-height: 25vh;
       }
