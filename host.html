@@ -548,6 +548,42 @@
         max-height: 20vh;
       }
     }
+
+    
+/* Маленькая кнопка завершения эфира */
+.power-off-button {
+  position: fixed;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+  z-index: 9999;
+
+  width: 42px;
+  height: 42px;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+  background: #e32636;
+  color: #ffffff;
+
+  cursor: pointer;
+  box-shadow: 0 2px 10px #00000055;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.power-off-button:active {
+  transform: scale(0.92);
+}
+
+.power-off-button[hidden] {
+  display: none !important;
+}
+
+    
   </style>
 </head>
 
@@ -632,7 +668,30 @@
         </div>
 
         <div class="camera-controls">
-          <button id="stopButton" type="button" hidden>Завершить эфир</button>
+         
+<button
+  id="stopButton"
+  class="power-off-button"
+  type="button"
+  aria-label="Завершить эфир"
+  title="Завершить эфир"
+>
+  <svg
+    viewBox="0 0 24 24"
+    width="20"
+    height="20"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2.3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 2v10"/>
+    <path d="M6.2 5.8a8 8 0 1 0 11.6 0"/>
+  </svg>
+</button>
+
           <a id="watchLink" class="watch-link" href="/live.html"
             target="_blank" rel="noopener" hidden>Открыть эфир</a>
           <button id="logoutButton" type="button" class="secondary">Выйти</button>
