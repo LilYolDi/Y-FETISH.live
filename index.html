@@ -465,12 +465,42 @@
       main { padding: 18px 12px; }
       h1 { font-size: 24px; }
 
+
       .streams {
-        grid-template-columns: 1fr;
-        gap: 14px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
       }
 
-      .preview { min-height: 170px; }
+      .stream {
+        padding: 8px;
+        border-radius: 10px;
+      }
+
+      .preview {
+        min-height: 0;
+        aspect-ratio: 3 / 4;
+      }
+
+      .stream h2 {
+        font-size: 15px;
+        margin: 9px 0;
+      }
+
+      .stream .muted {
+        font-size: 12px;
+      }
+
+      .followers-count {
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .watch-button,
+      .follow-button {
+        padding: 10px 5px;
+        font-size: 12px;
+      }
+
       #countryFilterControls { gap: 7px; }
 
       #countryButton,
