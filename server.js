@@ -62,8 +62,10 @@ const COIN_PACKAGES = Object.freeze({
 
 /* Настройки заработка от подарков */
 const COINS_PER_USD = 100;
-const HOST_EARNINGS_SHARE = 0.5;
+const HOST_EARNINGS_SHARE = 0.7;
 const HOST_EARNINGS_GOAL_USD = 100;
+const PLATFORM_COMMISSION_SHARE = 0.3;
+const HOST_WITHDRAWAL_MINIMUM_USD = 100;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("Не заданы SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY");
@@ -1553,6 +1555,14 @@ app.get("/api/gifts/events", async (req, res) => {
  * 100 монет = $1 общего объёма подарков.
  * 50% получает ведущий, 50% — платформа.
  */
+
+/* =========================================================
+   ЗАРАБОТОК ВЕДУЩЕГО
+   100 монет = $1 стоимости подарков.
+   Ведущему — 70%, платформе — 30%.
+   Данные берём из host_earnings, созданной триггером Supabase.
+   ========================================================= */
+
 app.get("/api/host/earnings", requireHostAccess, async (req, res) => {
   try {
     const hostId = req.hostId;
@@ -1563,60 +1573,251 @@ app.get("/api/host/earnings", requireHostAccess, async (req, res) => {
       });
     }
 
-    let offset = 0;
-    const pageSize = 1000;
-    let totalCoins = 0;
+    const [
+      earningsResult,
+      withdrawalsResult
+    ] = await Promise.all([
+      supabase
+        .from("host_earnings")
+        .select(
+          "total_coins, host_amount_cents, platform_amount_cents"
+        )
+        .eq("host_id", hostId),
 
-    while (true) {
-      const { data, error } = await supabase
-        .from("gift_transactions")
-        .select("total_coins")
-        .eq("receiver_id", hostId)
-        .range(offset, offset + pageSize - 1);
+      supabase
+        .from("withdrawal_requests")
+        .select("amount_cents, status")
+        .eq("host_id", hostId)
+    ]);
 
-      if (error) throw error;
-
-      const rows = data || [];
-
-      for (const row of rows) {
-        totalCoins += Number(row.total_coins || 0);
-      }
-
-      if (rows.length < pageSize) break;
-
-      offset += pageSize;
+    if (earningsResult.error) {
+      throw earningsResult.error;
     }
 
-    const grossUsd = totalCoins / COINS_PER_USD;
-    const hostEarningsUsd =
-      Math.round(grossUsd * HOST_EARNINGS_SHARE * 100) / 100;
+    if (withdrawalsResult.error) {
+      throw withdrawalsResult.error;
+    }
 
-    const platformCommissionUsd =
-      Math.round(grossUsd * (1 - HOST_EARNINGS_SHARE) * 100) / 100;
+    const earnings = earningsResult.data || [];
+    const withdrawals = withdrawalsResult.data || [];
+
+    const totalCoins = earnings.reduce(
+      (sum, row) => sum + Number(row.total_coins || 0),
+      0
+    );
+
+    const hostCents = earnings.reduce(
+      (sum, row) => sum + Number(row.host_amount_cents || 0),
+      0
+    );
+
+    const platformCents = earnings.reduce(
+      (sum, row) => sum + Number(row.platform_amount_cents || 0),
+      0
+    );
+
+    /*
+     * Pending и approved — деньги уже зарезервированы.
+     * Paid тоже остаётся в сумме заявок, поскольку заработок
+     * в host_earnings не удаляется после выплаты.
+     * Rejected снова освобождает доступную сумму.
+     */
+    const reservedCents = withdrawals.reduce((sum, row) => {
+      if (
+        ["pending", "approved", "paid"].includes(row.status)
+      ) {
+        return sum + Number(row.amount_cents || 0);
+      }
+
+      return sum;
+    }, 0);
+
+    const availableCents = Math.max(
+      0,
+      hostCents - reservedCents
+    );
+
+    const grossCents = Math.round(
+      totalCoins / COINS_PER_USD * 100
+    );
+
+    const hostEarningsUsd = hostCents / 100;
+    const platformCommissionUsd = platformCents / 100;
+    const grossUsd = grossCents / 100;
+    const availableUsd = availableCents / 100;
+    const reservedUsd = reservedCents / 100;
 
     const progressPercent = Math.min(
       100,
       Math.round(
-        (hostEarningsUsd / HOST_EARNINGS_GOAL_USD) * 10000
-      ) / 100
+        availableUsd / HOST_EARNINGS_GOAL_USD * 100
+      )
     );
 
     return res.json({
       success: true,
       currency: "USD",
       totalCoins,
-      grossUsd: Math.round(grossUsd * 100) / 100,
-      hostEarningsUsd,
-      platformCommissionUsd,
-      platformCommissionPercent: 50,
+      grossUsd: Number(grossUsd.toFixed(2)),
+      hostEarningsUsd: Number(hostEarningsUsd.toFixed(2)),
+      platformCommissionUsd: Number(
+        platformCommissionUsd.toFixed(2)
+      ),
+      hostSharePercent: HOST_EARNINGS_SHARE * 100,
+      platformCommissionPercent:
+        PLATFORM_COMMISSION_SHARE * 100,
       coinsPerUsd: COINS_PER_USD,
       goalUsd: HOST_EARNINGS_GOAL_USD,
+      withdrawalMinimumUsd: HOST_WITHDRAWAL_MINIMUM_USD,
+      reservedUsd: Number(reservedUsd.toFixed(2)),
+      availableUsd: Number(availableUsd.toFixed(2)),
       progressPercent
     });
   } catch (error) {
-    sendError(res, error, "Не удалось загрузить заработок ведущего");
+    sendError(
+      res,
+      error,
+      "Не удалось загрузить заработок ведущего"
+    );
   }
 });
+
+
+/* =========================================================
+   ВЫВОД ЗАРАБОТКА ВЕДУЩЕГО
+   Минимум $100. Только USDT TRC20.
+   Заявка создаётся со статусом pending.
+   Автоматическую отправку криптовалюты этот маршрут не делает.
+   ========================================================= */
+
+app.post(
+  "/api/host/withdrawals",
+  requireHostAccess,
+  async (req, res) => {
+    try {
+      const hostId = req.hostId;
+
+      const amount = Number(req.body?.amountUsd);
+      const walletAddress = cleanText(
+        req.body?.walletAddress,
+        100
+      );
+
+      if (!hostId) {
+        return res.status(400).json({
+          error: "Не удалось определить ведущего"
+        });
+      }
+
+      if (
+        !Number.isFinite(amount) ||
+        !Number.isSafeInteger(amount * 100) ||
+        amount < HOST_WITHDRAWAL_MINIMUM_USD
+      ) {
+        return res.status(400).json({
+          error: "Минимальная сумма вывода — $100"
+        });
+      }
+
+      if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(walletAddress)) {
+        return res.status(400).json({
+          error: "Укажи правильный адрес кошелька USDT TRC20"
+        });
+      }
+
+      const amountCents = Math.round(amount * 100);
+
+      const { data, error } = await supabase.rpc(
+        "request_host_withdrawal",
+        {
+          p_host_id: hostId,
+          p_amount_cents: amountCents,
+          p_wallet_address: walletAddress
+        }
+      );
+
+      if (error) {
+        console.error("Ошибка заявки на вывод:", error);
+
+        const message = error.message || "";
+
+        if (
+          message.includes("Недостаточно доступного заработка") ||
+          message.includes("Минимальный вывод") ||
+          message.includes("Неверный адрес USDT TRC20") ||
+          message.includes("Профиль ведущего не найден")
+        ) {
+          return res.status(400).json({
+            error: message
+          });
+        }
+
+        return res.status(500).json({
+          error: "Не удалось создать заявку на вывод"
+        });
+      }
+
+      return res.json({
+        success: true,
+        request: data,
+        message: "Заявка на вывод создана и ожидает обработки."
+      });
+    } catch (error) {
+      return sendError(
+        res,
+        error,
+        "Не удалось создать заявку на вывод"
+      );
+    }
+  }
+);
+
+/* История заявок на вывод */
+
+app.get(
+  "/api/host/withdrawals",
+  requireHostAccess,
+  async (req, res) => {
+    try {
+      const hostId = req.hostId;
+
+      if (!hostId) {
+        return res.status(400).json({
+          error: "Не удалось определить ведущего"
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("withdrawal_requests")
+        .select(
+          "id, amount_cents, wallet_address, network, status, created_at, processed_at, admin_note"
+        )
+        .eq("host_id", hostId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const requests = (data || []).map(row => ({
+        ...row,
+        amountUsd: Number(
+          (Number(row.amount_cents || 0) / 100).toFixed(2)
+        )
+      }));
+
+      return res.json({
+        success: true,
+        requests
+      });
+    } catch (error) {
+      return sendError(
+        res,
+        error,
+        "Не удалось загрузить историю заявок на вывод"
+      );
+    }
+  }
+);
+
 
 /* Кошелёк гостя — оставляем без изменений */
 
