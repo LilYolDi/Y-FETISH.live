@@ -1118,9 +1118,79 @@
         card.append(preview, status, title, host, watchLink);
         streamsContainer.appendChild(card);
 
-        visibleRoomNames.add(stream.room_name);
-        connectPreview(stream.room_name, preview, video, placeholder);
-      });
+        
+        const followButton = document.createElement("button");
+        followButton.type = "button";
+        followButton.className = "follow-button";
+        followButton.textContent = "Подписаться";
+
+        if (stream.host_id) {
+          followButton.addEventListener("click", async () => {
+            followButton.disabled = true;
+
+            try {
+              const response = await fetch(
+                "/api/follows/" + encodeURIComponent(stream.host_id),
+                { credentials: "same-origin" }
+              );
+
+              if (!response.ok) {
+                throw new Error("Не удалось проверить подписку");
+              }
+
+              const data = await response.json();
+
+              if (data.isOwnProfile) {
+                alert("Нельзя подписаться на себя");
+                return;
+              }
+
+              const method = data.isFollowing ? "DELETE" : "POST";
+
+              const result = await fetch(
+                "/api/follows/" + encodeURIComponent(stream.host_id),
+                {
+                  method,
+                  credentials: "same-origin"
+                }
+              );
+
+              const resultData = await result.json().catch(() => ({}));
+
+              if (!result.ok) {
+                throw new Error(
+                  resultData.error || "Не удалось изменить подписку"
+                );
+              }
+
+              followButton.textContent =
+                method === "POST" ? "Отписаться" : "Подписаться";
+
+              followButton.classList.toggle(
+                "following",
+                method === "POST"
+              );
+            } catch (error) {
+              alert(error.message || "Ошибка подписки");
+            } finally {
+              followButton.disabled = false;
+            }
+          });
+        } else {
+          followButton.disabled = true;
+        }
+
+        card.append(
+          preview,
+          status,
+          title,
+          host,
+          followButton,
+          watchLink
+        );
+        streamsContainer.appendChild(card);
+
+
 
       stopUnusedPreviewConnections(visibleRoomNames);
     }
