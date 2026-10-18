@@ -736,24 +736,20 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
   } catch (error) {
     console.error("Создание платежа AGDor Pay:", error);
 
+    /*
+     * Не удаляем purchase_pending автоматически.
+     * Если AGDor Pay успел создать счёт, webhook
+     * сможет найти покупку и начислить монеты.
+     */
     if (pendingCreated && externalId) {
-      const { error: cleanupError } = await supabase
-        .from("coin_transactions")
-        .delete()
-        .eq("payment_reference", externalId)
-        .eq("user_id", req.user.id)
-        .eq("transaction_type", "purchase_pending");
-
-      if (cleanupError) {
-        console.error(
-          "Не удалось удалить незавершённую запись платежа:",
-          cleanupError
-        );
-      }
+      console.warn(
+        "Платёж остался в ожидании проверки:",
+        externalId
+      );
     }
 
-    res.status(502).json({
-      error: "Не удалось создать счёт на оплату. Попробуй ещё раз."
+    return res.status(502).json({
+      error: "Не удалось создать счёт на оплату. Проверь историю платежей перед повторной попыткой."
     });
   }
 });
