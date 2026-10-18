@@ -35,24 +35,29 @@ const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "";
 const ADMIN_COOKIE = "yfetish_live_admin";
 const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
 
-/* AGDor Pay: секреты задаются в Render Environment */
+
+/* AGDor Pay: настройки из Render Environment */
 const AGDOR_API_KEY =
   process.env.AURORA_API_KEY ||
+  process.env.AGDOR_API_KEY ||
   process.env["Aurora API Key"] ||
   "";
 
 const AGDOR_PROJECT_CODE =
   process.env.AURORA_PROJECT_CODE ||
+  process.env.AGDOR_PROJECT_CODE ||
   process.env["Aurora Project Code"] ||
   "prj_fccc0f34";
 
 const AGDOR_WEBHOOK_SECRET =
+  process.env.AGDOR_WEBHOOK_SECRET ||
   process.env.DOOR_WEBHOOK_SECRET ||
   process.env["Door Webhook Secret"] ||
   "";
 
 const AGDOR_WALLET_CODE = "usdt_trc20_60e5a3a0";
 const AGDOR_INVOICE_URL = "https://agdorpay.com/api?r=create_invoice";
+
 
 /* Пакеты монет и их цена в USDT */
 const COIN_PACKAGES = Object.freeze({
