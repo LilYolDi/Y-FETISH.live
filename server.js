@@ -751,10 +751,14 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
 
 /* Webhook AGDor Pay */
 
+
+/* Webhook AGDor Pay */
+
 app.post("/api/payments/webhook", async (req, res) => {
   try {
     if (!AGDOR_WEBHOOK_SECRET) {
       console.error("Не задан DOOR_WEBHOOK_SECRET");
+
       return res.status(503).json({
         error: "Webhook не настроен"
       });
@@ -805,10 +809,12 @@ app.post("/api/payments/webhook", async (req, res) => {
       .replace(/^sha256=/i, "")
       .trim();
 
-    if (!safeEqual(
-      expectedSignature.toLowerCase(),
-      receivedSignature.toLowerCase()
-    )) {
+    if (
+      !safeEqual(
+        expectedSignature.toLowerCase(),
+        receivedSignature.toLowerCase()
+      )
+    ) {
       return res.status(401).json({
         error: "Неверная подпись webhook"
       });
@@ -816,37 +822,55 @@ app.post("/api/payments/webhook", async (req, res) => {
 
     const payload = req.body || {};
 
-    const eventType =
+    const eventType = String(
       payload.event_type ||
       payload.event ||
       payload.type ||
-      "";
+      ""
+    );
 
+    const data =
+      payload.data ||
+      payload.invoice ||
+      payload;
+
+    /*
+     * Принимаем только подтверждённый платёж.
+     * Одного статуса без правильного события недостаточно.
+     */
     const status = String(
+      data.status ||
       payload.status ||
-      payload.data?.status ||
       ""
     ).toLowerCase();
 
-    const confirmedEvent =
-      eventType === "invoice.confirmed" ||
-      eventType === "invoice_confirmed";
-
-    const confirmedStatus = [
-      "confirmed",
-      "paid",
-      "completed",
-      "success"
-    ].includes(status);
-
-    if (!confirmedEvent && !confirmedStatus) {
+    if (
+      eventType !== "invoice.confirmed" ||
+      status !== "confirmed"
+    ) {
       return res.json({
         success: true,
         ignored: true
       });
     }
 
-    const data = payload.data || payload.invoice || payload;
+    /*
+     * Проверяем, что уведомление относится к нашему проекту.
+     */
+    const projectCode = cleanText(
+      data.project_code ||
+      payload.project_code,
+      150
+    );
+
+    if (
+      !projectCode ||
+      projectCode !== AGDOR_PROJECT_CODE
+    ) {
+      return res.status(400).json({
+        error: "Неверный проект платежа"
+      });
+    }
 
     const externalId = cleanText(
       data.external_id ||
@@ -861,17 +885,25 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    const { data: transaction, error: transactionError } = await supabase
-      .from("coin_transactions")
-      .select("*")
-      .eq("payment_reference", externalId)
-      .eq("transaction_type", "purchase_pending")
-      .maybeSingle();
+    const { data: transaction, error: transactionError } =
+      await supabase
+        .from("coin_transactions")
+        .select("*")
+        .eq("payment_reference", externalId)
+        .eq("transaction_type", "purchase_pending")
+        .maybeSingle();
 
     if (transactionError) throw transactionError;
 
+    /*
+     * Повторная доставка уже обработанного webhook
+     * не должна повторно начислять монеты.
+     */
     if (!transaction) {
-      const { data: alreadyProcessed, error: processedError } = await supabase
+      const {
+        data: alreadyProcessed,
+        error: processedError
+      } = await supabase
         .from("coin_transactions")
         .select("id")
         .eq("payment_reference", externalId)
@@ -901,40 +933,67 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    const paidAmount = Number(
-      data.amount_requested ??
-      data.paid_amount ??
-      data.amount_paid ??
-      data.amount
-    );
+    /*
+     * Обе суммы обязательны.
+     * amount_requested — цена выбранного пакета.
+     * amount — точная сумма счёта с возможным смещением.
+     */
+    const requestedAmount = Number(data.amount_requested);
+    const paidAmount = Number(data.amount);
 
     if (
-      Number.isFinite(paidAmount) &&
-      paidAmount > 0 &&
-      Math.abs(paidAmount - pack.price) > 0.000001
+      !Number.isFinite(requestedAmount) ||
+      requestedAmount <= 0 ||
+      Math.abs(requestedAmount - pack.price) > 0.000001
     ) {
-      console.error("Сумма платежа не совпала:", {
+      console.error("Цена заказа не совпала:", {
         externalId,
         expected: pack.price,
-        received: paidAmount
+        received: data.amount_requested
       });
 
       return res.status(400).json({
-        error: "Сумма платежа не совпадает с заказом"
+        error: "Цена заказа не совпадает с пакетом"
+      });
+    }
+
+    if (
+      !Number.isFinite(paidAmount) ||
+      paidAmount <= 0 ||
+      paidAmount < requestedAmount
+    ) {
+      console.error("Некорректная сумма счёта:", {
+        externalId,
+        requestedAmount,
+        paidAmount: data.amount
+      });
+
+      return res.status(400).json({
+        error: "Некорректная сумма платежа"
+      });
+    }
+
+    /*
+     * Если AGDor передал customer_id, сверяем его
+     * с владельцем ожидающей покупки.
+     */
+    const customerId = data.customer_id || payload.customer_id;
+
+    if (
+      customerId &&
+      String(customerId) !== String(transaction.user_id)
+    ) {
+      return res.status(400).json({
+        error: "Покупатель не совпадает с заказом"
       });
     }
 
     const currency = String(
-      data.currency ||
-      data.pay_currency ||
-      "USDT"
+      data.currency || ""
     ).toUpperCase();
 
     const network = String(
-      data.network ||
-      data.chain ||
-      data.blockchain ||
-      "TRC20"
+      data.network || ""
     ).toUpperCase();
 
     if (currency !== "USDT") {
@@ -953,58 +1012,47 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    const { data: claimed, error: claimError } = await supabase
-      .from("coin_transactions")
-      .update({
-        transaction_type: "purchase"
-      })
-      .eq("id", transaction.id)
-      .eq("transaction_type", "purchase_pending")
-      .select("id, user_id, amount")
-      .maybeSingle();
+    /*
+     * Начисление выполняет существующая атомарная
+     * функция Supabase. Сам webhook баланс не меняет.
+     */
+    const {
+      data: creditResult,
+      error: creditError
+    } = await supabase.rpc(
+      "credit_coin_purchase",
+      {
+        p_external_id: externalId,
+        p_coins: coins
+      }
+    );
 
-    if (claimError) throw claimError;
+    if (creditError) throw creditError;
 
-    if (!claimed) {
+    const creditStatus = creditResult?.status;
+
+    if (creditStatus === "already_processed") {
       return res.json({
         success: true,
         already_processed: true
       });
     }
 
-    const { data: wallet, error: walletError } = await supabase
-      .from("user_wallets")
-      .select("balance")
-      .eq("user_id", claimed.user_id)
-      .maybeSingle();
+    if (creditStatus === "not_found") {
+      return res.status(404).json({
+        error: "Покупка не найдена"
+      });
+    }
 
-    if (walletError) throw walletError;
-
-    if (wallet) {
-      const newBalance = Number(wallet.balance || 0) + coins;
-
-      const { error: updateWalletError } = await supabase
-        .from("user_wallets")
-        .update({
-          balance: newBalance
-        })
-        .eq("user_id", claimed.user_id);
-
-      if (updateWalletError) throw updateWalletError;
-    } else {
-      const { error: createWalletError } = await supabase
-        .from("user_wallets")
-        .insert({
-          user_id: claimed.user_id,
-          balance: coins
-        });
-
-      if (createWalletError) throw createWalletError;
+    if (creditStatus !== "credited") {
+      return res.status(409).json({
+        error: "Невозможно обработать эту покупку"
+      });
     }
 
     console.log("Покупка монет подтверждена:", {
       externalId,
-      userId: claimed.user_id,
+      userId: transaction.user_id,
       coins
     });
 
@@ -1020,6 +1068,7 @@ app.post("/api/payments/webhook", async (req, res) => {
     });
   }
 });
+
 
 /* Статус авторизации ведущего */
 
