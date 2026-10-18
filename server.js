@@ -511,6 +511,10 @@ async function cleanupOldStreams() {
 setInterval(cleanupOldStreams, 15000);
 cleanupOldStreams();
 
+app.get("/favicon.png", (req, res) => {
+  res.sendFile(path.join(__dirname, "favicon.png"));
+});
+                            
 /* Страницы */
 
 app.get("/health", (req, res) => {
