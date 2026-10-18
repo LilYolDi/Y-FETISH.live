@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080808">
+  <title>Мой заработок — Y-FETISH LIVE</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #080808;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      padding: 20px 14px 40px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      font-size: 21px;
+      font-weight: 900;
+      letter-spacing: -0.6px;
+    }
+
+    .logo span { color: #ff303b; }
+
+    a { color: inherit; text-decoration: none; }
+
+    .back {
+      color: #bbb;
+      font-size: 14px;
+      padding: 10px 12px;
+      border: 1px solid #333;
+      border-radius: 10px;
+    }
+
+    h1 {
+      font-size: 27px;
+      margin: 0 0 8px;
+    }
+
+    .subtitle {
+      color: #999;
+      font-size: 14px;
+      line-height: 1.5;
+      margin-bottom: 22px;
+    }
+
+    .card {
+      background: #151515;
+      border: 1px solid #292929;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+
+    .gold { color: #f2c45c; }
+
+    .label {
+      color: #aaa;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .amount {
+      font-size: 36px;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .small {
+      color: #999;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+
+    .progress-track {
+      height: 10px;
+      background: #333;
+      border-radius: 20px;
+      overflow: hidden;
+      margin: 16px 0 10px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: #f2c45c;
+      border-radius: 20px;
+      transition: width .3s;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: #151515;
+      border: 1px solid #292929;
+      border-radius: 13px;
+      padding: 15px;
+      min-width: 0;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #999;
+      margin-top: 7px;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #090909;
+      color: #fff;
+      border: 1px solid #383838;
+      border-radius: 10px;
+      font-size: 15px;
+      margin: 8px 0 16px;
+      outline: none;
+    }
+
+    input:focus { border-color: #f2c45c; }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 11px;
+      padding: 15px;
+      background: #f2c45c;
+      color: #111;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .message {
+      display: none;
+      padding: 12px;
+      margin-top: 13px;
+      border-radius: 10px;
+      background: #242424;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .history-item {
+      border-bottom: 1px solid #303030;
+      padding: 13px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .history-item:last-child { border-bottom: 0; }
+
+    .muted { color: #999; font-size: 12px; }
+
+    .status { color: #f2c45c; }
+
+    .empty {
+      color: #999;
+      font-size: 14px;
+      padding: 12px 0;
+    }
+
+    .notice {
+      color: #aaa;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-top: 12px;
+    }
+
+    .login-link {
+      display: inline-block;
+      color: #f2c45c;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <div class="logo">Y<span>-FETISH</span> LIVE</div>
+      <a class="back" href="/">← Главная</a>
+    </header>
+
+    <h1>Мой заработок</h1>
+    <div class="subtitle">
+      Смотри свой заработок с эфиров и подавай заявку на вывод.
+    </div>
+
+    <div class="card">
+      <div class="label">Доступно для вывода</div>
+      <div class="amount gold" id="available">$0.00</div>
+      <div class="small" id="minimumText">
+        Минимальная сумма вывода — $100.
+      </div>
+
+      <div class="progress-track">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+
+      <div class="small" id="progressText">Загрузка данных…</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="totalCoins">0</div>
+        <div class="stat-label">Монет заработано</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="totalEarnings">$0.00</div>
+        <div class="stat-label">Твой заработок</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">70%</div>
+        <div class="stat-label">Доля ведущего</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">30%</div>
+        <div class="stat-label">Комиссия платформы</div>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2 style="font-size:19px;margin:0 0 8px">Вывод USDT</h2>
+      <div class="small">
+        Сеть TRC20. Укажи адрес своего USDT-кошелька.
+      </div>
+
+      <form id="withdrawForm">
+        <label for="amount" class="label">Сумма вывода, USD</label>
+        <input
+          id="amount"
+          type="number"
+          min="100"
+          step="0.01"
+          placeholder="Например, 100"
+          required
+        >
+
+        <label for="wallet" class="label">Адрес кошелька USDT TRC20</label>
+        <input
+          id="wallet"
+          type="text"
+          placeholder="Адрес начинается с T"
+          autocomplete="off"
+          required
+        >
+
+        <button id="submitButton" type="submit">
+          Подать заявку на вывод
+        </button>
+      </form>
+
+      <div class="message" id="message"></div>
+
+      <div class="notice">
+        Заявка будет отправлена на обработку. Создание заявки не означает,
+        что криптовалюта уже отправлена. Не указывай адрес другой сети.
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="font-size:19px;margin:0 0 5px">История выводов</h2>
+      <div id="history">
+        <div class="empty">Загрузка истории…</div>
+      </div>
+    </section>
+
+    <div id="authMessage" class="small"></div>
+  </main>
+
+  <script>
+    "use strict";
+
+    const SUPABASE_URL = "https://cdyuxiicllnfrwssigsr.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_VuAtnZ0pGWc4BOsYTLBfeA_1Mb86lw0";
+
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_KEY
+    );
+
+    const $ = (id) => document.getElementById(id);
+
+    let accessToken = "";
+    let availableUsd = 0;
+    let minimumUsd = 100;
+
+    function money(value) {
+      const number = Number(value);
+      return "$" + (Number.isFinite(number) ? number : 0).toFixed(2);
+    }
+
+    function showMessage(text, success = false) {
+      const el = $("message");
+      el.textContent = text;
+      el.style.display = "block";
+      el.style.color = success ? "#a8e6b0" : "#ffaaaa";
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + accessToken,
+          ...(options.headers || {})
+        }
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.message || "Ошибка запроса (" + response.status + ")"
+        );
+      }
+
+      return data;
+    }
+
+    function getNumber(data, key, fallback = 0) {
+      const value = Number(data?.[key]);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    async function loadEarnings() {
+      const data = await api("/api/host/earnings");
+
+      availableUsd = getNumber(data, "availableUsd");
+      minimumUsd = getNumber(data, "withdrawalMinimumUsd", 100);
+
+      $("available").textContent = money(availableUsd);
+      $("totalCoins").textContent =
+        Math.floor(getNumber(data, "totalCoins")).toLocaleString("ru-RU");
+      $("totalEarnings").textContent =
+        money(getNumber(data, "hostEarningsUsd"));
+
+      $("minimumText").textContent =
+        "Минимальная сумма вывода — " + money(minimumUsd) + ".";
+
+      const progress = Math.max(
+        0,
+        Math.min(100, getNumber(data, "progressPercent"))
+      );
+
+      $("progressBar").style.width = progress + "%";
+      $("progressText").textContent =
+        progress.toFixed(0) + "% до минимальной суммы вывода (" +
+        money(minimumUsd) + "). Доступно: " + money(availableUsd) + ".";
+
+      $("amount").min = String(minimumUsd);
+      $("amount").placeholder = "Минимум " + minimumUsd;
+
+      $("submitButton").disabled = availableUsd < minimumUsd;
+    }
+
+    function readableStatus(status) {
+      const statuses = {
+        pending: "Ожидает обработки",
+        approved: "Одобрена",
+        processing: "Обрабатывается",
+        paid: "Выплачена",
+        completed: "Выплачена",
+        rejected: "Отклонена",
+        cancelled: "Отменена",
+        failed: "Ошибка"
+      };
+
+      return statuses[String(status || "").toLowerCase()] || status || "Неизвестно";
+    }
+
+    function safeText(value) {
+      return String(value ?? "");
+    }
+
+    async function loadHistory() {
+      const data = await api("/api/host/withdrawals");
+      const history = $("history");
+
+      const items = Array.isArray(data)
+        ? data
+        : Array.isArray(data.withdrawals)
+          ? data.withdrawals
+          : Array.isArray(data.requests)
+            ? data.requests
+            : [];
+
+      history.replaceChildren();
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "Заявок на вывод пока нет.";
+        history.appendChild(empty);
+        return;
+      }
+
+      items.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "history-item";
+
+        const amount = document.createElement("strong");
+        amount.textContent = money(item.amount_usd ?? item.amountUsd ?? item.amount);
+
+        const br = document.createElement("br");
+
+        const status = document.createElement("span");
+        status.className = "status";
+        status.textContent = readableStatus(item.status);
+
+        const details = document.createElement("div");
+        details.className = "muted";
+
+        const dateValue =
+          item.created_at || item.createdAt || item.requested_at || "";
+
+        let dateText = "";
+        if (dateValue) {
+          const date = new Date(dateValue);
+          dateText = Number.isNaN(date.getTime())
+            ? safeText(dateValue)
+            : date.toLocaleString("ru-RU");
+        }
+
+        details.textContent = dateText;
+
+        row.append(amount, br, status, details);
+        history.appendChild(row);
+      });
+    }
+
+    async function loadPage() {
+      $("authMessage").textContent = "";
+
+      const { data, error } = await supabaseClient.auth.getSession();
+
+      if (error || !data?.session?.access_token) {
+        $("authMessage").textContent =
+          "Чтобы посмотреть заработок и подать заявку, сначала войди в аккаунт.";
+
+        const link = document.createElement("a");
+        link.href = "/";
+        link.className = "login-link";
+        link.textContent = "Перейти на главную и войти";
+        $("authMessage").appendChild(document.createElement("br"));
+        $("authMessage").appendChild(link);
+
+        $("history").textContent = "Войди в аккаунт, чтобы увидеть историю.";
+        $("submitButton").disabled = true;
+        return;
+      }
+
+      accessToken = data.session.access_token;
+
+      try {
+        await Promise.all([loadEarnings(), loadHistory()]);
+      } catch (error) {
+        $("authMessage").textContent =
+          error.message || "Не удалось загрузить данные.";
+        $("history").textContent = "История временно недоступна.";
+      }
+    }
+
+    $("withdrawForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const amountUsd = Number($("amount").value);
+      const walletAddress = $("wallet").value.trim();
+      const button = $("submitButton");
+
+      if (!accessToken) {
+        showMessage("Сначала войди в аккаунт.");
+        return;
+      }
+
+      if (!Number.isFinite(amountUsd) || amountUsd < minimumUsd) {
+        showMessage("Минимальная сумма вывода — " + money(minimumUsd) + ".");
+        return;
+      }
+
+      if (amountUsd > availableUsd) {
+        showMessage("Сумма превышает доступный заработок " + money(availableUsd) + ".");
+        return;
+      }
+
+      if (!/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(walletAddress)) {
+        showMessage("Проверь адрес USDT TRC20. Обычно он состоит из 34 символов и начинается с T.");
+        return;
+      }
+
+      if (!confirm(
+        "Подать заявку на " + money(amountUsd) +
+        " на указанный адрес USDT TRC20?"
+      )) {
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "Отправка заявки…";
+
+      try {
+        await api("/api/host/withdrawals", {
+          method: "POST",
+          body: JSON.stringify({ amountUsd, walletAddress })
+        });
+
+        showMessage("Заявка создана и отправлена на обработку.", true);
+        $("amount").value = "";
+        await loadEarnings();
+        await loadHistory();
+      } catch (error) {
+        showMessage(error.message || "Не удалось отправить заявку.");
+      } finally {
+        button.textContent = "Подать заявку на вывод";
+        button.disabled = availableUsd < minimumUsd;
+      }
+    });
+
+    loadPage();
+  </script>
+</body>
+</html>
