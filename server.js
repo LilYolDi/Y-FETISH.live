@@ -523,6 +523,7 @@ for (const page of [
   "host.html",
   "login.html",
   "coins.html",
+  "withdraw.html",
   "admin.html",
   "app.js",
   "host.js",
