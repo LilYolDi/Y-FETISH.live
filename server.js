@@ -754,13 +754,26 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
   }
 });
 
-/* Webhook AGDor Pay */
 
 
 /* Webhook AGDor Pay */
 
 app.post("/api/payments/webhook", async (req, res) => {
   try {
+        console.log("[AGDor webhook] Запрос получен", {
+      method: req.method,
+      timestampPresent: Boolean(
+        req.headers["x-payment-timestamp"] ||
+        req.headers["x-webhook-timestamp"]
+      ),
+      signaturePresent: Boolean(
+        req.headers["x-payment-signature"] ||
+        req.headers["x-webhook-signature"]
+      ),
+      bodyPresent: Boolean(req.rawBody)
+    });
+    
+    
     if (!AGDOR_WEBHOOK_SECRET) {
       console.error("Не задан DOOR_WEBHOOK_SECRET");
 
