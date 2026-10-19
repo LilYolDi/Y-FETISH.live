@@ -1101,6 +1101,216 @@ app.get("/api/host/status", async (req, res) => {
   }
 });
 
+
+/* Проверка статуса счёта AGDor Pay и автоматическое начисление */
+
+app.get(
+  "/api/payments/status/:externalId",
+  requireUser,
+  async (req, res) => {
+    try {
+      if (!AGDOR_API_KEY || !AGDOR_PROJECT_CODE) {
+        return res.status(503).json({
+          error: "Оплата временно не настроена"
+        });
+      }
+
+      const externalId = cleanText(req.params.externalId, 100);
+
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          externalId
+        )
+      ) {
+        return res.status(400).json({
+          error: "Неверный номер платежа"
+        });
+      }
+
+      const { data: transaction, error: transactionError } =
+        await supabase
+          .from("coin_transactions")
+          .select("id, user_id, amount, transaction_type, payment_reference")
+          .eq("payment_reference", externalId)
+          .eq("user_id", req.user.id)
+          .maybeSingle();
+
+      if (transactionError) throw transactionError;
+
+      if (!transaction) {
+        return res.status(404).json({
+          error: "Платёж не найден"
+        });
+      }
+
+      if (transaction.transaction_type === "purchase") {
+        return res.json({
+          success: true,
+          status: "confirmed",
+          credited: true
+        });
+      }
+
+      if (transaction.transaction_type !== "purchase_pending") {
+        return res.status(409).json({
+          error: "Этот платёж нельзя обработать"
+        });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      let response;
+
+      try {
+        response = await fetch(
+          "https://agdorpay.com/api?r=get_invoice",
+          {
+            method: "POST",
+            headers: {
+              "X-Project-Code": AGDOR_PROJECT_CODE,
+              "X-API-Key": AGDOR_API_KEY,
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({
+              external_id: externalId
+            }).toString(),
+            signal: controller.signal
+          }
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      const responseText = await response.text();
+      let result;
+
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error("AGDor Pay вернул ответ не в формате JSON");
+      }
+
+      if (!response.ok || result?.success === false || result?.error) {
+        console.error("AGDor get_invoice:", response.status, result);
+
+        return res.status(502).json({
+          error: "Не удалось проверить статус оплаты"
+        });
+      }
+
+      const invoice =
+        result?.data ||
+        result?.result?.data ||
+        result?.result ||
+        result;
+
+      const status = String(invoice?.status || "").toLowerCase();
+
+      if (
+        String(invoice?.external_id || invoice?.externalId || "") !==
+        externalId
+      ) {
+        return res.status(502).json({
+          error: "Ответ платёжной системы не совпадает с заказом"
+        });
+      }
+
+      if (status === "manual_confirmed") {
+        return res.json({
+          success: true,
+          status: "manual_confirmed",
+          credited: false,
+          message: "Счёт подтверждён вручную. Автоматического начисления нет."
+        });
+      }
+
+      if (status !== "confirmed") {
+        return res.json({
+          success: true,
+          status: status || "pending",
+          credited: false
+        });
+      }
+
+      const projectCode = invoice?.project_code;
+
+      if (
+        projectCode &&
+        String(projectCode) !== AGDOR_PROJECT_CODE
+      ) {
+        return res.status(400).json({
+          error: "Неверный проект платежа"
+        });
+      }
+
+      if (
+        !invoice?.customer_id ||
+        String(invoice.customer_id) !== String(transaction.user_id)
+      ) {
+        return res.status(400).json({
+          error: "Покупатель не совпадает с заказом"
+        });
+      }
+
+      const coins = Number(transaction.amount);
+      const pack = COIN_PACKAGES[coins];
+      const requestedAmount = Number(invoice.amount_requested);
+      const paidAmount = Number(invoice.amount);
+      const currency = String(invoice.currency || "").toUpperCase();
+      const network = String(invoice.network || "").toUpperCase();
+
+      if (
+        !pack ||
+        !Number.isFinite(requestedAmount) ||
+        Math.abs(requestedAmount - pack.price) > 0.000001 ||
+        !Number.isFinite(paidAmount) ||
+        paidAmount < requestedAmount ||
+        currency !== "USDT" ||
+        !["TRC20", "TRON", "USDT_TRC20"].includes(network)
+      ) {
+        return res.status(400).json({
+          error: "Данные подтверждённого платежа не прошли проверку"
+        });
+      }
+
+      const { data: creditResult, error: creditError } =
+        await supabase.rpc("credit_coin_purchase", {
+          p_external_id: externalId,
+          p_coins: coins
+        });
+
+      if (creditError) throw creditError;
+
+      const creditStatus = creditResult?.status;
+
+      if (
+        creditStatus !== "credited" &&
+        creditStatus !== "already_processed"
+      ) {
+        return res.status(409).json({
+          error: "Не удалось подтвердить начисление монет"
+        });
+      }
+
+      return res.json({
+        success: true,
+        status: "confirmed",
+        credited: creditStatus === "credited",
+        already_processed: creditStatus === "already_processed",
+        coins
+      });
+    } catch (error) {
+      console.error("Проверка статуса AGDor Pay:", error);
+
+      return res.status(500).json({
+        error: "Не удалось проверить платёж"
+      });
+    }
+  }
+);
+
+
 /* Вход ведущего по общему паролю */
 
 app.post("/api/host/login", async (req, res) => {
