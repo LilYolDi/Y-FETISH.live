@@ -756,45 +756,37 @@ app.post("/api/payments/create", requireUser, async (req, res) => {
 
 
 
-/* Webhook AGDor Pay */
+
+/* Webhook AGDor Pay — диагностика */
 
 app.post("/api/payments/webhook", async (req, res) => {
-  try {
-        console.log("[AGDor webhook] Запрос получен", {
-      method: req.method,
-      timestampPresent: Boolean(
-        req.headers["x-payment-timestamp"] ||
-        req.headers["x-webhook-timestamp"]
-      ),
-      signaturePresent: Boolean(
-        req.headers["x-payment-signature"] ||
-        req.headers["x-webhook-signature"]
-      ),
-      bodyPresent: Boolean(req.rawBody)
-    });
-    
-    
-    if (!AGDOR_WEBHOOK_SECRET) {
-      console.error("Не задан DOOR_WEBHOOK_SECRET");
+  const log = (stage, details = {}) => {
+    console.log(`[AGDor webhook] ${stage}`, details);
+  };
 
+  try {
+    log("Запрос получен", {
+      timestampPresent: Boolean(req.headers["x-payment-timestamp"]),
+      signaturePresent: Boolean(req.headers["x-payment-signature"]),
+      rawBodyPresent: Boolean(req.rawBody)
+    });
+
+    if (!AGDOR_WEBHOOK_SECRET) {
+      log("ОШИБКА: AGDOR_WEBHOOK_SECRET не настроен");
       return res.status(503).json({
         error: "Webhook не настроен"
       });
     }
 
-    const timestamp =
-      req.headers["x-payment-timestamp"] ||
-      req.headers["x-webhook-timestamp"];
-
-    const signatureHeader =
-      req.headers["x-payment-signature"] ||
-      req.headers["x-webhook-signature"];
+    const timestamp = req.headers["x-payment-timestamp"];
+    const signature = req.headers["x-payment-signature"];
 
     if (
       typeof timestamp !== "string" ||
-      typeof signatureHeader !== "string" ||
+      typeof signature !== "string" ||
       !req.rawBody
     ) {
+      log("ОШИБКА: отсутствуют заголовки подписи или исходное тело");
       return res.status(400).json({
         error: "Отсутствует подпись webhook"
       });
@@ -803,6 +795,7 @@ app.post("/api/payments/webhook", async (req, res) => {
     const timestampNumber = Number(timestamp);
 
     if (!Number.isFinite(timestampNumber)) {
+      log("ОШИБКА: некорректный timestamp");
       return res.status(400).json({
         error: "Неверный timestamp"
       });
@@ -813,6 +806,7 @@ app.post("/api/payments/webhook", async (req, res) => {
       : timestampNumber;
 
     if (Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) {
+      log("ОШИБКА: webhook просрочен");
       return res.status(401).json({
         error: "Webhook просрочен"
       });
@@ -823,68 +817,56 @@ app.post("/api/payments/webhook", async (req, res) => {
       .update(`${timestamp}.${req.rawBody.toString("utf8")}`)
       .digest("hex");
 
-    const receivedSignature = signatureHeader
+    const receivedSignature = signature
       .replace(/^sha256=/i, "")
       .trim();
 
-    if (
-      !safeEqual(
-        expectedSignature.toLowerCase(),
-        receivedSignature.toLowerCase()
-      )
-    ) {
+    if (!safeEqual(
+      expectedSignature.toLowerCase(),
+      receivedSignature.toLowerCase()
+    )) {
+      log("ОШИБКА: подпись не совпала");
       return res.status(401).json({
         error: "Неверная подпись webhook"
       });
     }
 
-    const payload = req.body || {};
+    log("Подпись проверена");
 
+    const payload = req.body || {};
     const eventType = String(
-      payload.event_type ||
-      payload.event ||
-      payload.type ||
-      ""
+      payload.event_type || payload.event || payload.type || ""
     );
 
-    const data =
-      payload.data ||
-      payload.invoice ||
-      payload;
-
-    /*
-     * Принимаем только подтверждённый платёж.
-     * Одного статуса без правильного события недостаточно.
-     */
+    const data = payload.data || payload.invoice || payload;
     const status = String(
-      data.status ||
-      payload.status ||
-      ""
+      data.status || payload.status || ""
     ).toLowerCase();
+
+    log("Событие получено", { eventType, status });
 
     if (
       eventType !== "invoice.confirmed" ||
       status !== "confirmed"
     ) {
+      log("Событие пропущено: платёж не подтверждён");
       return res.json({
         success: true,
         ignored: true
       });
     }
 
-    /*
-     * Проверяем, что уведомление относится к нашему проекту.
-     */
     const projectCode = cleanText(
-      data.project_code ||
-      payload.project_code,
+      data.project_code || payload.project_code,
       150
     );
 
-    if (
-      !projectCode ||
-      projectCode !== AGDOR_PROJECT_CODE
-    ) {
+    if (!projectCode || projectCode !== AGDOR_PROJECT_CODE) {
+      log("ОШИБКА: код проекта не совпал", {
+        projectCodePresent: Boolean(projectCode),
+        projectCodeMatches: projectCode === AGDOR_PROJECT_CODE
+      });
+
       return res.status(400).json({
         error: "Неверный проект платежа"
       });
@@ -898,25 +880,31 @@ app.post("/api/payments/webhook", async (req, res) => {
     );
 
     if (!externalId) {
+      log("ОШИБКА: external_id отсутствует");
       return res.status(400).json({
         error: "Не указан external_id"
       });
     }
 
-    const { data: transaction, error: transactionError } =
-      await supabase
-        .from("coin_transactions")
-        .select("*")
-        .eq("payment_reference", externalId)
-        .eq("transaction_type", "purchase_pending")
-        .maybeSingle();
+    log("Ищем ожидающую покупку");
 
-    if (transactionError) throw transactionError;
+    const {
+      data: transaction,
+      error: transactionError
+    } = await supabase
+      .from("coin_transactions")
+      .select("*")
+      .eq("payment_reference", externalId)
+      .eq("transaction_type", "purchase_pending")
+      .maybeSingle();
 
-    /*
-     * Повторная доставка уже обработанного webhook
-     * не должна повторно начислять монеты.
-     */
+    if (transactionError) {
+      log("ОШИБКА Supabase при поиске покупки", {
+        message: transactionError.message
+      });
+      throw transactionError;
+    }
+
     if (!transaction) {
       const {
         data: alreadyProcessed,
@@ -931,12 +919,14 @@ app.post("/api/payments/webhook", async (req, res) => {
       if (processedError) throw processedError;
 
       if (alreadyProcessed) {
+        log("Покупка уже обработана");
         return res.json({
           success: true,
           already_processed: true
         });
       }
 
+      log("ОШИБКА: покупка не найдена");
       return res.status(404).json({
         error: "Покупка не найдена"
       });
@@ -946,16 +936,12 @@ app.post("/api/payments/webhook", async (req, res) => {
     const pack = COIN_PACKAGES[coins];
 
     if (!pack) {
+      log("ОШИБКА: неизвестный пакет монет", { coins });
       return res.status(400).json({
         error: "Неизвестный пакет монет"
       });
     }
 
-    /*
-     * Обе суммы обязательны.
-     * amount_requested — цена выбранного пакета.
-     * amount — точная сумма счёта с возможным смещением.
-     */
     const requestedAmount = Number(data.amount_requested);
     const paidAmount = Number(data.amount);
 
@@ -964,10 +950,9 @@ app.post("/api/payments/webhook", async (req, res) => {
       requestedAmount <= 0 ||
       Math.abs(requestedAmount - pack.price) > 0.000001
     ) {
-      console.error("Цена заказа не совпала:", {
-        externalId,
-        expected: pack.price,
-        received: data.amount_requested
+      log("ОШИБКА: цена заказа не совпала", {
+        expectedPrice: pack.price,
+        requestedAmountPresent: Number.isFinite(requestedAmount)
       });
 
       return res.status(400).json({
@@ -980,10 +965,9 @@ app.post("/api/payments/webhook", async (req, res) => {
       paidAmount <= 0 ||
       paidAmount < requestedAmount
     ) {
-      console.error("Некорректная сумма счёта:", {
-        externalId,
+      log("ОШИБКА: сумма платежа некорректна", {
         requestedAmount,
-        paidAmount: data.amount
+        paidAmountPresent: Number.isFinite(paidAmount)
       });
 
       return res.status(400).json({
@@ -991,63 +975,57 @@ app.post("/api/payments/webhook", async (req, res) => {
       });
     }
 
-    /*
-     * Если AGDor передал customer_id, сверяем его
-     * с владельцем ожидающей покупки.
-     */
     const customerId = data.customer_id || payload.customer_id;
 
     if (
       customerId &&
       String(customerId) !== String(transaction.user_id)
     ) {
+      log("ОШИБКА: customer_id не совпадает с покупкой");
       return res.status(400).json({
         error: "Покупатель не совпадает с заказом"
       });
     }
 
-    const currency = String(
-      data.currency || ""
-    ).toUpperCase();
-
-    const network = String(
-      data.network || ""
-    ).toUpperCase();
+    const currency = String(data.currency || "").toUpperCase();
+    const network = String(data.network || "").toUpperCase();
 
     if (currency !== "USDT") {
+      log("ОШИБКА: неверная валюта", { currency });
       return res.status(400).json({
         error: "Неверная валюта платежа"
       });
     }
 
-    if (
-      network !== "TRC20" &&
-      network !== "TRON" &&
-      network !== "USDT_TRC20"
-    ) {
+    if (!["TRC20", "TRON", "USDT_TRC20"].includes(network)) {
+      log("ОШИБКА: неверная сеть", { network });
       return res.status(400).json({
         error: "Неверная сеть платежа"
       });
     }
 
-    /*
-     * Начисление выполняет существующая атомарная
-     * функция Supabase. Сам webhook баланс не меняет.
-     */
+    log("Проверки пройдены, вызываем зачисление", { coins });
+
     const {
       data: creditResult,
       error: creditError
-    } = await supabase.rpc(
-      "credit_coin_purchase",
-      {
-        p_external_id: externalId,
-        p_coins: coins
-      }
-    );
+    } = await supabase.rpc("credit_coin_purchase", {
+      p_external_id: externalId,
+      p_coins: coins
+    });
 
-    if (creditError) throw creditError;
+    if (creditError) {
+      log("ОШИБКА RPC зачисления", {
+        message: creditError.message
+      });
+      throw creditError;
+    }
 
     const creditStatus = creditResult?.status;
+
+    log("Ответ Supabase", {
+      status: creditStatus || "не указан"
+    });
 
     if (creditStatus === "already_processed") {
       return res.json({
@@ -1063,29 +1041,29 @@ app.post("/api/payments/webhook", async (req, res) => {
     }
 
     if (creditStatus !== "credited") {
+      log("ОШИБКА: неожиданный результат зачисления");
       return res.status(409).json({
         error: "Невозможно обработать эту покупку"
       });
     }
 
-    console.log("Покупка монет подтверждена:", {
-      externalId,
-      userId: transaction.user_id,
-      coins
-    });
+    log("МОНЕТЫ УСПЕШНО ЗАЧИСЛЕНЫ", { coins });
 
     return res.json({
       success: true,
       credited: true
     });
   } catch (error) {
-    console.error("Webhook AGDor Pay:", error);
+    log("КРИТИЧЕСКАЯ ОШИБКА", {
+      message: error?.message || "Неизвестная ошибка"
+    });
 
     return res.status(500).json({
       error: "Не удалось обработать webhook"
     });
   }
 });
+
 
 
 /* Статус авторизации ведущего */
