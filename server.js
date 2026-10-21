@@ -2546,6 +2546,426 @@ app.patch("/api/admin/withdrawals/:id", requireAdmin, async (req, res) => {
 });
 
 
+/* =========================================================
+   ЛИЧНЫЕ СООБЩЕНИЯ
+   Таблица Supabase: chat_messages
+   Приватный Storage bucket: chat-media
+   ========================================================= */
+
+const CHAT_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const CHAT_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
+const CHAT_VIDEO_MAX_BYTES = 100 * 1024 * 1024;
+
+const CHAT_MEDIA_TYPES = {
+  "image/jpeg": { ext: "jpg", type: "image" },
+  "image/png": { ext: "png", type: "image" },
+  "image/webp": { ext: "webp", type: "image" },
+  "image/gif": { ext: "gif", type: "image" },
+  "video/mp4": { ext: "mp4", type: "video" },
+  "video/webm": { ext: "webm", type: "video" },
+  "video/quicktime": { ext: "mov", type: "video" }
+};
+
+/* Проверить, что получатель — существующий аккаунт */
+async function getChatUser(userId) {
+  if (!CHAT_UUID_RE.test(String(userId || ""))) {
+    return null;
+  }
+
+  const { data, error } =
+    await supabase.auth.admin.getUserById(userId);
+
+  if (error || !data?.user) {
+    return null;
+  }
+
+  return data.user;
+}
+
+/* Поиск зарегистрированных пользователей */
+app.get("/api/chats/users", requireUser, async (req, res) => {
+  try {
+    const q = cleanText(req.query.q, 50);
+
+    if (q.length < 2) {
+      return res.json({ success: true, users: [] });
+    }
+
+    const [profilesResult, nicknamesResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, username")
+        .ilike("username", `%${q}%`)
+        .limit(20),
+
+      supabase
+        .from("user_profiles")
+        .select("id, nickname")
+        .ilike("nickname", `%${q}%`)
+        .limit(20)
+    ]);
+
+    if (profilesResult.error) throw profilesResult.error;
+    if (nicknamesResult.error) throw nicknamesResult.error;
+
+    const users = new Map();
+
+    for (const p of profilesResult.data || []) {
+      users.set(p.id, {
+        id: p.id,
+        nickname: p.username || "Пользователь"
+      });
+    }
+
+    for (const p of nicknamesResult.data || []) {
+      users.set(p.id, {
+        id: p.id,
+        nickname: p.nickname || users.get(p.id)?.nickname ||
+          "Пользователь"
+      });
+    }
+
+    return res.json({
+      success: true,
+      users: [...users.values()]
+        .filter(user => user.id !== req.user.id)
+        .slice(0, 20)
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось найти пользователей");
+  }
+});
+
+/* Список личных переписок */
+app.get("/api/chats/conversations", requireUser, async (req, res) => {
+  try {
+    const myId = req.user.id;
+
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select(
+        "id, sender_id, recipient_id, body, media_type, created_at, read_at"
+      )
+      .or(`sender_id.eq.${myId},recipient_id.eq.${myId}`)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (error) throw error;
+
+    const conversations = new Map();
+
+    for (const message of data || []) {
+      const otherId = message.sender_id === myId
+        ? message.recipient_id
+        : message.sender_id;
+
+      if (!otherId || conversations.has(otherId)) continue;
+
+      conversations.set(otherId, {
+        userId: otherId,
+        lastMessage: message.body || (
+          message.media_type === "video"
+            ? "🎥 Видео"
+            : message.media_type === "image"
+              ? "🖼️ Фото"
+              : ""
+        ),
+        lastMessageAt: message.created_at,
+        unread: 0
+      });
+    }
+
+    for (const message of data || []) {
+      if (
+        message.recipient_id === myId &&
+        !message.read_at &&
+        conversations.has(message.sender_id)
+      ) {
+        conversations.get(message.sender_id).unread += 1;
+      }
+    }
+
+    const ids = [...conversations.keys()];
+
+    if (ids.length) {
+      const [nicknames, profiles] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("id, nickname")
+          .in("id", ids),
+
+        supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", ids)
+      ]);
+
+      if (nicknames.error) throw nicknames.error;
+      if (profiles.error) throw profiles.error;
+
+      const names = new Map();
+
+      for (const p of profiles.data || []) {
+        names.set(p.id, p.username);
+      }
+
+      for (const p of nicknames.data || []) {
+        if (p.nickname) names.set(p.id, p.nickname);
+      }
+
+      for (const conversation of conversations.values()) {
+        conversation.nickname =
+          names.get(conversation.userId) || "Пользователь";
+      }
+    }
+
+    return res.json({
+      success: true,
+      conversations: [...conversations.values()]
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось загрузить переписки");
+  }
+});
+
+/* Создать защищённую загрузку фото или видео */
+app.post("/api/chats/media-upload", requireUser, async (req, res) => {
+  try {
+    const mime = cleanText(req.body?.mimeType, 100).toLowerCase();
+    const size = Number(req.body?.size);
+    const media = CHAT_MEDIA_TYPES[mime];
+
+    if (!media || !Number.isSafeInteger(size) || size <= 0) {
+      return res.status(400).json({
+        error: "Неподдерживаемый формат файла"
+      });
+    }
+
+    const maxSize = media.type === "image"
+      ? CHAT_IMAGE_MAX_BYTES
+      : CHAT_VIDEO_MAX_BYTES;
+
+    if (size > maxSize) {
+      return res.status(413).json({
+        error: media.type === "image"
+          ? "Максимальный размер фото — 15 МБ"
+          : "Максимальный размер видео — 100 МБ"
+      });
+    }
+
+    const path = `${req.user.id}/${crypto.randomUUID()}.${media.ext}`;
+
+    const { data, error } = await supabase.storage
+      .from("chat-media")
+      .createSignedUploadUrl(path);
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      path,
+      token: data.token,
+      mediaType: media.type,
+      mimeType: mime
+    });
+  } catch (error) {
+    return sendError(res, error, "Не удалось подготовить загрузку файла");
+  }
+});
+
+/* Загрузить историю личной переписки */
+app.get(
+  "/api/chats/:userId/messages",
+  requireUser,
+  async (req, res) => {
+    try {
+      const myId = req.user.id;
+      const otherId = cleanText(req.params.userId, 50);
+
+      if (!CHAT_UUID_RE.test(otherId) || otherId === myId) {
+        return res.status(400).json({
+          error: "Неверный получатель"
+        });
+      }
+
+      const target = await getChatUser(otherId);
+
+      if (!target) {
+        return res.status(404).json({
+          error: "Пользователь не найден"
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select(
+          "id, sender_id, recipient_id, body, media_url, media_type, created_at, read_at"
+        )
+        .or(
+          `and(sender_id.eq.${myId},recipient_id.eq.${otherId}),and(sender_id.eq.${otherId},recipient_id.eq.${myId})`
+        )
+        .order("created_at", { ascending: true })
+        .limit(200);
+
+      if (error) throw error;
+
+      const messages = data || [];
+
+      /* Приватные файлы выдаются только участникам переписки */
+      for (const message of messages) {
+        if (message.media_url) {
+          const { data: signed, error: signedError } =
+            await supabase.storage
+              .from("chat-media")
+              .createSignedUrl(message.media_url, 3600);
+
+          if (signedError) {
+            message.media_url = null;
+          } else {
+            message.media_url = signed.signedUrl;
+          }
+        }
+      }
+
+      const { error: readError } = await supabase
+        .from("chat_messages")
+        .update({ read_at: new Date().toISOString() })
+        .eq("sender_id", otherId)
+        .eq("recipient_id", myId)
+        .is("read_at", null);
+
+      if (readError) throw readError;
+
+      return res.json({
+        success: true,
+        messages
+      });
+    } catch (error) {
+      return sendError(res, error, "Не удалось загрузить сообщения");
+    }
+  }
+);
+
+/* Отправить личное сообщение */
+app.post(
+  "/api/chats/:userId/messages",
+  requireUser,
+  async (req, res) => {
+    try {
+      const senderId = req.user.id;
+      const recipientId = cleanText(req.params.userId, 50);
+      const body = cleanText(req.body?.body, 2000);
+      const mediaPath = cleanText(req.body?.mediaPath, 300);
+      const mediaType = cleanText(req.body?.mediaType, 20);
+
+      if (
+        !CHAT_UUID_RE.test(recipientId) ||
+        recipientId === senderId
+      ) {
+        return res.status(400).json({
+          error: "Неверный получатель"
+        });
+      }
+
+      const target = await getChatUser(recipientId);
+
+      if (!target) {
+        return res.status(404).json({
+          error: "Пользователь не найден"
+        });
+      }
+
+      if (!body && !mediaPath) {
+        return res.status(400).json({
+          error: "Напиши сообщение или прикрепи файл"
+        });
+      }
+
+      if (body.length > 2000) {
+        return res.status(400).json({
+          error: "Сообщение слишком длинное"
+        });
+      }
+
+      let savedMediaPath = null;
+      let savedMediaType = null;
+
+      if (mediaPath) {
+        const prefix = `${senderId}/`;
+
+        if (
+          !mediaPath.startsWith(prefix) ||
+          !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|gif|mp4|webm|mov)$/i.test(mediaPath) ||
+          !["image", "video"].includes(mediaType)
+        ) {
+          return res.status(400).json({
+            error: "Неверные данные вложения"
+          });
+        }
+
+        const fileName = mediaPath.slice(prefix.length);
+
+        const { data: files, error: listError } =
+          await supabase.storage
+            .from("chat-media")
+            .list(senderId, {
+              search: fileName,
+              limit: 100
+            });
+
+        if (listError) throw listError;
+
+        if (!(files || []).some(file => file.name === fileName)) {
+          return res.status(400).json({
+            error: "Файл не найден. Попробуй загрузить его ещё раз."
+          });
+        }
+
+        savedMediaPath = mediaPath;
+        savedMediaType = mediaType;
+      }
+
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .insert({
+          sender_id: senderId,
+          recipient_id: recipientId,
+          body: body || null,
+          media_url: savedMediaPath,
+          media_type: savedMediaType
+        })
+        .select(
+          "id, sender_id, recipient_id, body, media_url, media_type, created_at, read_at"
+        )
+        .single();
+
+      if (error) throw error;
+
+      if (data.media_url) {
+        const { data: signed, error: signedError } =
+          await supabase.storage
+            .from("chat-media")
+            .createSignedUrl(data.media_url, 3600);
+
+        if (signedError) {
+          data.media_url = null;
+        } else {
+          data.media_url = signed.signedUrl;
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: data
+      });
+    } catch (error) {
+      return sendError(res, error, "Не удалось отправить сообщение");
+    }
+  }
+);
+
 
 /* Неизвестные API-маршруты — только после всех API-маршрутов */
 app.use("/api", (req, res) => {
