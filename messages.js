@@ -429,15 +429,60 @@
     }
 
     if (message.media_url) {
+      
       if (message.media_type === "image") {
-        const image = document.createElement("img");
-        image.src = message.media_url;
-        image.alt = "Фото в сообщении";
-        image.loading = "lazy";
-        image.className = "messages-media-image";
-        image.referrerPolicy = "no-referrer";
-        body.append(image);
-      } else if (message.media_type === "video") {
+  const image = document.createElement("img");
+  image.src = message.media_url;
+  image.alt = "Фото в сообщении";
+  image.loading = "lazy";
+  image.className = "messages-media-image";
+  image.referrerPolicy = "no-referrer";
+  image.style.display = "block";
+  image.style.width = "auto";
+  image.style.height = "auto";
+  image.style.maxWidth = "220px";
+  image.style.maxHeight = "220px";
+  image.style.objectFit = "contain";
+  image.style.borderRadius = "10px";
+  image.style.cursor = "zoom-in";
+
+  image.addEventListener("click", () => {
+    const viewer = document.createElement("div");
+    viewer.style.cssText = [
+      "position:fixed",
+      "inset:0",
+      "z-index:100000",
+      "background:rgba(0,0,0,.92)",
+      "display:flex",
+      "align-items:center",
+      "justify-content:center",
+      "padding:12px",
+      "box-sizing:border-box",
+      "cursor:zoom-out"
+    ].join(";");
+
+    const fullImage = document.createElement("img");
+    fullImage.src = image.src;
+    fullImage.alt = image.alt;
+    fullImage.style.cssText = [
+      "display:block",
+      "max-width:100%",
+      "max-height:100%",
+      "width:auto",
+      "height:auto",
+      "object-fit:contain",
+      "border-radius:8px"
+    ].join(";");
+
+    viewer.append(fullImage);
+    viewer.addEventListener("click", () => viewer.remove());
+    document.body.append(viewer);
+  });
+
+  body.append(image);
+}
+      
+        else if (message.media_type === "video") {
         const video = document.createElement("video");
         video.src = message.media_url;
         video.controls = true;
