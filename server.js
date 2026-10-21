@@ -536,6 +536,7 @@ for (const page of [
   "admin.html",
   "app.js",
   "host.js",
+  "messages.js",
   "style.css"
 ]) {
   const route = page === "index.html" ? "/" : `/${page}`;
