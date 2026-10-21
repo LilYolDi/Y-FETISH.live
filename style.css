@@ -1041,3 +1041,84 @@ body.messages-open {
   }
 }
 
+
+/* Личные сообщения — мобильный экран */
+@media (max-width: 600px) {
+  #messagesModal {
+    padding: 8px;
+    box-sizing: border-box;
+    place-items: center;
+  }
+
+  #messagesWindow {
+    width: 100%;
+    max-width: 100%;
+    height:  min(720px, 88dvh);
+    min-height: 0;
+    border-radius: 12px;
+    box-sizing: border-box;
+  }
+
+  #messagesContent {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(100px, 30%) minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #messagesConversations {
+    border-right: 0;
+    border-bottom: 1px solid #333;
+    min-height: 0;
+  }
+
+  #messagesChat {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  #messagesHistory {
+    min-width: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+  }
+
+  .messages-compose {
+    min-width: 0;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+
+  .messages-compose textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .messages-compose-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  #messagesFile {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  #messagesSend {
+    display: block !important;
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+}
+
+
