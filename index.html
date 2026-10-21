@@ -417,7 +417,24 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#messagesSend {
+  display: inline-block !important;
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 10px 16px;
+  background: #e5222e;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 #messagesFile {
