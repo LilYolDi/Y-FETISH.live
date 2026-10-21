@@ -440,7 +440,7 @@
   image.style.display = "block";
   image.style.width = "auto";
   image.style.height = "auto";
-  image.style.maxWidth = "220px";
+  image.style.maxWidth = "min(220px, 65vw)";
   image.style.maxHeight = "220px";
   image.style.objectFit = "contain";
   image.style.borderRadius = "10px";
