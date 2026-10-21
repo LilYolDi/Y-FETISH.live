@@ -690,6 +690,43 @@
       </a>
     </div>
   </header>
+  
+  
+<section id="messagesModal" hidden>
+  <div id="messagesWindow" role="dialog" aria-modal="true" aria-label="Личные сообщения">
+    <div class="messages-header">
+      <h2>💬 Сообщения</h2>
+      <button class="messages-close" id="messagesClose" type="button" aria-label="Закрыть">×</button>
+    </div>
+
+    <form class="messages-search" id="messagesSearchForm">
+      <input id="messagesSearchInput" type="search" placeholder="Найти пользователя" autocomplete="off">
+      <button type="submit">Найти</button>
+    </form>
+
+    <div id="messagesContent">
+      <div id="messagesConversations">
+        <div id="messagesStatus">Загружаем переписки…</div>
+      </div>
+
+      <div id="messagesChat">
+        <div id="messagesCurrentUser">Выбери переписку</div>
+        <div id="messagesHistory" aria-live="polite">
+          <p class="muted">Выбери пользователя слева или найди его через поиск.</p>
+        </div>
+
+        <form class="messages-compose" id="messagesCompose" hidden>
+          <textarea id="messagesText" maxlength="2000" placeholder="Напиши сообщение…" rows="2"></textarea>
+          <div class="messages-compose-bottom">
+            <input id="messagesFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime">
+            <button type="submit" id="messagesSend">Отправить</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
 
   <main>
     <h1>Прямые эфиры</h1>
