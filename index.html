@@ -1625,8 +1625,45 @@
       return button;
     }
 
-    // LiveKit: подключения для видеопревью на карточках
+      // LiveKit: подключения для видеопревью на карточках
     const previewConnections = new Map();
+    let lastRenderedStreamsSignature = "";
+    let previewObserver = null;
+
+    if ("IntersectionObserver" in window) {
+      previewObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          const preview = entry.target;
+          if (!preview.isConnected) return;
+
+          const roomName = preview.dataset.roomName;
+          const video = preview.querySelector("video");
+          const placeholder = preview.querySelector(".preview-placeholder");
+
+          if (!roomName || !video || !placeholder) return;
+
+          if (entry.isIntersecting) {
+            connectPreview(roomName, preview, video, placeholder);
+            return;
+          }
+
+          const state = previewConnections.get(roomName);
+          if (!state || state.video !== video) return;
+
+          previewConnections.delete(roomName);
+
+          try {
+            if (state.track && state.video) {
+              state.track.detach(state.video);
+            }
+          } catch (_) {}
+
+          try {
+            state.room?.disconnect();
+          } catch (_) {}
+        });
+      }, { rootMargin: "200px 0px" });
+    }
 
     function showPreviewPlaceholder(preview, placeholder) {
       preview.classList.remove("has-video");
@@ -1830,6 +1867,39 @@
         });
       }
 
+      
+      const signature = JSON.stringify({
+        country: selectedCountry,
+        top: topStreamsEnabled,
+        streams: filteredStreams.map(stream => ({
+          room: stream.room_name,
+          title: stream.title,
+          country: stream.country,
+          host: getStreamHostId(stream),
+          name: stream.host_name || stream.profiles?.username || stream.nickname || ""
+        }))
+      });
+
+      if (signature === lastRenderedStreamsSignature) {
+        // Обновляем число зрителей без пересоздания карточек.
+        filteredStreams.forEach(stream => {
+          const card = [...streamsContainer.querySelectorAll(".stream")]
+            .find(item => item.dataset.roomName === stream.room_name);
+
+          const status = card?.querySelector(".live");
+          if (!status) return;
+
+          const count = getViewerCount(stream);
+          status.textContent = count === null
+            ? "● LIVE"
+            : "● LIVE · " + count.toLocaleString("ru-RU") + " зрителей";
+        });
+
+        return;
+      }
+
+      lastRenderedStreamsSignature = signature;
+      
       if (!filteredStreams.length) {
         const empty = document.createElement("div");
         empty.className = "empty";
@@ -1848,6 +1918,7 @@
       filteredStreams.forEach(stream => {
         const card = document.createElement("article");
         card.className = "stream";
+        card.dataset.roomName = stream.room_name;
 
         const preview = document.createElement("div");
         preview.className = "preview";
@@ -1909,9 +1980,17 @@
         );
         streamsContainer.appendChild(card);
 
+        
         visibleRoomNames.add(stream.room_name);
-        connectPreview(stream.room_name, preview, video, placeholder);
-      });
+
+        preview.dataset.roomName = stream.room_name;
+
+        if (previewObserver) {
+          previewObserver.observe(preview);
+        } else {
+          connectPreview(stream.room_name, preview, video, placeholder);
+        }
+
 
       stopUnusedPreviewConnections(visibleRoomNames);
     }
