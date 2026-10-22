@@ -195,12 +195,10 @@
         }
       }
 
-      @media (min-width: 651px) {
+        @media (min-width: 651px) {
         .messages-chat-back {
           display: none;
         }
-      }
-
       }
     `;
     document.head.append(style);
