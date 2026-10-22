@@ -489,6 +489,13 @@
         video.preload = "metadata";
         video.playsInline = true;
         video.className = "messages-media-video";
+        video.style.display = "block";
+        video.style.width = "100%";
+        video.style.maxWidth = "min(260px, 75vw)";
+        video.style.maxHeight = "300px";
+        video.style.height = "auto";
+        video.style.objectFit = "contain";
+        video.style.borderRadius = "10px";
         body.append(video);
       }
     }
