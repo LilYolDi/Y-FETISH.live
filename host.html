@@ -137,27 +137,37 @@
     .camera-controls button,
     .camera-controls .watch-link { flex: 1 1 130px; }
 
-    /* Камера и Beauty */
-    #cameraButton,
-    #beautyButton {
-      position: absolute;
-      right: 12px;
-      z-index: 125;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 48px;
-      height: 48px;
-      min-width: 48px;
-      min-height: 48px;
-      padding: 0;
-      border: 1px solid rgba(255,255,255,.22);
-      border-radius: 50%;
-      background: rgba(35,35,35,.88);
-      color: #fff;
-      box-shadow: 0 3px 12px rgba(0,0,0,.25);
-      -webkit-tap-highlight-color: transparent;
-    }
+ 
+/* Камера и Beauty — единый стиль Y-FETISH LIVE */
+#cameraButton,
+#beautyButton {
+  position: absolute;
+  right: 12px;
+  z-index: 125;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid #383838;
+  border-radius: 50%;
+  background: #111;
+  color: #ff69b4;
+  box-shadow: 0 3px 12px rgba(0,0,0,.25);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#cameraButton { top: 12px; }
+
+#beautyButton {
+  top: 62px;
+}
+
 
     #cameraButton { top: 12px; }
 
