@@ -1,0 +1,337 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101010">
+  <meta name="description" content="Личные сообщения Y-FETISH LIVE">
+  <title>Сообщения — Y-FETISH LIVE</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/style.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #101010;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .messages-page {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 1100px;
+      min-height: 100vh;
+      margin: 0 auto;
+      background: #151515;
+      border-left: 1px solid #292929;
+      border-right: 1px solid #292929;
+    }
+
+    .messages-page-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      min-height: 76px;
+      padding: calc(12px + env(safe-area-inset-top)) 17px 12px;
+      background: rgba(20, 20, 20, .97);
+      border-bottom: 1px solid #303030;
+      backdrop-filter: blur(14px);
+    }
+
+    .messages-back {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid #383838;
+      border-radius: 14px;
+      background: #222;
+      color: #fff;
+      font-size: 29px;
+      line-height: 1;
+      text-decoration: none;
+      transition: background .2s, border-color .2s;
+    }
+
+    .messages-back:active {
+      background: #333;
+      border-color: #ff263f;
+    }
+
+    .messages-brand {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .messages-logo {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0;
+      margin: 0;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: 1px;
+    }
+
+    .logo-y {
+      color: #ff263f;
+    }
+
+    .logo-fetish {
+      color: #fff;
+    }
+
+    .logo-live {
+      margin-left: 8px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      background: #ff263f;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+    }
+
+    .messages-brand-subtitle {
+      display: block;
+      margin-top: 5px;
+      color: #a6a6a6;
+      font-size: 12px;
+      letter-spacing: .3px;
+    }
+
+    .messages-page-content {
+      flex: 1;
+      padding: 25px 18px;
+    }
+
+    .messages-heading {
+      margin: 0 0 8px;
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -.5px;
+    }
+
+    .messages-description {
+      margin: 0;
+      color: #a5a5a5;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .messages-accent-line {
+      width: 48px;
+      height: 4px;
+      margin: 18px 0 24px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #ff263f, #a60019);
+    }
+
+    .messages-welcome {
+      padding: 25px 19px;
+      overflow: hidden;
+      border: 1px solid #353535;
+      border-radius: 20px;
+      background:
+        radial-gradient(ellipse at top right, rgba(255, 38, 63, .12), transparent 60%),
+        #1b1b1b;
+    }
+
+    .messages-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 58px;
+      height: 58px;
+      margin-bottom: 18px;
+      border: 1px solid rgba(255, 38, 63, .4);
+      border-radius: 18px;
+      background: rgba(255, 38, 63, .12);
+      color: #ff354c;
+      font-size: 28px;
+      box-shadow: 0 0 25px rgba(255, 38, 63, .08);
+    }
+
+    .messages-welcome h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      font-weight: 750;
+    }
+
+    .messages-welcome p {
+      margin: 0;
+      color: #aaa;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .messages-notice {
+      margin-top: 18px;
+      padding: 15px 16px;
+      border: 1px solid #393939;
+      border-radius: 13px;
+      background: #202020;
+      color: #d0d0d0;
+      font-size: 14px;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+
+    .messages-notice a {
+      color: #ff4359;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .messages-notice a:hover {
+      text-decoration: underline;
+    }
+
+    .messages-footer {
+      padding: 18px;
+      padding-bottom: calc(18px + env(safe-area-inset-bottom));
+      border-top: 1px solid #292929;
+      color: #777;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: .6px;
+    }
+
+    @media (min-width: 700px) {
+      .messages-page {
+        min-height: 100vh;
+      }
+
+      .messages-page-content {
+        padding: 36px;
+      }
+
+      .messages-welcome {
+        padding: 32px;
+      }
+
+      .messages-heading {
+        font-size: 31px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .messages-logo {
+        font-size: 19px;
+      }
+
+      .logo-live {
+        margin-left: 6px;
+        font-size: 9px;
+      }
+
+      .messages-page-content {
+        padding: 22px 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="messages-page">
+    <header class="messages-page-header">
+      <a
+        class="messages-back"
+        href="/"
+        aria-label="Вернуться на главную"
+        title="На главную"
+      >‹</a>
+
+      <div class="messages-brand">
+        <div class="messages-logo" aria-label="Y-FETISH LIVE">
+          <span class="logo-y">Y</span><span class="logo-fetish">-FETISH</span>
+          <span class="logo-live">LIVE</span>
+        </div>
+        <span class="messages-brand-subtitle">Личные сообщения</span>
+      </div>
+    </header>
+
+    <section class="messages-page-content">
+      <h1 class="messages-heading">Сообщения</h1>
+      <p class="messages-description">
+        Общайся с пользователями Y-FETISH LIVE в личных переписках.
+      </p>
+
+      <div class="messages-accent-line"></div>
+
+      <section class="messages-welcome">
+        <div class="messages-icon" aria-hidden="true">✉</div>
+        <h2>Твои личные чаты</h2>
+        <p>
+          Здесь будет список переписок. Открывай диалог с нужным пользователем,
+          отправляй текстовые сообщения, фотографии и видео.
+        </p>
+      </section>
+
+      <div class="messages-notice" id="messagesPageNotice" role="status" aria-live="polite">
+        Проверяем подключение к аккаунту…
+      </div>
+    </section>
+
+    <footer class="messages-footer">
+      Y-FETISH LIVE · ЛИЧНЫЕ СООБЩЕНИЯ
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      const notice = document.getElementById("messagesPageNotice");
+
+      fetch("/api/account/me", {
+        credentials: "include"
+      })
+        .then(function (response) {
+          if (response.status === 401) {
+            notice.innerHTML =
+              'Для доступа к личным сообщениям необходимо <a href="/login.html">войти в аккаунт</a>.';
+            return null;
+          }
+
+          if (!response.ok) {
+            notice.textContent =
+              "Страница открыта. Подключение к аккаунту проверим при настройке чатов.";
+            return null;
+          }
+
+          return response.json();
+        })
+        .then(function (data) {
+          if (!data) return;
+
+          notice.textContent =
+            "Страница открыта. Следующий шаг — подключение списка пользователей и переписок.";
+        })
+        .catch(function () {
+          notice.textContent =
+            "Страница открыта. Подключение личных переписок настроим следующим шагом.";
+        });
+    })();
+  </script>
+</body>
+</html>
