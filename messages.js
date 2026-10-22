@@ -346,7 +346,8 @@
 
   if (
     !button || !modal || !closeButton || !searchForm || !searchInput ||
-    !conversationsBox || !currentUserBox || !historyBox || !composeForm ||
+    !conversationsBox || !currentUserBox || !currentUserName || !appLayout ||
+    !chatBackButton || !historyBox || !composeForm ||
     !messageInput || !fileInput || !sendButton
   ) {
     console.error("Личные сообщения: не найдены необходимые элементы.");
@@ -545,7 +546,7 @@
         );
         if (conversation) {
           state.activeUser.nickname = conversation.nickname || state.activeUser.nickname;
-          currentUserBox.textContent = state.activeUser.nickname;
+                    currentUserName.textContent = state.activeUser.nickname;
         }
       }
     } catch (error) {
