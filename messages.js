@@ -21,60 +21,295 @@
     const style = document.createElement("style");
     style.id = "messagesStandaloneStyles";
     style.textContent = `
-      .messages-app { display:flex; flex-direction:column; gap:14px; margin-top:22px; }
-      .messages-search-form { display:flex; gap:8px; }
+      .messages-app {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-top: 22px;
+      }
+
+      .messages-search-form {
+        display: flex;
+        gap: 8px;
+      }
+
       .messages-search-form input {
-        min-width:0; flex:1; padding:13px 14px; color:#fff;
-        background:#222; border:1px solid #383838; border-radius:12px; outline:none;
+        min-width: 0;
+        flex: 1;
+        padding: 13px 14px;
+        color: #fff;
+        background: #222;
+        border: 1px solid #383838;
+        border-radius: 12px;
+        outline: none;
       }
-      .messages-search-form input:focus { border-color:#ff263f; }
-      .messages-search-form button, .messages-send-button {
-        padding:12px 16px; border:0; border-radius:12px;
-        background:#ff263f; color:#fff; font-weight:700; cursor:pointer;
+
+      .messages-search-form input:focus {
+        border-color: #ff263f;
       }
+
+      .messages-search-form button,
+      .messages-send-button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 12px;
+        background: #ff263f;
+        color: #fff;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
       .messages-app-layout {
-        display:grid; grid-template-columns:minmax(0, .85fr) minmax(0, 1.4fr);
-        min-height:480px; border:1px solid #333; border-radius:16px;
-        overflow:hidden; background:#171717;
+        display: grid;
+        grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr);
+        min-height: 480px;
+        border: 1px solid #333;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #171717;
       }
-      .messages-sidebar { min-width:0; border-right:1px solid #333; }
-      .messages-sidebar-title { margin:0; padding:16px; border-bottom:1px solid #303030; font-size:15px; }
-      .messages-conversations { min-height:100px; max-height:520px; overflow-y:auto; }
+
+      .messages-sidebar {
+        min-width: 0;
+        border-right: 1px solid #333;
+      }
+
+      .messages-sidebar-title {
+        margin: 0;
+        padding: 16px;
+        border-bottom: 1px solid #303030;
+        font-size: 15px;
+      }
+
+      .messages-conversations {
+        min-height: 100px;
+        max-height: 520px;
+        overflow-y: auto;
+      }
+
       .messages-conversation {
-        width:100%; display:flex; justify-content:space-between; align-items:center;
-        gap:10px; padding:14px; border:0; border-bottom:1px solid #292929;
-        background:transparent; color:#fff; text-align:left; cursor:pointer;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 14px;
+        border: 0;
+        border-bottom: 1px solid #292929;
+        background: transparent;
+        color: #fff;
+        text-align: left;
+        cursor: pointer;
       }
-      .messages-conversation:hover, .messages-conversation.active { background:#292020; }
-      .messages-conversation-details { display:flex; flex:1; flex-direction:column; gap:5px; min-width:0; }
-      .messages-conversation-name { color:#fff; font-weight:700; overflow-wrap:anywhere; }
-      .messages-conversation-last { color:#999; font-size:12px; overflow:hidden; text-overflow:ellipsis; }
-      .messages-conversation-meta { display:flex; align-items:center; flex-direction:column; gap:6px; color:#888; font-size:11px; }
-      .messages-unread { display:grid; place-items:center; min-width:20px; height:20px; padding:0 5px; border-radius:20px; background:#ff263f; color:#fff; }
-      .messages-search-open { color:#ff5366; font-size:12px; white-space:nowrap; }
-      .messages-chat { display:flex; flex-direction:column; min-width:0; min-height:480px; }
-      .messages-chat-header { padding:16px; border-bottom:1px solid #303030; font-weight:800; overflow-wrap:anywhere; }
-      .messages-status { padding:8px 12px; color:#aaa; font-size:12px; line-height:1.5; }
+
+      .messages-conversation:hover,
+      .messages-conversation.active {
+        background: #292020;
+      }
+
+      .messages-conversation-details {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .messages-conversation-name {
+        color: #fff;
+        font-weight: 700;
+        overflow-wrap: anywhere;
+      }
+
+      .messages-conversation-last {
+        color: #999;
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .messages-conversation-meta {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        gap: 6px;
+        color: #888;
+        font-size: 11px;
+      }
+
+      .messages-unread {
+        display: grid;
+        place-items: center;
+        min-width: 20px;
+        height: 20px;
+        padding: 0 5px;
+        border-radius: 20px;
+        background: #ff263f;
+        color: #fff;
+      }
+
+      .messages-search-open {
+        color: #ff5366;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .messages-chat {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 480px;
+      }
+
+      .messages-chat-header {
+        padding: 16px;
+        border-bottom: 1px solid #303030;
+        font-weight: 800;
+        overflow-wrap: anywhere;
+      }
+
+      .messages-status {
+        padding: 8px 12px;
+        color: #aaa;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
       .messages-history {
-        display:flex; flex:1; flex-direction:column; gap:12px; min-height:250px;
-        max-height:440px; padding:14px; overflow-y:auto;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 250px;
+        max-height: 440px;
+        padding: 14px;
+        overflow-y: auto;
       }
-      .messages-message { max-width:88%; align-self:flex-start; }
-      .messages-message.own { align-self:flex-end; }
-      .messages-message-body { padding:10px 12px; border:1px solid #383838; border-radius:14px 14px 14px 4px; background:#252525; overflow-wrap:anywhere; }
-      .messages-message.own .messages-message-body { border-color:#762330; background:#421923; border-radius:14px 14px 4px 14px; }
-      .messages-message-text { margin:0; white-space:pre-wrap; line-height:1.5; }
-      .messages-message-meta { margin-top:5px; color:#888; font-size:10px; text-align:right; }
-      .messages-media-image { display:block; max-width:min(240px,65vw); max-height:280px; object-fit:contain; border-radius:10px; cursor:zoom-in; }
-      .messages-media-video { display:block; width:min(260px,65vw); max-height:260px; border-radius:10px; background:#000; }
-      .messages-compose { display:flex; flex-direction:column; gap:9px; padding:12px; border-top:1px solid #333; }
-      .messages-compose textarea { width:100%; min-height:72px; resize:vertical; padding:12px; color:#fff; background:#222; border:1px solid #393939; border-radius:12px; }
-      .messages-compose-bottom { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-      .messages-compose input[type=file] { min-width:0; max-width:100%; color:#aaa; font-size:12px; }
-      .messages-send-button:disabled { opacity:.55; cursor:wait; }
-      .messages-muted { padding:16px; color:#999; font-size:13px; line-height:1.6; }
-      .messages-error { color:#ff7887; font-size:13px; }
-   
+
+      .messages-message {
+        max-width: 88%;
+        align-self: flex-start;
+      }
+
+      .messages-message.own {
+        align-self: flex-end;
+      }
+
+      .messages-message-body {
+        padding: 10px 12px;
+        border: 1px solid #383838;
+        border-radius: 14px 14px 14px 4px;
+        background: #252525;
+        overflow-wrap: anywhere;
+      }
+
+      .messages-message.own .messages-message-body {
+        border-color: #762330;
+        background: #421923;
+        border-radius: 14px 14px 4px 14px;
+      }
+
+      .messages-message-text {
+        margin: 0;
+        white-space: pre-wrap;
+        line-height: 1.5;
+      }
+
+      .messages-message-meta {
+        margin-top: 5px;
+        color: #888;
+        font-size: 10px;
+        text-align: right;
+      }
+
+      .messages-media-image {
+        display: block;
+        max-width: min(240px, 65vw);
+        max-height: 280px;
+        object-fit: contain;
+        border-radius: 10px;
+        cursor: zoom-in;
+      }
+
+      .messages-media-video {
+        display: block;
+        width: min(260px, 65vw);
+        max-height: 260px;
+        border-radius: 10px;
+        background: #000;
+      }
+
+      .messages-compose {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        padding: 12px;
+        border-top: 1px solid #333;
+      }
+
+      .messages-compose textarea {
+        width: 100%;
+        min-height: 72px;
+        resize: vertical;
+        padding: 12px;
+        color: #fff;
+        background: #222;
+        border: 1px solid #393939;
+        border-radius: 12px;
+      }
+
+      .messages-compose-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .messages-compose input[type=file] {
+        min-width: 0;
+        max-width: 100%;
+        color: #aaa;
+        font-size: 12px;
+      }
+
+      .messages-send-button:disabled {
+        opacity: .55;
+        cursor: wait;
+      }
+
+      .messages-muted {
+        padding: 16px;
+        color: #999;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .messages-error {
+        color: #ff7887;
+        font-size: 13px;
+      }
+
+      .messages-chat-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border: 1px solid #444;
+        border-radius: 12px;
+        background: #252525;
+        color: #fff;
+        font-size: 27px;
+        cursor: pointer;
+      }
+
+      .messages-chat-name {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
       @media (max-width: 650px) {
         .messages-app {
           position: fixed;
@@ -90,6 +325,10 @@
           height: 100dvh;
           background: #151515;
           overflow: hidden;
+        }
+
+        .messages-app.chat-open .messages-search-form {
+          display: none;
         }
 
         .messages-app-layout {
@@ -146,26 +385,6 @@
           padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
         }
 
-        .messages-chat-back {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          width: 40px;
-          height: 40px;
-          border: 1px solid #444;
-          border-radius: 12px;
-          background: #252525;
-          color: #fff;
-          font-size: 27px;
-          cursor: pointer;
-        }
-
-        .messages-chat-name {
-          min-width: 0;
-          overflow-wrap: anywhere;
-        }
-
         .messages-history {
           flex: 1;
           min-height: 0;
@@ -195,12 +414,13 @@
         }
       }
 
-        @media (min-width: 651px) {
+      @media (min-width: 651px) {
         .messages-chat-back {
           display: none;
         }
       }
     `;
+
     document.head.append(style);
   }
 
@@ -209,7 +429,6 @@
     if (!content) return;
 
     addPageStyles();
-
     content.replaceChildren();
 
     const heading = createElement("h1", "messages-heading", "Личные сообщения");
@@ -238,7 +457,9 @@
     const layout = createElement("div", "messages-app-layout");
 
     const sidebar = createElement("section", "messages-sidebar");
-    sidebar.append(createElement("h2", "messages-sidebar-title", "Переписки"));
+    sidebar.append(
+      createElement("h2", "messages-sidebar-title", "Переписки")
+    );
 
     const conversations = createElement("div", "messages-conversations");
     conversations.id = "messagesConversations";
@@ -247,12 +468,16 @@
     );
     sidebar.append(conversations);
 
-    
     const chat = createElement("section", "messages-chat");
+
     const currentUser = createElement("div", "messages-chat-header");
     currentUser.id = "messagesCurrentUser";
 
-    const chatBackButton = createElement("button", "messages-chat-back", "‹");
+    const chatBackButton = createElement(
+      "button",
+      "messages-chat-back",
+      "‹"
+    );
     chatBackButton.type = "button";
     chatBackButton.setAttribute(
       "aria-label",
@@ -268,7 +493,6 @@
 
     currentUser.append(chatBackButton, currentUserName);
 
-
     const status = createElement("div", "messages-status");
     status.id = "messagesStatus";
     status.setAttribute("role", "status");
@@ -277,7 +501,11 @@
     const history = createElement("div", "messages-history");
     history.id = "messagesHistory";
     history.append(
-      createElement("p", "messages-muted", "Открой переписку, чтобы увидеть сообщения.")
+      createElement(
+        "p",
+        "messages-muted",
+        "Открой переписку, чтобы увидеть сообщения."
+      )
     );
 
     const compose = createElement("form", "messages-compose");
@@ -295,10 +523,15 @@
     const fileInput = createElement("input");
     fileInput.id = "messagesFile";
     fileInput.type = "file";
-    fileInput.accept = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime";
+    fileInput.accept =
+      "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime";
     fileInput.setAttribute("aria-label", "Прикрепить фото или видео");
 
-    const sendButton = createElement("button", "messages-send-button", "Отправить");
+    const sendButton = createElement(
+      "button",
+      "messages-send-button",
+      "Отправить"
+    );
     sendButton.id = "messagesSend";
     sendButton.type = "submit";
 
@@ -307,7 +540,6 @@
 
     chat.append(currentUser, status, history, compose);
     layout.append(sidebar, chat);
-
     app.append(searchForm, layout);
     content.append(heading, description, app);
 
@@ -336,6 +568,7 @@
   const statusBox = $("messagesStatus");
   const currentUserBox = $("messagesCurrentUser");
   const currentUserName = $("messagesCurrentUserName");
+  const app = document.querySelector(".messages-app");
   const appLayout = document.querySelector(".messages-app-layout");
   const chatBackButton = document.querySelector(".messages-chat-back");
   const historyBox = $("messagesHistory");
@@ -346,8 +579,8 @@
 
   if (
     !button || !modal || !closeButton || !searchForm || !searchInput ||
-    !conversationsBox || !currentUserBox || !currentUserName || !appLayout ||
-    !chatBackButton || !historyBox || !composeForm ||
+    !conversationsBox || !currentUserBox || !currentUserName || !app ||
+    !appLayout || !chatBackButton || !historyBox || !composeForm ||
     !messageInput || !fileInput || !sendButton
   ) {
     console.error("Личные сообщения: не найдены необходимые элементы.");
@@ -363,7 +596,8 @@
       script.onload = () => window.supabase?.createClient
         ? resolve()
         : reject(new Error("Не удалось загрузить Supabase."));
-      script.onerror = () => reject(new Error("Не удалось загрузить библиотеку Supabase."));
+      script.onerror = () =>
+        reject(new Error("Не удалось загрузить библиотеку Supabase."));
       document.head.append(script);
     });
   }
@@ -387,6 +621,7 @@
 
   function formatDate(value) {
     if (!value) return "";
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
@@ -401,7 +636,9 @@
   async function getAccessToken() {
     const { data, error } = await supabaseClient.auth.getSession();
 
-    if (error) throw new Error("Не удалось проверить авторизацию.");
+    if (error) {
+      throw new Error("Не удалось проверить авторизацию.");
+    }
 
     const session = data?.session;
 
@@ -440,14 +677,17 @@
     });
 
     let result = {};
+
     try {
       result = await response.json();
     } catch {}
 
     if (!response.ok) {
       if (response.status === 401) state.user = null;
+
       throw new Error(
-        result.error || result.message || `Ошибка запроса (${response.status}).`
+        result.error || result.message ||
+        `Ошибка запроса (${response.status}).`
       );
     }
 
@@ -456,6 +696,7 @@
 
   function updateBadge() {
     if (!badge) return;
+
     const total = Number(state.unreadTotal) || 0;
     badge.textContent = total > 99 ? "99+" : String(total);
     badge.hidden = total <= 0;
@@ -463,9 +704,11 @@
 
   function updateUnreadCount() {
     state.unreadTotal = state.conversations.reduce(
-      (sum, conversation) => sum + (Number(conversation.unread) || 0),
+      (sum, conversation) =>
+        sum + (Number(conversation.unread) || 0),
       0
     );
+
     updateBadge();
   }
 
@@ -474,7 +717,11 @@
 
     if (!state.conversations.length) {
       conversationsBox.append(
-        createElement("p", "messages-muted", "Пока нет переписок. Найди пользователя через поиск.")
+        createElement(
+          "p",
+          "messages-muted",
+          "Пока нет переписок. Найди пользователя через поиск."
+        )
       );
       return;
     }
@@ -487,14 +734,21 @@
       item.type = "button";
       item.dataset.userId = userId;
 
-      if (state.activeUser?.id === userId) item.classList.add("active");
+      if (state.activeUser?.id === userId) {
+        item.classList.add("active");
+      }
 
-      const details = createElement("span", "messages-conversation-details");
+      const details = createElement(
+        "span",
+        "messages-conversation-details"
+      );
+
       const name = createElement(
         "span",
         "messages-conversation-name",
         conversation.nickname || "Пользователь"
       );
+
       const last = createElement(
         "span",
         "messages-conversation-last",
@@ -502,10 +756,23 @@
       );
 
       const meta = createElement("span", "messages-conversation-meta");
-      meta.append(createElement("span", "", formatDate(conversation.lastMessageAt)));
+
+      meta.append(
+        createElement(
+          "span",
+          "",
+          formatDate(conversation.lastMessageAt)
+        )
+      );
 
       if (Number(conversation.unread) > 0) {
-        meta.append(createElement("span", "messages-unread", String(conversation.unread)));
+        meta.append(
+          createElement(
+            "span",
+            "messages-unread",
+            String(conversation.unread)
+          )
+        );
       }
 
       details.append(name, last);
@@ -532,6 +799,7 @@
 
     try {
       const result = await apiRequest("/api/chats/conversations");
+
       state.conversations = Array.isArray(result.conversations)
         ? result.conversations
         : [];
@@ -544,9 +812,11 @@
         const conversation = state.conversations.find(
           item => item.userId === state.activeUser.id
         );
+
         if (conversation) {
-          state.activeUser.nickname = conversation.nickname || state.activeUser.nickname;
-                    currentUserName.textContent = state.activeUser.nickname;
+          state.activeUser.nickname =
+            conversation.nickname || state.activeUser.nickname;
+          currentUserName.textContent = state.activeUser.nickname;
         }
       }
     } catch (error) {
@@ -560,7 +830,9 @@
 
     if (value.length < 2) {
       renderConversations();
-      setStatus(value ? "Введи минимум 2 символа для поиска." : "");
+      setStatus(
+        value ? "Введи минимум 2 символа для поиска." : ""
+      );
       return;
     }
 
@@ -576,7 +848,9 @@
       const users = Array.isArray(result.users) ? result.users : [];
       conversationsBox.replaceChildren();
 
-      const filtered = users.filter(user => user.id && user.id !== state.user?.id);
+      const filtered = users.filter(
+        user => user.id && user.id !== state.user?.id
+      );
 
       if (!filtered.length) {
         setStatus("Пользователи не найдены.");
@@ -586,21 +860,37 @@
       setStatus(`Найдено пользователей: ${filtered.length}`);
 
       for (const user of filtered) {
-        const item = createElement("button", "messages-conversation messages-search-result");
+        const item = createElement(
+          "button",
+          "messages-conversation messages-search-result"
+        );
         item.type = "button";
 
-        const details = createElement("span", "messages-conversation-details");
-        details.append(createElement(
+        const details = createElement(
           "span",
-          "messages-conversation-name",
-          user.nickname || "Пользователь"
-        ));
+          "messages-conversation-details"
+        );
 
-        item.append(details, createElement("span", "messages-search-open", "Написать"));
-        item.addEventListener("click", () => openConversation({
-          id: user.id,
-          nickname: user.nickname || "Пользователь"
-        }));
+        details.append(
+          createElement(
+            "span",
+            "messages-conversation-name",
+            user.nickname || "Пользователь"
+          )
+        );
+
+        item.append(
+          details,
+          createElement("span", "messages-search-open", "Написать")
+        );
+
+        item.addEventListener("click", () => {
+          openConversation({
+            id: user.id,
+            nickname: user.nickname || "Пользователь"
+          });
+        });
+
         conversationsBox.append(item);
       }
     } catch (error) {
@@ -620,28 +910,80 @@
 
     if (user.id === state.user?.id) return;
 
+    // Инвалидируем предыдущий запрос истории, если быстро переключили чат.
+    state.historyRequest++;
+
     state.activeUser = {
       id: user.id,
       nickname: user.nickname || "Пользователь"
     };
 
-    currentUserBox.textContent = state.activeUser.nickname;
+    currentUserName.textContent = state.activeUser.nickname;
+
+    // На телефоне открываем чат на весь экран.
+    if (standalone) {
+      app.classList.add("chat-open");
+      appLayout.classList.add("chat-open");
+    }
+
     composeForm.hidden = false;
     messageInput.value = "";
     fileInput.value = "";
 
     renderConversations();
     await loadHistory();
-    messageInput.focus();
+
+    if (state.activeUser?.id === user.id) {
+      messageInput.focus();
+    }
   }
+
+  function closeConversation() {
+    // Не даём старому запросу истории перезаписать экран после возврата.
+    state.historyRequest++;
+    state.activeUser = null;
+
+    app.classList.remove("chat-open");
+    appLayout.classList.remove("chat-open");
+
+    composeForm.hidden = true;
+    messageInput.value = "";
+    fileInput.value = "";
+
+    currentUserName.textContent = "Выбери пользователя";
+    setStatus("");
+
+    historyBox.replaceChildren(
+      createElement(
+        "p",
+        "messages-muted",
+        "Открой переписку, чтобы увидеть сообщения."
+      )
+    );
+
+    if (searchInput.value.trim().length >= 2) {
+      searchUsers(searchInput.value);
+    } else {
+      renderConversations();
+    }
+  }
+
+  chatBackButton.addEventListener("click", closeConversation);
 
   function renderMessage(message) {
     const own = message.sender_id === state.user?.id;
-    const item = createElement("article", own ? "messages-message own" : "messages-message");
+
+    const item = createElement(
+      "article",
+      own ? "messages-message own" : "messages-message"
+    );
+
     const body = createElement("div", "messages-message-body");
 
     if (message.body) {
-      body.append(createElement("p", "messages-message-text", message.body));
+      body.append(
+        createElement("p", "messages-message-text", message.body)
+      );
     }
 
     if (message.media_url) {
@@ -655,12 +997,15 @@
 
         image.addEventListener("click", () => {
           const viewer = createElement("div");
-          viewer.style.cssText = "position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out";
+
+          viewer.style.cssText =
+            "position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;padding:12px;cursor:zoom-out";
 
           const fullImage = document.createElement("img");
           fullImage.src = image.src;
           fullImage.alt = image.alt;
-          fullImage.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;border-radius:8px";
+          fullImage.style.cssText =
+            "max-width:100%;max-height:100%;object-fit:contain;border-radius:8px";
 
           viewer.append(fullImage);
           viewer.addEventListener("click", () => viewer.remove());
@@ -679,10 +1024,16 @@
       }
     }
 
-    const meta = createElement("div", "messages-message-meta", formatDate(message.created_at));
+    const meta = createElement(
+      "div",
+      "messages-message-meta",
+      formatDate(message.created_at)
+    );
 
     if (own && message.read_at) {
-      meta.append(createElement("span", "messages-read-mark", " · Прочитано"));
+      meta.append(
+        createElement("span", "messages-read-mark", " · Прочитано")
+      );
     }
 
     item.append(body, meta);
@@ -696,62 +1047,107 @@
     const requestId = ++state.historyRequest;
     const userId = active.id;
 
-    historyBox.replaceChildren(createElement("p", "messages-muted", "Загружаем сообщения…"));
+    historyBox.replaceChildren(
+      createElement("p", "messages-muted", "Загружаем сообщения…")
+    );
 
     try {
       const result = await apiRequest(
         `/api/chats/${encodeURIComponent(userId)}/messages`
       );
 
-      if (requestId !== state.historyRequest || state.activeUser?.id !== userId) return;
+      if (
+        requestId !== state.historyRequest ||
+        state.activeUser?.id !== userId
+      ) {
+        return;
+      }
 
-      const messages = Array.isArray(result.messages) ? result.messages : [];
+      const messages = Array.isArray(result.messages)
+        ? result.messages
+        : [];
+
       historyBox.replaceChildren();
 
       if (!messages.length) {
-        historyBox.append(createElement("p", "messages-muted", "Сообщений пока нет. Напиши первым!"));
+        historyBox.append(
+          createElement(
+            "p",
+            "messages-muted",
+            "Сообщений пока нет. Напиши первым!"
+          )
+        );
       } else {
-        for (const message of messages) historyBox.append(renderMessage(message));
+        for (const message of messages) {
+          historyBox.append(renderMessage(message));
+        }
       }
 
       historyBox.scrollTop = historyBox.scrollHeight;
 
-      const conversation = state.conversations.find(item => item.userId === userId);
+      const conversation = state.conversations.find(
+        item => item.userId === userId
+      );
+
       if (conversation) {
         conversation.unread = 0;
         updateUnreadCount();
         renderConversations();
       }
     } catch (error) {
-      if (requestId !== state.historyRequest) return;
+      if (
+        requestId !== state.historyRequest ||
+        state.activeUser?.id !== userId
+      ) {
+        return;
+      }
+
       historyBox.replaceChildren(
-        createElement("p", "messages-error", error.message || "Не удалось загрузить сообщения.")
+        createElement(
+          "p",
+          "messages-error",
+          error.message || "Не удалось загрузить сообщения."
+        )
       );
     }
   }
 
   async function uploadMedia(file) {
     const allowedTypes = [
-      "image/jpeg", "image/png", "image/webp", "image/gif",
-      "video/mp4", "video/webm", "video/quicktime"
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime"
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      throw new Error("Поддерживаются JPG, PNG, WEBP, GIF, MP4, WEBM и MOV.");
+      throw new Error(
+        "Поддерживаются JPG, PNG, WEBP, GIF, MP4, WEBM и MOV."
+      );
     }
 
     const isImage = file.type.startsWith("image/");
-    const maxSize = isImage ? 15 * 1024 * 1024 : 100 * 1024 * 1024;
+    const maxSize = isImage
+      ? 15 * 1024 * 1024
+      : 100 * 1024 * 1024;
 
     if (file.size <= 0 || file.size > maxSize) {
-      throw new Error(isImage
-        ? "Максимальный размер фото — 15 МБ."
-        : "Максимальный размер видео — 100 МБ.");
+      throw new Error(
+        isImage
+          ? "Максимальный размер фото — 15 МБ."
+          : "Максимальный размер видео — 100 МБ."
+      );
     }
 
     const prepared = await apiRequest("/api/chats/media-upload", {
       method: "POST",
-      body: JSON.stringify({ mimeType: file.type, size: file.size })
+      body: JSON.stringify({
+        mimeType: file.type,
+        size: file.size
+      })
     });
 
     if (!prepared.path || !prepared.token) {
@@ -765,7 +1161,9 @@
         upsert: false
       });
 
-    if (error) throw new Error(error.message || "Не удалось загрузить файл.");
+    if (error) {
+      throw new Error(error.message || "Не удалось загрузить файл.");
+    }
 
     return {
       mediaPath: prepared.path,
@@ -778,6 +1176,7 @@
 
     if (state.sending || !state.activeUser) return;
 
+    const recipientId = state.activeUser.id;
     const body = messageInput.value.trim();
     const file = fileInput.files?.[0] || null;
 
@@ -793,15 +1192,19 @@
 
     state.sending = true;
     sendButton.disabled = true;
+
     const originalLabel = sendButton.textContent;
     sendButton.textContent = "Отправка…";
 
     try {
       let media = {};
-      if (file) media = await uploadMedia(file);
+
+      if (file) {
+        media = await uploadMedia(file);
+      }
 
       const result = await apiRequest(
-        `/api/chats/${encodeURIComponent(state.activeUser.id)}/messages`,
+        `/api/chats/${encodeURIComponent(recipientId)}/messages`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -818,7 +1221,12 @@
 
       messageInput.value = "";
       fileInput.value = "";
-      await loadHistory();
+
+      // Не переключаем пользователя, если отправка завершилась после возврата.
+      if (state.activeUser?.id === recipientId) {
+        await loadHistory();
+      }
+
       await loadConversations();
     } catch (error) {
       alert(error.message || "Не удалось отправить сообщение.");
@@ -840,6 +1248,7 @@
         setStatus("Войди в аккаунт, чтобы пользоваться сообщениями.");
         return;
       }
+
       loadConversations();
       searchInput.focus();
     });
@@ -847,6 +1256,7 @@
 
   function hideModal() {
     if (standalone) return;
+
     modal.hidden = true;
     document.body.classList.remove("messages-open");
   }
@@ -860,7 +1270,9 @@
     });
 
     document.addEventListener("keydown", event => {
-      if (event.key === "Escape" && !modal.hidden) hideModal();
+      if (event.key === "Escape" && !modal.hidden) {
+        hideModal();
+      }
     });
   }
 
@@ -883,21 +1295,40 @@
     try {
       await loadSupabaseLibrary();
 
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      supabaseClient = window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
 
       supabaseClient.auth.onAuthStateChange((_event, session) => {
         state.user = session?.user || null;
 
         if (!state.user) {
+          state.historyRequest++;
           state.activeUser = null;
           state.conversations = [];
           state.unreadTotal = 0;
+
           updateBadge();
-          historyBox.replaceChildren();
+
+          app.classList.remove("chat-open");
+          appLayout.classList.remove("chat-open");
+
+          historyBox.replaceChildren(
+            createElement(
+              "p",
+              "messages-muted",
+              "Войди в аккаунт, чтобы увидеть сообщения."
+            )
+          );
+
           conversationsBox.replaceChildren();
           composeForm.hidden = true;
-          currentUserBox.textContent = "Выбери пользователя";
-          setStatus("Войди в аккаунт, чтобы открыть личные сообщения.");
+          currentUserName.textContent = "Выбери пользователя";
+
+          setStatus(
+            "Войди в аккаунт, чтобы открыть личные сообщения."
+          );
         } else {
           loadConversations();
         }
@@ -907,27 +1338,38 @@
 
       if (!user) {
         setStatus("Для личных сообщений войди в свой аккаунт.");
+
         if (standalone) {
           conversationsBox.replaceChildren(
-            createElement("p", "messages-muted", "Войди в аккаунт, чтобы увидеть переписки.")
+            createElement(
+              "p",
+              "messages-muted",
+              "Войди в аккаунт, чтобы увидеть переписки."
+            )
           );
         }
+
         return;
       }
 
       button.hidden = false;
       await loadConversations();
 
-      // Обновляем открытый чат, чтобы получать новые сообщения без перезагрузки.
+      // Периодически обновляем открытый чат и список переписок.
       state.refreshTimer = window.setInterval(() => {
-        if (!document.hidden && state.activeUser && !state.sending) {
+        if (document.hidden || !state.user || state.sending) return;
+
+        if (state.activeUser) {
           loadHistory();
-          loadConversations();
         }
+
+        loadConversations();
       }, 7000);
     } catch (error) {
       console.error("Личные сообщения:", error);
-      setStatus(error.message || "Не удалось подключить личные сообщения.");
+      setStatus(
+        error.message || "Не удалось подключить личные сообщения."
+      );
     }
   }
 
