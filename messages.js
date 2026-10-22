@@ -337,6 +337,9 @@
   const conversationsBox = $("messagesConversations");
   const statusBox = $("messagesStatus");
   const currentUserBox = $("messagesCurrentUser");
+  const currentUserName = $("messagesCurrentUserName");
+  const appLayout = document.querySelector(".messages-app-layout");
+  const chatBackButton = document.querySelector(".messages-chat-back");
   const historyBox = $("messagesHistory");
   const composeForm = $("messagesCompose");
   const messageInput = $("messagesText");
