@@ -74,13 +74,133 @@
       .messages-send-button:disabled { opacity:.55; cursor:wait; }
       .messages-muted { padding:16px; color:#999; font-size:13px; line-height:1.6; }
       .messages-error { color:#ff7887; font-size:13px; }
-      @media(max-width:650px) {
-        .messages-app-layout { grid-template-columns:1fr; }
-        .messages-sidebar { border-right:0; border-bottom:1px solid #333; }
-        .messages-conversations { max-height:230px; }
-        .messages-chat { min-height:420px; }
-        .messages-history { max-height:55vh; }
-        .messages-search-form button { padding:12px; }
+   
+      @media (max-width: 650px) {
+        .messages-app {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100vh;
+          height: 100dvh;
+          background: #151515;
+          overflow: hidden;
+        }
+
+        .messages-app-layout {
+          display: flex;
+          flex: 1;
+          flex-direction: column;
+          min-height: 0;
+          height: auto;
+          border: 0;
+          border-radius: 0;
+          overflow: hidden;
+        }
+
+        .messages-app-layout.chat-open .messages-sidebar {
+          display: none;
+        }
+
+        .messages-app-layout.chat-open .messages-chat {
+          display: flex;
+        }
+
+        .messages-sidebar {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          border: 0;
+          overflow: hidden;
+        }
+
+        .messages-conversations {
+          flex: 1;
+          min-height: 0;
+          max-height: none;
+          overflow-y: auto;
+          padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .messages-chat {
+          display: none;
+          flex: 1;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+        }
+
+        .messages-chat-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+          padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+        }
+
+        .messages-chat-back {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 40px;
+          height: 40px;
+          border: 1px solid #444;
+          border-radius: 12px;
+          background: #252525;
+          color: #fff;
+          font-size: 27px;
+          cursor: pointer;
+        }
+
+        .messages-chat-name {
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+
+        .messages-history {
+          flex: 1;
+          min-height: 0;
+          max-height: none;
+          overflow-y: auto;
+        }
+
+        .messages-compose {
+          flex-shrink: 0;
+          padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+
+        .messages-compose textarea {
+          min-height: 56px;
+          max-height: 120px;
+          resize: none;
+        }
+
+        .messages-search-form {
+          flex-shrink: 0;
+          padding: 10px 12px;
+          background: #151515;
+        }
+
+        .messages-search-form button {
+          padding: 12px;
+        }
+      }
+
+      @media (min-width: 651px) {
+        .messages-chat-back {
+          display: none;
+        }
+      }
+
       }
     `;
     document.head.append(style);
