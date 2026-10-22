@@ -249,13 +249,27 @@
     );
     sidebar.append(conversations);
 
+    
     const chat = createElement("section", "messages-chat");
-    const currentUser = createElement(
-      "div",
-      "messages-chat-header",
+    const currentUser = createElement("div", "messages-chat-header");
+    currentUser.id = "messagesCurrentUser";
+
+    const chatBackButton = createElement("button", "messages-chat-back", "‹");
+    chatBackButton.type = "button";
+    chatBackButton.setAttribute(
+      "aria-label",
+      "Вернуться к списку переписок"
+    );
+
+    const currentUserName = createElement(
+      "span",
+      "messages-chat-name",
       "Выбери пользователя"
     );
-    currentUser.id = "messagesCurrentUser";
+    currentUserName.id = "messagesCurrentUserName";
+
+    currentUser.append(chatBackButton, currentUserName);
+
 
     const status = createElement("div", "messages-status");
     status.id = "messagesStatus";
