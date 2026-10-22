@@ -644,21 +644,28 @@ body.menu-open {
    ЛИЧНЫЕ СООБЩЕНИЯ Y-FETISH LIVE
    ========================================== */
 
+
 #messagesButton {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
-  padding: 8px;
-  border: 1px solid #444;
-  border-radius: 10px;
-  background: #202020;
-  color: #fff;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid #383838;
+  border-radius: 50%;
+  background: #111;
+  color: #e5222e;
   font-size: 21px;
+  text-decoration: none;
+  box-sizing: border-box;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
+
 
 #messagesButton[hidden],
 #messagesModal[hidden],
