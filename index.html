@@ -210,14 +210,21 @@
 /* Личные сообщения */
 #messagesButton {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   width: 42px;
   height: 42px;
-  border: 1px solid #555;
+  min-width: 42px;
+  padding: 0;
+  border: 1px solid #383838;
   border-radius: 50%;
-  background: #292929;
-  color: #fff;
+  background: #111;
+  color: #e5222e;
   font-size: 21px;
   cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 #messagesButton:hover {
