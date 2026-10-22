@@ -440,9 +440,11 @@
   image.style.display = "block";
   image.style.width = "auto";
   image.style.height = "auto";
-  image.style.maxWidth = "min(220px, 65vw)";
-  image.style.maxHeight = "220px";
-  image.style.objectFit = "contain";
+  image.style.width = "90px";
+  image.style.height = "90px";
+  image.style.maxWidth = "90px";
+  image.style.maxHeight = "90px";
+  image.style.objectFit = "cover";
   image.style.borderRadius = "10px";
   image.style.cursor = "zoom-in";
 
@@ -491,10 +493,11 @@
         video.className = "messages-media-video";
         video.style.display = "block";
         video.style.width = "100%";
-        video.style.maxWidth = "min(260px, 75vw)";
-        video.style.maxHeight = "300px";
-        video.style.height = "auto";
-        video.style.objectFit = "contain";
+        video.style.display = "block";
+        video.style.width = "120px";
+        video.style.height = "100px";
+        video.style.maxWidth = "75vw";
+        video.style.objectFit = "cover";
         video.style.borderRadius = "10px";
         body.append(video);
       }
