@@ -1251,6 +1251,23 @@
     topupButton.addEventListener("click", () => {
       location.href = "/coins.html";
     });
+    
+    // Только кнопка меню
+const menuButton = document.getElementById("menuButton");
+const siteMenu = document.getElementById("siteMenu");
+
+menuButton.addEventListener("click", (event) => {
+  event.stopPropagation();
+  siteMenu.hidden = !siteMenu.hidden;
+});
+
+siteMenu.addEventListener("click", (event) => {
+  event.stopPropagation();
+});
+
+document.addEventListener("click", () => {
+  siteMenu.hidden = true;
+});
 
     profileDetailsButton.addEventListener("click", () => {
       profileDetails.hidden = !profileDetails.hidden;
