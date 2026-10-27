@@ -169,6 +169,49 @@
 }
 
 
+#homeButton {
+  position: absolute;
+  top: 112px;
+  right: 12px;
+  z-index: 125;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid #383838;
+  border-radius: 50%;
+  background: #111;
+  color: #ff69b4;
+  text-decoration: none;
+  box-shadow: 0 3px 12px rgba(0,0,0,.25);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#homeButton svg {
+  width: 23px;
+  height: 23px;
+}
+
+#homeButton:active {
+  transform: scale(.96);
+}
+
+@media (max-width: 800px) {
+  body.studio-active #homeButton {
+    position: fixed;
+    top: calc(124px + env(safe-area-inset-top, 0px));
+    right: 14px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+
     
 
     #cameraButton svg,
@@ -671,6 +714,21 @@
             <option value="pink">🩷 Pink</option>
           </select>
         </div>
+        
+        
+        
+        <a id="homeButton" href="/index.html"
+           aria-label="Домой" title="Домой">
+          <svg viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.2"
+               stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="m3 10 9-7 9 7"/>
+            <path d="M5 9v12h14V9"/>
+            <path d="M9 21v-7h6v7"/>
+          </svg>
+        </a>
+
 
         <div class="camera-controls">
          
