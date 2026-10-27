@@ -1291,28 +1291,33 @@
 
     updateAccountDisplay();
 
-    // Управление существующей кнопкой-бургером
-    const menuButton = document.getElementById("menuButton");
-    const siteMenu = document.getElementById("siteMenu");
+    // Управление кнопкой меню с тремя полосками
+const menuButton = document.getElementById("menuButton");
+const siteMenu = document.getElementById("siteMenu");
 
-    if (menuButton && siteMenu) {
-      menuButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        siteMenu.hidden = !siteMenu.hidden;
-      });
+if (menuButton && siteMenu) {
+  menuButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    siteMenu.hidden = !siteMenu.hidden;
+  });
 
-      siteMenu.addEventListener("click", (event) => {
-        event.stopPropagation();
+  siteMenu.addEventListener("click", (event) => {
+    event.stopPropagation();
 
-        if (event.target.closest("a")) {
-          siteMenu.hidden = true;
-        }
-      });
-
-      document.addEventListener("click", () => {
-        siteMenu.hidden = true;
-      });
+    if (event.target.closest("a")) {
+      siteMenu.hidden = true;
     }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (
+      !event.target.closest("#siteMenu") &&
+      !event.target.closest("#menuButton")
+    ) {
+      siteMenu.hidden = true;
+    }
+  });
+}
 
     // Фильтр стран и сортировка топа
     const countryButton = document.getElementById("countryButton");
