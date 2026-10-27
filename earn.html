@@ -1,0 +1,708 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090909">
+  <title>Зарабатывай больше — Y-FETISH LIVE</title>
+
+  <style>
+    :root {
+      --bg: #090909;
+      --panel: #141414;
+      --panel-hover: #1b1b1b;
+      --red: #ff263e;
+      --red-dark: #d91430;
+      --white: #ffffff;
+      --muted: #a5a5a5;
+      --border: #292929;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--white);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Arial, sans-serif;
+      min-height: 100vh;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(9, 9, 9, 0.94);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 15px 20px;
+    }
+
+    .header-inner {
+      max-width: 1050px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .logo {
+      font-size: 23px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      white-space: nowrap;
+    }
+
+    .logo-y {
+      color: var(--red);
+    }
+
+    .logo-name {
+      color: var(--white);
+    }
+
+    .logo-live {
+      color: var(--red);
+      font-size: 11px;
+      letter-spacing: 1px;
+      margin-left: 5px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #e6e6e6;
+      font-size: 13px;
+      font-weight: 650;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: 0.2s;
+    }
+
+    .back-link:hover {
+      border-color: var(--red);
+      color: var(--white);
+    }
+
+    .container {
+      max-width: 1050px;
+      margin: auto;
+      padding: 30px 20px 60px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 43px 28px;
+      border: 1px solid #362025;
+      border-radius: 24px;
+      background:
+        radial-gradient(ellipse at 100% 0%,
+          rgba(255, 38, 62, 0.18), transparent 48%),
+        linear-gradient(135deg, #171010, #101010 65%);
+    }
+
+    .hero::after {
+      content: "Y";
+      position: absolute;
+      right: 24px;
+      top: -55px;
+      font-size: 260px;
+      line-height: 1;
+      font-weight: 1000;
+      color: rgba(255, 38, 62, 0.045);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #ff6374;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.7px;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      box-shadow: 0 0 12px rgba(255, 38, 62, 0.7);
+    }
+
+    h1 {
+      position: relative;
+      z-index: 1;
+      margin: 17px 0 13px;
+      max-width: 600px;
+      font-size: clamp(34px, 6vw, 58px);
+      font-weight: 900;
+      line-height: 1.04;
+      letter-spacing: -1.8px;
+    }
+
+    h1 span {
+      color: var(--red);
+    }
+
+    .hero-description {
+      position: relative;
+      z-index: 1;
+      max-width: 490px;
+      margin: 0;
+      color: #b9b9b9;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 11px;
+      margin-top: 26px;
+    }
+
+    .button-primary,
+    .button-secondary {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      gap: 9px;
+      min-height: 47px;
+      padding: 13px 20px;
+      border-radius: 13px;
+      font-size: 14px;
+      font-weight: 800;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .button-primary {
+      color: white;
+      background: var(--red);
+      border: 1px solid var(--red);
+      box-shadow: 0 6px 24px rgba(255, 38, 62, 0.17);
+    }
+
+    .button-primary:hover {
+      background: var(--red-dark);
+      transform: translateY(-2px);
+    }
+
+    .button-secondary {
+      color: white;
+      background: #191919;
+      border: 1px solid #353535;
+    }
+
+    .button-secondary:hover {
+      background: #252525;
+    }
+
+    .section {
+      margin-top: 38px;
+    }
+
+    .section-heading {
+      margin-bottom: 19px;
+    }
+
+    .section-heading h2 {
+      margin: 0 0 8px;
+      font-size: 23px;
+      font-weight: 850;
+      letter-spacing: -0.5px;
+    }
+
+    .section-heading p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 19px;
+      background: var(--panel);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: #63303a;
+      transform: translateY(-2px);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 17px;
+    }
+
+    .icon-box {
+      display: flex;
+      flex: 0 0 49px;
+      width: 49px;
+      height: 49px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 15px;
+      background: rgba(255, 38, 62, 0.1);
+      border: 1px solid rgba(255, 38, 62, 0.16);
+      color: #ff4b60;
+    }
+
+    .icon-box svg {
+      width: 25px;
+      height: 25px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .card p {
+      margin: 0;
+      color: #ababab;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .tips {
+      display: grid;
+      gap: 12px;
+    }
+
+    .tip {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 17px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: #111111;
+    }
+
+    .tip-number {
+      display: flex;
+      flex: 0 0 34px;
+      width: 34px;
+      height: 34px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 11px;
+      color: #ff596c;
+      background: rgba(255, 38, 62, 0.11);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .tip h3 {
+      margin: 1px 0 6px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .tip p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .money-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 25px;
+      border: 1px solid #432128;
+      border-radius: 20px;
+      background: linear-gradient(120deg, #1a1012, #121212);
+    }
+
+    .money-panel h2 {
+      margin: 0 0 8px;
+      font-size: 21px;
+    }
+
+    .money-panel p {
+      max-width: 540px;
+      margin: 0;
+      color: #b0b0b0;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .money-icon {
+      display: flex;
+      flex: 0 0 58px;
+      width: 58px;
+      height: 58px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      background: rgba(255, 38, 62, 0.12);
+      color: var(--red);
+    }
+
+    .money-icon svg {
+      width: 31px;
+      height: 31px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .footer {
+      margin-top: 38px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      color: #777;
+      font-size: 12px;
+    }
+
+    .footer-brand {
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .footer-brand span {
+      color: var(--red);
+    }
+
+    @media (max-width: 600px) {
+      .header {
+        padding: 13px 15px;
+      }
+
+      .logo {
+        font-size: 19px;
+      }
+
+      .back-link {
+        padding: 9px 10px;
+        font-size: 12px;
+      }
+
+      .container {
+        padding: 20px 14px 38px;
+      }
+
+      .hero {
+        padding: 31px 20px;
+        border-radius: 20px;
+      }
+
+      .hero::after {
+        right: -6px;
+        top: -20px;
+        font-size: 170px;
+      }
+
+      h1 {
+        font-size: 38px;
+        letter-spacing: -1.2px;
+      }
+
+      .hero-description {
+        font-size: 14px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .hero-actions a {
+        width: 100%;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+        gap: 11px;
+      }
+
+      .card {
+        padding: 19px;
+      }
+
+      .section {
+        margin-top: 30px;
+      }
+
+      .section-heading h2 {
+        font-size: 21px;
+      }
+
+      .money-panel {
+        padding: 19px;
+      }
+
+      .money-panel h2 {
+        font-size: 19px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="index.html" aria-label="Y-FETISH LIVE — главная">
+        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span><span class="logo-live">LIVE</span>
+      </a>
+
+      <a class="back-link" href="index.html">
+        <span aria-hidden="true">←</span>
+        На главную
+      </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        ТВОИ ВОЗМОЖНОСТИ
+      </div>
+
+      <h1>Зарабатывай<br><span>больше!</span></h1>
+
+      <p class="hero-description">
+        Создавай эфиры, общайся со зрителями, получай подарки
+        и развивай свою аудиторию на Y-FETISH LIVE.
+      </p>
+
+      <div class="hero-actions">
+        <a class="button-primary" href="host.html">
+          <span aria-hidden="true">▶</span>
+          Начать эфир
+        </a>
+
+        <a class="button-secondary" href="withdraw.html">
+          <span aria-hidden="true">↗</span>
+          Мой заработок
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <h2>Как увеличить доход</h2>
+        <p>Используй возможности платформы, чтобы развивать свой профиль.</p>
+      </div>
+
+      <div class="cards">
+        <article class="card">
+          <div class="card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>
+              </svg>
+            </div>
+            <h3>Подарки зрителей</h3>
+          </div>
+          <p>
+            Общайся с аудиторией и создавай интересные эфиры.
+            Зрители могут отправлять виртуальные подарки,
+            которые учитываются в системе заработка платформы.
+          </p>
+        </article>
+
+        <article class="card">
+          <div class="card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 22c4 0 7-3 7-7 0-2.5-1.5-4.5-3.5-6-.2 2-1.3 3-2.5 3-1-4-3-7-6-9 0 4-1 6-2.5 8.5A8 8 0 0 0 12 22Z"/>
+              </svg>
+            </div>
+            <h3>Регулярные эфиры</h3>
+          </div>
+          <p>
+            Выходи в эфир регулярно, выбирай удобное расписание
+            и поддерживай контакт с постоянными зрителями.
+            Так аудитории будет проще возвращаться к тебе.
+          </p>
+        </article>
+
+        <article class="card">
+          <div class="card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3l7 2"/>
+                <path d="M16 3h3a2 2 0 0 1 2 2v3l-7 2"/>
+                <path d="m12 8 2.5 5h-5L12 8Z"/>
+                <path d="m10 13-2 8 4-2 4 2-2-8"/>
+              </svg>
+            </div>
+            <h3>Баттлы</h3>
+          </div>
+          <p>
+            Используй баттлы, чтобы добавить соревнование в эфир,
+            привлечь внимание зрителей и сделать трансляцию
+            более интерактивной.
+          </p>
+        </article>
+
+        <article class="card">
+          <div class="card-top">
+            <div class="icon-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="3"/>
+                <path d="M3 10h18"/>
+                <path d="M7 15h3"/>
+              </svg>
+            </div>
+            <h3>Развивай профиль</h3>
+          </div>
+          <p>
+            Добавь информацию о себе, выбери хорошее фото профиля,
+            общайся с подписчиками и рассказывай им,
+            когда планируешь следующий эфир.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-heading">
+        <h2>5 советов для ведущего</h2>
+        <p>Простые действия, которые помогут улучшить эфиры.</p>
+      </div>
+
+      <div class="tips">
+        <article class="tip">
+          <div class="tip-number">01</div>
+          <div>
+            <h3>Подготовь эфир заранее</h3>
+            <p>Проверь камеру, звук, освещение и интернет перед началом трансляции.</p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">02</div>
+          <div>
+            <h3>Общайся со зрителями</h3>
+            <p>Приветствуй новых гостей, отвечай на сообщения и поддерживай живой диалог.</p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">03</div>
+          <div>
+            <h3>Найди своё расписание</h3>
+            <p>Регулярные трансляции помогают зрителям привыкнуть к твоему времени выхода в эфир.</p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">04</div>
+          <div>
+            <h3>Создавай интересный контент</h3>
+            <p>Придумывай темы, общайся с аудиторией и пробуй новые форматы трансляций.</p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">05</div>
+          <div>
+            <h3>Следи за заработком</h3>
+            <p>Проверяй баланс, историю начислений и условия вывода средств в своём аккаунте.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="money-panel">
+        <div>
+          <h2>Твой заработок — под контролем</h2>
+          <p>
+            Следи за балансом, проверяй начисления и переходи
+            к странице вывода средств. Фактические суммы и
+            доступность вывода определяются данными твоего аккаунта.
+          </p>
+
+          <div style="margin-top: 18px;">
+            <a class="button-primary" href="withdraw.html">
+              Перейти к выводу средств →
+            </a>
+          </div>
+        </div>
+
+        <div class="money-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="5" width="18" height="14" rx="3"/>
+            <path d="M16 12h.01"/>
+            <path d="M3 10h18"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a class="footer-brand" href="index.html">
+        <span>Y</span>-FETISH LIVE
+      </a>
+      <span>Твой эфир. Твоя аудитория. Твои возможности.</span>
+    </footer>
+  </main>
+</body>
+</html>
