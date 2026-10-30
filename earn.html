@@ -79,12 +79,20 @@
       color: var(--white);
     }
 
-    .logo-live {
-      color: var(--red);
-      font-size: 11px;
-      letter-spacing: 1px;
-      margin-left: 5px;
-    }
+ .logo-live {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--red);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  margin-left: 6px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  line-height: 1;
+}
 
     .back-link {
       display: inline-flex;
@@ -698,9 +706,9 @@
     </section>
 
     <footer class="footer">
-      <a class="footer-brand" href="/">
-        <span>Y</span>-FETISH LIVE
-      </a>
+<a class="footer-brand" href="/">
+  <span>Y</span>-FETISH <span class="logo-live">LIVE</span>
+</a>
       <span>Твой эфир. Твоя аудитория. Твои возможности.</span>
     </footer>
   </main>
