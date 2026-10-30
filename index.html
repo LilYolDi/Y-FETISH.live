@@ -899,32 +899,52 @@
     
     
     
+/* Боковое меню Y-FETISH LIVE */
 .site-menu {
-  position: absolute;
-  z-index: 9999;
+  position: fixed;
+  z-index: 200002;
   top: 0;
-right: calc(100% + 10px);
-  width: 230px;
-  max-width: calc(100vw - 24px);
-  padding: 8px;
-  background: #171717;
-  border: 1px solid #383838;
-  border-radius: 14px;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5);
+  right: 0;
+  width: min(320px, 85vw);
+  height: 100dvh;
+  padding: 20px 14px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  background: #181818;
+  border-left: 1px solid #383838;
+  border-radius: 0;
+  box-shadow: -10px 0 35px rgba(0, 0, 0, .45);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform .28s ease, visibility .28s ease;
+  overflow-y: auto;
+}
+
+.site-menu.open {
+  transform: translateX(0);
+  visibility: visible;
 }
 
 .site-menu a {
   display: block;
-  padding: 13px 14px;
+  padding: 16px 14px;
+  margin-bottom: 5px;
   border-radius: 9px;
   color: #fff;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .site-menu a:hover {
   background: #303030;
+}
+
+/* Затемнение страницы */
+#menuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200001;
+  background: rgba(0, 0, 0, .65);
 }
 
   </style>
@@ -1019,13 +1039,29 @@ right: calc(100% + 10px);
   </svg>
 </button>
 
-<nav id="siteMenu" class="site-menu" hidden>
-  <a href="/index.html">Главная</a>
-  <a href="/live.html">Прямые эфиры</a>
-  <a href="/host.html">Начать эфир</a>
-  <a href="/earn.html">КАК ЗАРАБАТЫВАТЬ ЕЩЕ БОЛЬШЕ</a>
-  <a href="/verification.html">КАК ВЕРЕФИЦЫРОВАТЬ ПРОФИЛЬ</a>
-  <a href="/contact.html">СВЯЗАТЬСЯ С НАМИ</a>
+<div id="menuOverlay" hidden></div>
+
+<nav id="siteMenu" class="site-menu" aria-hidden="true">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 10px 20px;border-bottom:1px solid #333;margin-bottom:12px;">
+    <div class="logo">
+      <span class="logo-y">Y</span><span class="logo-name">FETISH</span>
+      <span class="logo-live">LIVE</span>
+    </div>
+
+    <button
+      id="closeMenuButton"
+      type="button"
+      aria-label="Закрыть меню"
+      style="background:none;border:0;color:#fff;font-size:30px;cursor:pointer;"
+    >×</button>
+  </div>
+
+  <a href="/index.html">🏠 Главная</a>
+  <a href="/live.html">📺 Прямые эфиры</a>
+  <a href="/host.html">🎥 Начать эфир</a>
+  <a href="/earn.html">💰 Как зарабатывать ещё больше</a>
+  <a href="/verification.html">✓ Верификация профиля</a>
+  <a href="/contact.html">✉ Связаться с нами</a>
 </nav>
 
         <section class="account-panel" id="accountPanel" hidden>
@@ -1329,33 +1365,48 @@ right: calc(100% + 10px);
 
     updateAccountDisplay();
 
-    // Управление кнопкой меню с тремя полосками
+// Управление боковым меню
 const menuButton = document.getElementById("menuButton");
 const siteMenu = document.getElementById("siteMenu");
+const menuOverlay = document.getElementById("menuOverlay");
+const closeMenuButton = document.getElementById("closeMenuButton");
 
-if (menuButton && siteMenu) {
-  menuButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    siteMenu.hidden = !siteMenu.hidden;
-  });
-
-  siteMenu.addEventListener("click", (event) => {
-    event.stopPropagation();
-
-    if (event.target.closest("a")) {
-      siteMenu.hidden = true;
-    }
-  });
-
-  document.addEventListener("click", (event) => {
-    if (
-      !event.target.closest("#siteMenu") &&
-      !event.target.closest("#menuButton")
-    ) {
-      siteMenu.hidden = true;
-    }
-  });
+function openSiteMenu() {
+  siteMenu.classList.add("open");
+  siteMenu.setAttribute("aria-hidden", "false");
+  menuOverlay.hidden = false;
+  menuButton.setAttribute("aria-expanded", "true");
+  document.body.style.overflow = "hidden";
 }
+
+function closeSiteMenu() {
+  siteMenu.classList.remove("open");
+  siteMenu.setAttribute("aria-hidden", "true");
+  menuOverlay.hidden = true;
+  menuButton.setAttribute("aria-expanded", "false");
+  document.body.style.overflow = "";
+}
+
+menuButton.addEventListener("click", () => {
+  if (siteMenu.classList.contains("open")) {
+    closeSiteMenu();
+  } else {
+    openSiteMenu();
+  }
+});
+
+closeMenuButton.addEventListener("click", closeSiteMenu);
+menuOverlay.addEventListener("click", closeSiteMenu);
+
+siteMenu.querySelectorAll("a").forEach(link => {
+  link.addEventListener("click", closeSiteMenu);
+});
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    closeSiteMenu();
+  }
+});
 
     // Фильтр стран и сортировка топа
     const countryButton = document.getElementById("countryButton");
