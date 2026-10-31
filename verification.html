@@ -37,33 +37,43 @@
     }
 
     .header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(9, 9, 9, .94);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border);
-      padding: 15px 20px;
-    }
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 14px 18px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  }
 
     .header-inner {
-      max-width: 1050px;
-      margin: auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-    }
+  width: 100%;
+  max-width: none;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  }
 
     .logo {
-      font-size: 23px;
-      font-weight: 900;
-      letter-spacing: -1px;
-      white-space: nowrap;
-    }
-
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -1px;
+  white-space: nowrap;
+}
+    
 .logo-y {
-  color: var(--red);
+  color: #ff3038;
+  font-weight: 900;
+}
+
+.logo-name {
+  color: #fff;
+  font-weight: 900;
 }
 
 .logo-live {
@@ -408,8 +418,13 @@
      }.
 
     @media (max-width: 600px) {
-      .header { padding: 13px 15px; }
-      .logo { font-size: 19px; }
+       .header { padding: 12px; }
+.logo { font-size: 21px; }
+.logo-live {
+  font-size: 12px;
+  padding: 3px 6px;
+  margin-left: 5px;
+}
       .back-link { padding: 9px 10px; font-size: 12px; }
       .container { padding: 20px 14px 38px; }
       .hero { padding: 31px 20px; border-radius: 20px; }
@@ -432,8 +447,8 @@
       }
     }
     @media (max-width: 370px) {
-    .logo-live {
-    font-size: 11px;
+    .logo {
+    font-size: 19px;
     padding: 3px 5px;
     margin-left: 4px;
   }
@@ -444,7 +459,7 @@
   <header class="header">
     <div class="header-inner">
       <a class="logo" href="/" aria-label="Y-FETISH LIVE — главная">
-        <span class="logo-y">Y</span><span>-FETISH</span><span class="logo-live">LIVE</span>
+        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span><span class="logo-live">LIVE</span>
       </a>
       <a class="back-link" href="/"><span aria-hidden="true">←</span> На главную</a>
     </div>
