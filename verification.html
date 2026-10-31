@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#090909">
   <meta name="description" content="Как подготовить профиль Y-FETISH LIVE к верификации и получить красную галочку.">
   <title>Верификация профиля — Y-FETISH LIVE</title>
+
   <style>
     :root {
       --bg: #090909;
@@ -18,9 +19,13 @@
       --border: #292929;
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-    html { scroll-behavior: smooth; }
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
       margin: 0;
@@ -37,55 +42,56 @@
     }
 
     .header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  padding: 14px 18px;
-  background: #1a1a1a;
-  border-bottom: 1px solid #333;
-  }
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 14px 18px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+    }
 
     .header-inner {
-  width: 100%;
-  max-width: none;
-  margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  }
+      width: 100%;
+      max-width: none;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
 
+    /* Логотип как на index.html */
     .logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  font-family: "Arial Rounded MT Bold", Arial, sans-serif;
-  font-size: 25px;
-  font-weight: 900;
-  letter-spacing: -1px;
-  white-space: nowrap;
-}
-    
-.logo-y {
-  color: #ff3038;
-  font-weight: 900;
-}
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+      font-size: 25px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      white-space: nowrap;
+    }
 
-.logo-name {
-  color: #fff;
-  font-weight: 900;
-}
+    .logo-y {
+      color: #ff3038;
+      font-weight: 900;
+    }
 
-.logo-live {
-  margin-left: 7px;
-  padding: 4px 8px;
-  border-radius: 7px;
-  background: #ff3038;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .3px;
-}
+    .logo-name {
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .logo-live {
+      margin-left: 7px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: #ff3038;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
 
     .back-link {
       display: inline-flex;
@@ -413,69 +419,143 @@
     .footer-brand span {
       color: var(--red);
     }
+
     .footer-brand .logo-live {
-     color: #fff;
-     }.
+      color: #fff;
+    }
 
     @media (max-width: 600px) {
-       .header { padding: 12px; }
-.logo { font-size: 21px; }
-.logo-live {
-  font-size: 12px;
-  padding: 3px 6px;
-  margin-left: 5px;
-}
-      .back-link { padding: 9px 10px; font-size: 12px; }
-      .container { padding: 20px 14px 38px; }
-      .hero { padding: 31px 20px; border-radius: 20px; }
-      .hero::after { right: -6px; top: -20px; font-size: 170px; }
-      h1 { font-size: 38px; letter-spacing: -1.2px; }
-      .hero-description { font-size: 14px; }
-      .hero-actions { flex-direction: column; }
-      .hero-actions a { width: 100%; }
-      .cards { grid-template-columns: 1fr; gap: 11px; }
-      .card { padding: 19px; }
-      .section { margin-top: 30px; }
-      .section-heading h2 { font-size: 21px; }
-      .notice { padding: 19px; }
+      .header {
+        padding: 12px;
+      }
+
+      .logo {
+        font-size: 21px;
+      }
+
+      .logo-live {
+        font-size: 12px;
+        padding: 3px 6px;
+        margin-left: 5px;
+      }
+
+      .back-link {
+        padding: 9px 10px;
+        font-size: 12px;
+      }
+
+      .container {
+        padding: 20px 14px 38px;
+      }
+
+      .hero {
+        padding: 31px 20px;
+        border-radius: 20px;
+      }
+
+      .hero::after {
+        right: -6px;
+        top: -20px;
+        font-size: 170px;
+      }
+
+      h1 {
+        font-size: 38px;
+        letter-spacing: -1.2px;
+      }
+
+      .hero-description {
+        font-size: 14px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .hero-actions a {
+        width: 100%;
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+        gap: 11px;
+      }
+
+      .card {
+        padding: 19px;
+      }
+
+      .section {
+        margin-top: 30px;
+      }
+
+      .section-heading h2 {
+        font-size: 21px;
+      }
+
+      .notice {
+        padding: 19px;
+      }
+    }
+
+    @media (max-width: 370px) {
+      .logo {
+        font-size: 19px;
+      }
+
+      .logo-live {
+        font-size: 11px;
+        padding: 3px 5px;
+        margin-left: 4px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
+      *,
+      *::before,
+      *::after {
         scroll-behavior: auto !important;
         transition: none !important;
       }
     }
-    @media (max-width: 370px) {
-    .logo {
-    font-size: 19px;
-    padding: 3px 5px;
-    margin-left: 4px;
-  }
-}
   </style>
 </head>
+
 <body>
+
   <header class="header">
     <div class="header-inner">
-      <a class="logo" href="/" aria-label="Y-FETISH LIVE — главная">
-        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span><span class="logo-live">LIVE</span>
+
+      <a class="logo" href="/index.html" aria-label="Y-FETISH LIVE — главная">
+        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span>
+        <span class="logo-live">LIVE</span>
       </a>
-      <a class="back-link" href="/"><span aria-hidden="true">←</span> На главную</a>
+
+      <a class="back-link" href="/index.html">
+        <span aria-hidden="true">←</span> Назад
+      </a>
+
     </div>
   </header>
 
   <main class="container">
+
     <section class="hero">
-      <div class="eyebrow"><span class="eyebrow-dot"></span> ПОДТВЕРЖДЕНИЕ ПРОФИЛЯ</div>
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        ПОДТВЕРЖДЕНИЕ ПРОФИЛЯ
+      </div>
+
       <h1>Получи красную<br><span>галочку!</span></h1>
+
       <p class="hero-description">
         Верификация помогает зрителям отличать подтверждённый профиль от чужих страниц.
         Подготовь свой аккаунт и ознакомься с порядком подачи заявки.
       </p>
+
       <div class="hero-actions">
         <a class="button-primary" href="/login.html">Войти в аккаунт →</a>
-        <a class="button-secondary" href="/">Вернуться на главную</a>
+        <a class="button-secondary" href="/index.html">Вернуться на главную</a>
       </div>
     </section>
 
@@ -484,17 +564,37 @@
         <h2>Что означает красная галочка?</h2>
         <p>Значок должен показывать, что профиль прошёл проверку администрацией платформы.</p>
       </div>
+
       <div class="cards">
+
         <article class="card">
-          <div class="card-top"><div class="icon-box">✓</div><h3>Подтверждённый профиль</h3></div>
-          <p>После проверки администрация может подтвердить, что профиль принадлежит заявленному пользователю. Галочка не заменяет правила безопасности сайта.</p>
+          <div class="card-top">
+            <div class="icon-box">✓</div>
+            <h3>Подтверждённый профиль</h3>
+          </div>
+          <p>
+            После проверки администрация может подтвердить, что профиль принадлежит
+            заявленному пользователю. Галочка не заменяет правила безопасности сайта.
+          </p>
         </article>
+
         <article class="card">
-          <div class="card-top"><div class="icon-box">◆</div><h3>Доверие аудитории</h3></div>
-          <p>Заполненная страница, узнаваемое фото и постоянная активность помогают зрителям понять, что профиль ведётся самим владельцем.</p>
+          <div class="card-top">
+            <div class="icon-box">◆</div>
+            <h3>Доверие аудитории</h3>
+          </div>
+          <p>
+            Заполненная страница, узнаваемое фото и постоянная активность помогают
+            зрителям понять, что профиль ведётся самим владельцем.
+          </p>
         </article>
+
       </div>
-      <div class="badge-demo"><span class="verified-mark" aria-hidden="true">✓</span> Пример красной галочки</div>
+
+      <div class="badge-demo">
+        <span class="verified-mark" aria-hidden="true">✓</span>
+        Пример красной галочки
+      </div>
     </section>
 
     <section class="section">
@@ -502,29 +602,99 @@
         <h2>Как подготовить профиль</h2>
         <p>Перед обращением проверь эти пункты.</p>
       </div>
+
       <div class="tips">
-        <article class="tip"><div class="tip-number">01</div><div><h3>Заполни информацию о себе</h3><p>Укажи понятное имя профиля и добавь актуальное описание без чужих ссылок и вводящих в заблуждение данных.</p></div></article>
-        <article class="tip"><div class="tip-number">02</div><div><h3>Добавь своё фото</h3><p>Используй изображение, которое помогает узнать именно твой профиль. Не выдавай себя за другого человека или публичную личность.</p></div></article>
-        <article class="tip"><div class="tip-number">03</div><div><h3>Поддерживай активность</h3><p>Используй аккаунт добросовестно, соблюдай правила платформы и не создавай профили для имитации чужой личности.</p></div></article>
-        <article class="tip"><div class="tip-number">04</div><div><h3>Подготовь подтверждение личности</h3><p>Если администрация запросит дополнительное подтверждение, отправляй его только через официальный и безопасный канал, когда такой способ будет предоставлен.</p></div></article>
-        <article class="tip"><div class="tip-number">05</div><div><h3>Дождись решения</h3><p>Проверка не означает автоматическое получение галочки. Решение и сроки подтверждает администрация; не плати посредникам за обещанную верификацию.</p></div></article>
+
+        <article class="tip">
+          <div class="tip-number">01</div>
+          <div>
+            <h3>Заполни информацию о себе</h3>
+            <p>
+              Укажи понятное имя профиля и добавь актуальное описание без чужих
+              ссылок и вводящих в заблуждение данных.
+            </p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">02</div>
+          <div>
+            <h3>Добавь своё фото</h3>
+            <p>
+              Используй изображение, которое помогает узнать именно твой профиль.
+              Не выдавай себя за другого человека или публичную личность.
+            </p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">03</div>
+          <div>
+            <h3>Поддерживай активность</h3>
+            <p>
+              Используй аккаунт добросовестно, соблюдай правила платформы и
+              не создавай профили для имитации чужой личности.
+            </p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">04</div>
+          <div>
+            <h3>Подготовь подтверждение личности</h3>
+            <p>
+              Если администрация запросит дополнительное подтверждение, отправляй
+              его только через официальный и безопасный канал, когда такой способ
+              будет предоставлен.
+            </p>
+          </div>
+        </article>
+
+        <article class="tip">
+          <div class="tip-number">05</div>
+          <div>
+            <h3>Дождись решения</h3>
+            <p>
+              Проверка не означает автоматическое получение галочки. Решение и
+              сроки подтверждает администрация; не плати посредникам за обещанную
+              верификацию.
+            </p>
+          </div>
+        </article>
+
       </div>
     </section>
 
     <section class="section">
       <div class="notice">
         <h2>Как подать заявку?</h2>
-        <p><strong>Важно:</strong> на сайте пока может не быть отдельной автоматической формы верификации. Если кнопка подачи заявки отсутствует, обратись к администрации через официальный канал поддержки, если он доступен, и укажи ссылку или имя своего профиля. Не отправляй пароль, коды входа или данные банковской карты. Красная галочка не должна выдаваться за оплату или обещание посредника.</p>
-        <div style="margin-top:18px"><a class="button-primary" href="/login.html">Перейти к аккаунту →</a></div>
+
+        <p>
+          <strong>Важно:</strong> на сайте пока может не быть отдельной автоматической
+          формы верификации. Если кнопка подачи заявки отсутствует, обратись к
+          администрации через официальный канал поддержки, если он доступен, и
+          укажи ссылку или имя своего профиля. Не отправляй пароль, коды входа или
+          данные банковской карты. Красная галочка не должна выдаваться за оплату
+          или обещание посредника.
+        </p>
+
+        <div style="margin-top:18px">
+          <a class="button-primary" href="/login.html">Перейти к аккаунту →</a>
+        </div>
       </div>
     </section>
 
     <footer class="footer">
-      <a class="footer-brand" href="/">
-       <span>Y</span>-FETISH <span class="logo-live">LIVE</span>
+
+      <a class="footer-brand" href="/index.html">
+        <span>Y</span>-FETISH <span class="logo-live">LIVE</span>
       </a>
+
       <span>Твой профиль. Твоя репутация. Твоё доверие.</span>
+
     </footer>
+
   </main>
+
 </body>
 </html>
