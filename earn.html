@@ -5,13 +5,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#090909">
-  <title>Зарабатывай больше — Y-FETISH LIVE</title>
+  <title>Как зарабатывать ещё больше — Y-FETISH LIVE</title>
 
   <style>
     :root {
       --bg: #090909;
       --panel: #141414;
-      --panel-hover: #1b1b1b;
       --red: #ff263e;
       --red-dark: #d91430;
       --white: #ffffff;
@@ -31,18 +30,13 @@
       margin: 0;
       background: var(--bg);
       color: var(--white);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-        Roboto, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
       min-height: 100vh;
     }
 
     a {
       color: inherit;
       text-decoration: none;
-    }
-
-    button {
-      font: inherit;
     }
 
     .header {
@@ -52,7 +46,7 @@
       background: rgba(9, 9, 9, 0.94);
       backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
-      padding: 15px 20px;
+      padding: 14px 18px;
     }
 
     .header-inner {
@@ -64,35 +58,38 @@
       gap: 14px;
     }
 
+    /* Логотип как на index.html */
     .logo {
-      font-size: 23px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      font-family: "Arial Rounded MT Bold", Arial, sans-serif;
+      font-size: 25px;
       font-weight: 900;
       letter-spacing: -1px;
       white-space: nowrap;
     }
 
     .logo-y {
-      color: var(--red);
+      color: #ff3038;
+      font-weight: 900;
     }
 
     .logo-name {
-      color: var(--white);
+      color: #fff;
+      font-weight: 900;
     }
 
- .logo-live {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: var(--red);
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  margin-left: 7px;
-  padding: 4px 7px;
-  border-radius: 7px;
-  line-height: 1;
-}
+    .logo-live {
+      margin-left: 7px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: #ff3038;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
 
     .back-link {
       display: inline-flex;
@@ -109,7 +106,7 @@
 
     .back-link:hover {
       border-color: var(--red);
-      color: var(--white);
+      color: #fff;
     }
 
     .container {
@@ -125,8 +122,7 @@
       border: 1px solid #362025;
       border-radius: 24px;
       background:
-        radial-gradient(ellipse at 100% 0%,
-          rgba(255, 38, 62, 0.18), transparent 48%),
+        radial-gradient(ellipse at 100% 0%, rgba(255, 38, 62, 0.18), transparent 48%),
         linear-gradient(135deg, #171010, #101010 65%);
     }
 
@@ -429,11 +425,17 @@
 
     @media (max-width: 600px) {
       .header {
-        padding: 13px 15px;
+        padding: 12px;
       }
 
       .logo {
-        font-size: 19px;
+        font-size: 21px;
+      }
+
+      .logo-live {
+        font-size: 12px;
+        padding: 3px 6px;
+        margin-left: 5px;
       }
 
       .back-link {
@@ -499,6 +501,18 @@
       }
     }
 
+    @media (max-width: 370px) {
+      .logo {
+        font-size: 19px;
+      }
+
+      .logo-live {
+        font-size: 11px;
+        padding: 3px 5px;
+        margin-left: 4px;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *,
       *::before,
@@ -513,13 +527,14 @@
 <body>
   <header class="header">
     <div class="header-inner">
-      <a class="logo" href="/" aria-label="Y-FETISH LIVE — главная">
-        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span><span class="logo-live">LIVE</span>
+      <a class="logo" href="/index.html" aria-label="Y-FETISH LIVE — главная">
+        <span class="logo-y">Y</span><span class="logo-name">-FETISH</span>
+        <span class="logo-live">LIVE</span>
       </a>
 
-      <a class="back-link" href="/">
+      <a class="back-link" href="/index.html">
         <span aria-hidden="true">←</span>
-        На главную
+        Назад
       </a>
     </div>
   </header>
@@ -539,12 +554,12 @@
       </p>
 
       <div class="hero-actions">
-        <a class="button-primary" href="host.html">
+        <a class="button-primary" href="/host.html">
           <span aria-hidden="true">▶</span>
           Начать эфир
         </a>
 
-        <a class="button-secondary" href="withdraw.html">
+        <a class="button-secondary" href="/withdraw.html">
           <span aria-hidden="true">↗</span>
           Мой заработок
         </a>
@@ -689,7 +704,7 @@
           </p>
 
           <div style="margin-top: 18px;">
-            <a class="button-primary" href="withdraw.html">
+            <a class="button-primary" href="/withdraw.html">
               Перейти к выводу средств →
             </a>
           </div>
@@ -706,9 +721,9 @@
     </section>
 
     <footer class="footer">
-<a class="footer-brand" href="/">
-  <span>Y</span>-FETISH <span class="logo-live">LIVE</span>
-</a>
+      <a class="footer-brand" href="/index.html">
+        <span>Y</span>-FETISH <span class="logo-live">LIVE</span>
+      </a>
       <span>Твой эфир. Твоя аудитория. Твои возможности.</span>
     </footer>
   </main>
